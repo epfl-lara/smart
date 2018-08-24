@@ -11,9 +11,6 @@ trait MethodLifting extends oo.ExtractionPipeline with oo.ExtractionCaches { sel
   val t: oo.Trees
   import s._
 
-  override val phaseName = "methods.MethodLifting"
-  override val debugTransformation = true
-
   // The function cache must consider all direct overrides of the current function.
   // Note that we actually use the set of transitive overrides here as computing
   // the set of direct overrides is significantly more expensive and shouldn't improve

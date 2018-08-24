@@ -66,8 +66,6 @@ package object extraction {
     extends Exception(msg)
 
   def pipeline(implicit ctx: inox.Context): StainlessPipeline = {
-    import utils.PositionChecker
-
     xlang.extractor      andThen
     smartcontracts.extractor  andThen
     methods.extractor    andThen
@@ -89,7 +87,6 @@ package object extraction {
     override val s: extraction.trees.type = extraction.trees
     override val t: to.type = to
     override val context = ctx
-    override val phaseName = "completer"
 
     override val debugTransformation = true
 

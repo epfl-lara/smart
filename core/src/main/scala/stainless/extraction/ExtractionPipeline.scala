@@ -7,14 +7,10 @@ trait ExtractionPipeline { self =>
   val s: extraction.Trees
   val t: ast.Trees
 
-  val phaseName: String
-  // This boolean is `true` for extraction pipelines that should be printed for debugging
-  // It is set to `true` for the basic building blocks of the pipeline, and set 
-  // to `false` when combining components using ̀`andThen`.
-  val debugTransformation: Boolean
-
   implicit val context: inox.Context
   protected implicit def printerOpts: s.PrinterOptions = s.PrinterOptions.fromContext(context)
+  // `targetPrinterOpts` isn't implicit to avoid ambiguous references
+  protected def targetPrinterOpts: t.PrinterOptions = t.PrinterOptions.fromContext(context)
 
   def extract(symbols: s.Symbols): t.Symbols
 
@@ -101,8 +97,6 @@ trait ExtractionPipeline { self =>
     override val s: self.s.type = self.s
     override val t: that.t.type = that.t
     override val context = self.context
-    override val phaseName = self.phaseName + ":" + that.phaseName
-    override val debugTransformation = false
 
     override def extract(symbols: s.Symbols): t.Symbols = {
       that.extractWithDebug(self.extractWithDebug(symbols))
@@ -124,9 +118,6 @@ object ExtractionPipeline {
     override val s: transformer.s.type = transformer.s
     override val t: transformer.t.type = transformer.t
     override val context = ctx
-    override val phaseName = transformer.toString
-
-    override val debugTransformation = true
 
     override def extract(symbols: s.Symbols): t.Symbols =
       symbols.transform(transformer.asInstanceOf[ast.TreeTransformer {
@@ -145,9 +136,6 @@ object ExtractionPipeline {
     override val s: transformer.s.type = transformer.s
     override val t: transformer.t.type = transformer.t
     override val context = ctx
-    override val phaseName = transformer.toString
-
-    override val debugTransformation = true
 
     override def extract(symbols: s.Symbols): t.Symbols = transformer.transform(symbols)
     override def invalidate(id: Identifier): Unit = ()
