@@ -69,3 +69,12 @@ out-classes
 /z3.exe
 /libz3java.dll
 /libz3java.lib
+
+# VSCode
+.vscode
+
+# Solidity files
+*.sol
+
+# misc
+stainlessCmd
