@@ -91,7 +91,7 @@ trait EffectsAnalyzer extends CachingPhase {
 
   // This cache is only valid for that exact set of symbols
   private[this] val effectsCache = new ExtractionCache[Int, FunDef, EffectsAnalysis](
-    (fd, syms) => (fd, syms).hashCode
+    (fd, syms) => (fd, syms.asString(new trees.PrinterOptions(printUniqueIds = true))).hashCode
   )
 
   protected object EffectsAnalysis {
