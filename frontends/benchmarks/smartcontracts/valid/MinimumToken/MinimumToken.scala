@@ -51,15 +51,15 @@ case class MinimumToken (
 
     // proof that the sum of balances stays equal to `total`
     assert((
-      sumBalances(participants, balanceOf)                                             ==| balancesUpdatedLemma(participants, b1, to, b1(to) + amount) | 
-      sumBalances(participants, b1) - b1(to) + (b1(to) + amount)                       ==| trivial |
+      sumBalances(participants, balanceOf)                                             ==| balancesUpdatedLemma(participants, b1, to, b1(to) + amount) |:
+      sumBalances(participants, b1) - b1(to) + (b1(to) + amount)                       ==| trivial |:
       sumBalances(participants, b1) + amount                                           ==| 
         (balancesUpdatedLemma(participants, b0, from, b0(from) - amount) && 
         sumBalances(participants, b1) == sumBalances(participants, b0) - b0(from) + (b0(from) - amount))
-        |
-      sumBalances(participants, b0) - b0(from) + (b0(from) - amount) + amount         ==| ((b0(from) - amount) + amount == b0(from)) |
-      sumBalances(participants, b0) - b0(from) + b0(from)                             ==| trivial |
-      sumBalances(participants, b0)                                                   ==| trivial |
+        |:
+      sumBalances(participants, b0) - b0(from) + (b0(from) - amount) + amount         ==| ((b0(from) - amount) + amount == b0(from)) |:
+      sumBalances(participants, b0) - b0(from) + b0(from)                             ==| trivial |:
+      sumBalances(participants, b0)                                                   ==| trivial |:
       total
     ).qed)
 

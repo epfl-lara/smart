@@ -52,18 +52,18 @@ object VotingTokenLemmas {
       participants match {
         case Cons(x, xs) if (x == to) => 
         (
-          sumBalances(participants, b1)                                   ==| trivial |
-          sumBalances(xs, b1) + b1(x)                                     ==| balancesUnchangedLemma(xs, balances, to, newBalance) |
-          sumBalances(xs, balances) + b1(x)                               ==| trivial |
-          sumBalances(xs, balances) + newBalance                          ==| trivial |
+          sumBalances(participants, b1)                                   ==| trivial |:
+          sumBalances(xs, b1) + b1(x)                                     ==| balancesUnchangedLemma(xs, balances, to, newBalance) |:
+          sumBalances(xs, balances) + b1(x)                               ==| trivial |:
+          sumBalances(xs, balances) + newBalance                          ==| trivial |:
           sumBalances(participants, balances) - balances(to) + newBalance
         ) qed
         case Cons(x, xs) =>
         (
-          sumBalances(participants, b1)                                           ==| trivial |
-          sumBalances(xs, b1) + b1(x)                                             ==| balancesUpdatedLemma(xs, balances, to, newBalance) |
-          sumBalances(xs, balances) - balances(to) + newBalance + b1(x)           ==| (b1(x) == balances(x)) |
-          sumBalances(xs, balances) + balances(x) - balances(to) + newBalance     ==| trivial |
+          sumBalances(participants, b1)                                           ==| trivial |:
+          sumBalances(xs, b1) + b1(x)                                             ==| balancesUpdatedLemma(xs, balances, to, newBalance) |:
+          sumBalances(xs, balances) - balances(to) + newBalance + b1(x)           ==| (b1(x) == balances(x)) |:
+          sumBalances(xs, balances) + balances(x) - balances(to) + newBalance     ==| trivial |:
           sumBalances(participants, balances) - balances(to) + newBalance
         ) qed
       }

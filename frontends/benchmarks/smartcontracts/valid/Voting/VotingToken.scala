@@ -78,16 +78,16 @@ case class VotingToken(
     balances(_to) = add(balances(_to), _value)
 
     assert((
-      sumBalances(participants, balances)                                                       ==| balancesUpdatedLemma(participants, b1, _to, add(b1(_to), _value)) | 
-      sumBalances(participants, b1) - b1(_to) + add(b1(_to), _value)                            ==| subSwap(sumBalances(participants,b1), b1(_to), add(b1(_to), _value), _value) |
+      sumBalances(participants, balances)                                                       ==| balancesUpdatedLemma(participants, b1, _to, add(b1(_to), _value)) |:
+      sumBalances(participants, b1) - b1(_to) + add(b1(_to), _value)                            ==| subSwap(sumBalances(participants,b1), b1(_to), add(b1(_to), _value), _value) |:
       sumBalances(participants, b1) + _value                                                    ==| 
         (balancesUpdatedLemma(participants, b0, Msg.sender, sub(b0(Msg.sender), _value)) && 
         sumBalances(participants, b1) == sumBalances(participants, b0) - b0(Msg.sender) + sub(b0(Msg.sender), _value)) 
-        |
-      sumBalances(participants, b0) - b0(Msg.sender) + sub(b0(Msg.sender), _value) + _value     ==| trivial |
-      sumBalances(participants, b0) - b0(Msg.sender) + (sub(b0(Msg.sender), _value) + _value)   ==| (sub(b0(Msg.sender), _value) + _value == b0(Msg.sender)) |
-      sumBalances(participants, b0) - b0(Msg.sender) + b0(Msg.sender)                           ==| trivial |
-      sumBalances(participants, b0)                                                             ==| trivial |
+        |:
+      sumBalances(participants, b0) - b0(Msg.sender) + sub(b0(Msg.sender), _value) + _value     ==| trivial |:
+      sumBalances(participants, b0) - b0(Msg.sender) + (sub(b0(Msg.sender), _value) + _value)   ==| (sub(b0(Msg.sender), _value) + _value == b0(Msg.sender)) |:
+      sumBalances(participants, b0) - b0(Msg.sender) + b0(Msg.sender)                           ==| trivial |:
+      sumBalances(participants, b0)                                                             ==| trivial |:
       totalSupply
     ).qed)
 
@@ -125,16 +125,16 @@ case class VotingToken(
     allowed(_from)(Msg.sender) = sub(allowed(_from)(Msg.sender), _value)
 
     assert((
-      sumBalances(participants, balances)                                             ==| balancesUpdatedLemma(participants, b1, _to, add(b1(_to), _value)) | 
-      sumBalances(participants, b1) - b1(_to) + add(b1(_to), _value)                  ==| subSwap(sumBalances(participants,b1), b1(_to), add(b1(_to), _value), _value) |
-      sumBalances(participants, b1) + _value                                          ==| 
+      sumBalances(participants, balances)                                             ==| balancesUpdatedLemma(participants, b1, _to, add(b1(_to), _value)) |:
+      sumBalances(participants, b1) - b1(_to) + add(b1(_to), _value)                  ==| subSwap(sumBalances(participants,b1), b1(_to), add(b1(_to), _value), _value) |:
+      sumBalances(participants, b1) + _value                                          ==|
         (balancesUpdatedLemma(participants, b0, _from, sub(b0(_from), _value)) && 
         sumBalances(participants, b1) == sumBalances(participants, b0) - b0(_from) + sub(b0(_from), _value))
-        |
-      sumBalances(participants, b0) - b0(_from) + sub(b0(_from), _value) + _value     ==| trivial |
-      sumBalances(participants, b0) - b0(_from) + (sub(b0(_from), _value) + _value)   ==| (sub(b0(_from), _value) + _value == b0(_from)) |
-      sumBalances(participants, b0) - b0(_from) + b0(_from)                           ==| trivial |
-      sumBalances(participants, b0)                                                   ==| trivial |
+        |:
+      sumBalances(participants, b0) - b0(_from) + sub(b0(_from), _value) + _value     ==| trivial |:
+      sumBalances(participants, b0) - b0(_from) + (sub(b0(_from), _value) + _value)   ==| (sub(b0(_from), _value) + _value == b0(_from)) |:
+      sumBalances(participants, b0) - b0(_from) + b0(_from)                           ==| trivial |:
+      sumBalances(participants, b0)                                                   ==| trivial |:
       totalSupply
     ).qed)
 
@@ -180,10 +180,10 @@ case class VotingToken(
     balances(_to) = newBalance
 
     assert((
-      sumBalances(participants, balances)                   ==| balancesUpdatedLemma(participants, b0, _to, newBalance) | 
-      sumBalances(participants, b0) - b0(_to) + newBalance  ==| subSwap(sumBalances(participants, b0), b0(_to), newBalance, _amount) |
-      sumBalances(participants, b0) + _amount               ==| trivial |
-      oldSupply + _amount                                   ==| trivial |
+      sumBalances(participants, balances)                   ==| balancesUpdatedLemma(participants, b0, _to, newBalance) |:
+      sumBalances(participants, b0) - b0(_to) + newBalance  ==| subSwap(sumBalances(participants, b0), b0(_to), newBalance, _amount) |:
+      sumBalances(participants, b0) + _amount               ==| trivial |:
+      oldSupply + _amount                                   ==| trivial |:
       totalSupply)
         qed
     )
@@ -276,41 +276,4 @@ case class VotingToken(
     old(this).owner == this.owner
   }
 
-}
-
-object VotingToken {
-
-  /*def conuctor(
-    _owner: Address,
-    _name: ing,
-    _symbol: ing,
-    _decimals: Uint256,
-    _rewardToken: ERC20,
-    _votingAddresses: List[Address]
-  ) = {
-    require(_votingAddresses.size <= MAX_NUMBER_OF_ALTERNATIVES)
-
-    val _balances:Mapping[Address, Uint256] = Mapping.connt(Uint256.ZERO)
-    val _allowed:Mapping[Address, Mapping[Address, Uint256]] =
-        Mapping.connt(Mapping.connt(Uint256.ZERO))
-
-    val _= StandardToken(
-      name = _name,
-      symbol = _symbol,
-      decimals = _decimals,
-      totalSupply = Uint256.ZERO,
-      balances = _balances,
-      allowed = _allowed,
-      participants = Nil()
-    )
-    VotingToken(
-      rewardToken = _rewardToken,
-      opened = false,
-      closed = false,
-      votingAddresses = _votingAddresses,
-      numberOrAlternatives = _votingAddresses.size,
-      owner = _owner,
-      = _st
-    )
-  }*/
 }
