@@ -22,10 +22,10 @@ package object xlang {
   def extractor(implicit ctx: inox.Context) = {
     val lowering: ExtractionPipeline {
       val s: trees.type
-      val t: methods.trees.type
+      val t: smartcontracts.trees.type
     } = new oo.SimplePhase { self =>
       override val s: trees.type = trees
-      override val t: methods.trees.type = methods.trees
+      override val t: smartcontracts.trees.type = smartcontracts.trees
       override val context = ctx
       override val phaseName = "xlang"
 

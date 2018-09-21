@@ -76,6 +76,7 @@ package object extraction {
     import utils.PositionChecker
 
     xlang.extractor      andThen
+    smartcontracts.extractor  andThen
     methods.extractor    andThen
     throwing.extractor   andThen
     oo.extractor         andThen
