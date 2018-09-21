@@ -13,6 +13,7 @@ trait ComponentTestSuite extends inox.TestSuite with inox.ResourceUtils with Inp
     Seq(inox.optSelectedSolvers(Set("smt-z3")), inox.optTimeout(300.seconds))
   )
 
+  // final override def createContext(options: inox.Options) = stainless.TestContext.debug(inox.solvers.DebugSectionSolver, options)
   final override def createContext(options: inox.Options) = stainless.TestContext(options)
 
   override protected def optionsString(options: inox.Options): String = {
@@ -23,8 +24,8 @@ trait ComponentTestSuite extends inox.TestSuite with inox.ResourceUtils with Inp
 
   protected def filter(ctx: inox.Context, name: String): FilterStatus = Test
 
-  def testAll(dir: String)(block: (component.Analysis, inox.Reporter) => Unit): Unit = {
-    val fs = resourceFiles(dir, _.endsWith(".scala")).toList
+  def testAll(dir: String, subdirectories: Boolean = false)(block: (component.Analysis, inox.Reporter) => Unit): Unit = {
+    val fs = resourceFiles(dir, _.endsWith(".scala"), recursive = subdirectories).toList
 
     // Toggle this variable if you need to debug one specific test.
     // You might also want to run `it:testOnly *<some test suite>* -- -z "<some test filter>"`.
@@ -72,6 +73,10 @@ trait ComponentTestSuite extends inox.TestSuite with inox.ResourceUtils with Inp
       // extraction results is enabled.
       val extractor = component.run(extraction.pipeline)
 
+      val solidityIds = program.symbols.classes.values.filter(extraction.smartcontracts.isSmartContractDep).map(_.id) ++
+                        program.symbols.functions.values.filter(extraction.smartcontracts.isSmartContractDep).map(_.id)
+      val solidityDeps = solidityIds.flatMap(id => program.symbols.dependencies(id) + id)
+
       for {
         unit <- structure
         if unit.isMain
@@ -79,7 +84,9 @@ trait ComponentTestSuite extends inox.TestSuite with inox.ResourceUtils with Inp
       } test(s"$dir/$name", ctx => filter(ctx, s"$dir/$name")) { implicit ctx =>
         val defs = unit.allFunctions(program.symbols).toSet ++ unit.allClasses
 
-        val deps = defs.flatMap(id => program.symbols.dependencies(id) + id)
+
+        val deps = defs.flatMap(id => program.symbols.dependencies(id) + id) ++ solidityDeps
+
         val symbols = extraction.xlang.trees.NoSymbols
           .withClasses(program.symbols.classes.values.filter(cd => deps(cd.id)).toSeq)
           .withFunctions(program.symbols.functions.values.filter(fd => deps(fd.id)).toSeq)
@@ -97,6 +104,12 @@ trait ComponentTestSuite extends inox.TestSuite with inox.ResourceUtils with Inp
           exSymbols.functions.values.filter(fd => derived(fd.flags)).map(_.id) ++
           exSymbols.sorts.values.filter(sort => derived(sort.flags)).map(_.id)
         } (defs).toSeq.filter(exSymbols.functions contains _)
+        .filterNot{fd =>
+          symbols.functions.isDefinedAt(fd) && (
+            symbols.functions(fd).flags.exists {_.name == "library"} ||
+            symbols.functions(fd).flags.exists {_.name == "synthetic"}
+          )
+        }
 
         // We have to cast the extracted symbols type as we are using two different
         // run instances. However, the trees types are the same so this should be safe (tm).
