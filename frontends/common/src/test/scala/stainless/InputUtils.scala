@@ -78,13 +78,14 @@ trait InputUtils {
         cls ++= classes
         funs ++= functions
 
-        val extraOpt = registry.update(classes, functions)
-        extraOpt foreach updateSyms
+        /*val extraOpt = registry.update(classes, functions)
+        extraOpt foreach updateSyms*/
+        registry.update(classes, functions)
       }
 
       override def endExtractions(): Unit = {
         val extraOpt = registry.checkpoint()
-        extraOpt foreach updateSyms
+        updateSyms(extraOpt)
         done = true
       }
     }

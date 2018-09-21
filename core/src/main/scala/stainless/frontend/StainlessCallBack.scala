@@ -55,8 +55,10 @@ class StainlessCallBack(components: Seq[Component])(override implicit val contex
       toProcess ++= functions map { _.id }
     }
 
-    val symss = registry.update(classes, functions)
-    processSymbols(symss)
+    registry.update(classes, functions)
+
+    // This is to avoid missing Msg/Env classes when doing the subsititution in the extraction phase
+    //processSymbols(symss)
   }
 
   final override def failed(): Unit = registry.failed()
@@ -208,7 +210,7 @@ class StainlessCallBack(components: Seq[Component])(override implicit val contex
   }
 
 
-  private def processSymbols(symss: Iterable[xt.Symbols]): Unit = {
+  private def processSymbols(syms: xt.Symbols): Unit = {
     val ignoreFlags = Set("library", "synthetic")
     def shouldProcess(id: Identifier, syms: xt.Symbols): Boolean = {
       !syms.functions(id).flags.exists(f => ignoreFlags contains f.name) && this.synchronized {
@@ -218,9 +220,14 @@ class StainlessCallBack(components: Seq[Component])(override implicit val contex
       }
     }
 
+    val solidityIds = syms.classes.values.filter(extraction.smartcontracts.isSmartContractDep).map(_.id) ++
+                      syms.functions.values.filter(extraction.smartcontracts.isSmartContractDep).map(_.id)
+    val solidityDeps = solidityIds.flatMap(id => syms.dependencies(id) + id)
+
     // The registry tells us something should be verified in these symbols.
-    for (syms <- symss; id <- syms.functions.keys if shouldProcess(id, syms)) {
-      val deps = syms.dependencies(id) + id
+    for (id <- syms.functions.keys if shouldProcess(id, syms)) {
+      val deps = syms.dependencies(id) ++ solidityDeps + id
+
       val clsDeps = syms.classes.values.filter(cd => deps(cd.id)).toSeq
       val funDeps = syms.functions.values.filter(fd => deps(fd.id)).toSeq
 

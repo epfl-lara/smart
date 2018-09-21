@@ -35,6 +35,7 @@ package object frontend {
    */
   val allComponents: Seq[Component] = Seq(
     verification.VerificationComponent,
+    // smartcontract.SmartContractComponent,
     termination.TerminationComponent,
     evaluators.EvaluatorComponent
   )
@@ -57,10 +58,21 @@ package object frontend {
     }
   }
 
+  private def hasOptSolidityCompiler(implicit ctx: inox.Context) = {
+    ctx.options.options.exists { 
+      case inox.OptionValue(o, true) if o.name == smartcontract.optSolidityCompiler.name => true
+      case _ => false
+    }
+  }
+
   /** Get one callback for all active components. */
   def getStainlessCallBack(implicit ctx: inox.Context): CallBack = {
-    val activeComponents = getActiveComponents(ctx)
-    new StainlessCallBack(activeComponents)
+    if(hasOptSolidityCompiler) {
+      new SolidityCallBack
+    } else {
+      val activeComponents = getActiveComponents(ctx)
+      new StainlessCallBack(activeComponents)
+    }
   }
 }
 

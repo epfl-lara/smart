@@ -76,13 +76,12 @@ trait Registry {
    *
    * TODO when caching is implemented further in the pipeline, s/Option/Seq/.
    */
-  final def update(classes: Seq[xt.ClassDef], functions: Seq[xt.FunDef]): Seq[xt.Symbols] = synchronized {
+  final def update(classes: Seq[xt.ClassDef], functions: Seq[xt.FunDef]) = synchronized {
     if (hasPersistentCache) {
       deferredClasses ++= classes
       deferredFunctions ++= functions
       deferredNodes ++= classes map { cd => cd.id -> Left(cd) }
       deferredNodes ++= functions map { fd => fd.id -> Right(fd) }
-      Seq()
     } else updateImpl(classes, functions)
   }
 
@@ -100,7 +99,7 @@ trait Registry {
   /**
    * To be called once every compilation unit were extracted.
    */
-  final def checkpoint(): Seq[xt.Symbols] = synchronized {
+  final def checkpoint(): xt.Symbols = synchronized {
     if (hasFailed) {
       deferredClasses.clear()
       deferredFunctions.clear()
@@ -110,7 +109,7 @@ trait Registry {
       knownOpenClasses.clear()
       deferredMethods.clear()
       hasFailed = false
-      Seq()
+      xt.NoSymbols
     } else if (hasPersistentCache) {
       val res = process(deferredClasses, deferredFunctions)
       persistentCache = None // remove the persistent cache after it's used once, the ICG can take over from here.
@@ -284,7 +283,7 @@ trait Registry {
     result
   }
 
-  private def updateImpl(classes: Seq[xt.ClassDef], functions: Seq[xt.FunDef]): Seq[xt.Symbols] = {
+  private def updateImpl(classes: Seq[xt.ClassDef], functions: Seq[xt.FunDef]): Unit = {
     def isReady(cd: xt.ClassDef): Boolean = getTopLevels(classes, cd) match {
       case Some(tops) if tops.isEmpty =>
         (cd.flags contains xt.IsSealed) || // Explicitly sealed is good.
@@ -298,9 +297,15 @@ trait Registry {
     recentClasses ++= classes
     recentFunctions ++= functions
 
+    knownOpenClasses ++= classes map { cd => cd.id -> cd }
+    deferredMethods ++= functions
+
+
+    /*recentClasses ++= classes
+    recentFunctions ++= functions
+
     // Keep for later processing (i.e. at checkpoint) class that are not sealed
     // and their methods/invariants.
-
     val (readyCDs, openCDs) = classes partition isReady
 
     val invariants = computeInvariantMapping(functions)
@@ -309,8 +314,8 @@ trait Registry {
     val deferredFDs = openCDs flatMap { cd => invariants(cd) ++ methods(cd) } map funDB
     val readyFDs = functions filterNot { deferredFDs contains _ }
 
-    knownOpenClasses ++= openCDs map { cd => cd.id -> cd }
-    deferredMethods ++= deferredFDs
+    knownOpenClasses ++= classes map { cd => cd.id -> cd }
+    deferredMethods ++= functions
 
     classes foreach { cd =>
       if (
@@ -320,10 +325,11 @@ trait Registry {
       ) reporter.warning(cd.getPos, s"Consider sealing ${cd.id}.")
     }
 
-    process(readyCDs, readyFDs)
+    process(readyCDs, readyFDs)*/
+    
   }
 
-  private def checkpointImpl(): Seq[xt.Symbols] = {
+  private def checkpointImpl(): xt.Symbols = {
     // Get all nodes from graph, remove the ones not in recentClasses or recentFunctions.
     val nodes = graph.getNodes map { _._2._1 }
     val toRemove = nodes collect {
@@ -344,8 +350,8 @@ trait Registry {
     deferredMethods.clear()
 
     val res = if (frozen) {
-      assert(defaultRes.isEmpty)
-      graph.unfreeze().map { case (cls, funs) => xt.NoSymbols.withClasses(cls.toSeq).withFunctions(funs.toSeq) }.toSeq
+      assert(defaultRes == xt.NoSymbols)
+      graph.unfreeze().map { case (cls, funs) => xt.NoSymbols.withClasses(cls.toSeq).withFunctions(funs.toSeq) }.getOrElse(xt.NoSymbols)
     } else {
       frozen = true
       defaultRes
@@ -368,24 +374,38 @@ trait Registry {
     res
   }
 
-  private def process(classes: Seq[xt.ClassDef], functions: Seq[xt.FunDef]): Seq[xt.Symbols] = {
+  private def solidityLibraryDependencies(id: Identifier) = id match {
+    case ast.SymbolIdentifier(name) if name contains "stainless.smartcontracts.Msg" => true
+    case ast.SymbolIdentifier(name) if name contains "stainless.smartcontracts.Environment" => true
+    case ast.SymbolIdentifier(name) if name contains "stainless.smartcontracts.ContractInterface" => true
+    case _ => false
+  }
+
+  private def process(classes: Seq[xt.ClassDef], functions: Seq[xt.FunDef]): xt.Symbols = {
     // Compute direct dependencies and insert the new information into our dependency graph
     val clusters = computeClusters(classes)
     val invariants = computeInvariantMapping(functions)
     val methods = computeMethodMapping(functions)
+
     def computeAllDirectDependencies(cd: xt.ClassDef) =
       computeDirectDependencies(cd) ++ clusters(cd) ++ invariants(cd) ++ methods(cd)
 
+    val solidityDependencies = classes.filter(cd => solidityLibraryDependencies(cd.id)).map(_.id).toSeq
+
     val newNodes: Seq[(Identifier, NodeValue, Set[Identifier])] =
-      (classes map { cd => (cd.id, Left(cd): NodeValue, computeAllDirectDependencies(cd)) }) ++
+      (classes map { cd => (cd.id, Left(cd): NodeValue, computeAllDirectDependencies(cd) ++ solidityDependencies) }) ++
       (functions map { fd => (fd.id, Right(fd): NodeValue, computeDirectDependencies(fd)) })
 
     // Critical Section
     val results: Seq[Result] = this.synchronized {
-      newNodes.toList flatMap { case (id, input, deps) => graph.update(id, input, deps, isOfInterest(input, deps)) }
+      newNodes.toList flatMap { case (id, input, deps) => graph.update(id, input, deps, isOfInterest(input, deps))}
     }
 
-    results.map { case (cls, funs) => xt.NoSymbols.withClasses(cls.toSeq).withFunctions(funs.toSeq) }
+    val cls = results.flatMap(_._1)
+    val funs = results.flatMap(_._2)
+
+    //results.map { case (cls, funs) => xt.NoSymbols.withClasses(cls.toSeq).withFunctions(funs.toSeq) }
+    xt.NoSymbols.withClasses(cls.toSeq).withFunctions(funs.toSeq)
   }
 
 
