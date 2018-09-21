@@ -747,6 +747,11 @@ trait CodeExtraction extends ASTExtractors {
   }
 
   private def extractTree(tr: Tree)(implicit dctx: DefContext): xt.Expr = (tr match {
+    case ExZero() => xt.BVLiteral(false, 0, 256)
+    case ExOne() => xt.BVLiteral(false, 1, 256)
+    case ExTwo() => xt.BVLiteral(false, 2, 256)
+    case ExUint256Literal(b) => xt.BVLiteral(false, b, 256)
+    case ExUint8Literal(b) => xt.BVLiteral(false, b, 8)
     case Block(es, e) =>
       val b = extractBlock(es :+ e)
       xt.exprOps.flattenBlocks(b)
@@ -1067,7 +1072,8 @@ trait CodeExtraction extends ASTExtractors {
     case ExImplies(lhs, rhs) =>
       xt.Implies(extractTree(lhs), extractTree(rhs))
 
-    case c @ ExCall(rec, sym, tps, args) => rec match {
+    case c @ ExCall(rec, sym, tps, args) => 
+      rec match {
       // Case object fields and methods are treated differently by scalac for some reason
       // so we need a special extractor here.
       case None if sym.owner.isModuleClass && sym.owner.isCase =>
@@ -1280,6 +1286,7 @@ trait CodeExtraction extends ASTExtractors {
                              (implicit dctx: DefContext): xt.Expr = {
     def checkBits(tr: Tree, tpe: xt.Type) = tpe match {
       case xt.BVType(_, 8 | 16 | 32 | 64) => // Byte, Short, Int or Long are ok
+      case xt.BVType(false, 256) => // Uint256 for Solidity is ok
       case xt.BVType(_, s) => outOfSubsetError(tr, s"Unexpected integer of $s bits")
       case _ => // non-bitvector types are ok too
     }
@@ -1297,6 +1304,7 @@ trait CodeExtraction extends ASTExtractors {
     val widen64 = { (e: xt.Expr) => xt.BVWideningCast(e, xt.BVType(true, 64).copiedFrom(e)).copiedFrom(e) }
 
     val (lctor, rctor) = (ltpe, rtpe) match {
+      case (xt.BVType(false, 256), xt.BVType(false, 256))      => (id, id)
       case (xt.BVType(true, 64), xt.BVType(true, 64))          => (id, id)
       case (xt.BVType(true, 64), xt.BVType(true, _))           => (id, widen64)
       case (xt.BVType(true, _),  xt.BVType(true, 64)) if shift => outOfSubsetError(rhs0, s"Unsupported shift")
@@ -1353,6 +1361,8 @@ trait CodeExtraction extends ASTExtractors {
     case TypeRef(_, sym, _) if isBigIntSym(sym) => xt.IntegerType()
     case TypeRef(_, sym, _) if isRealSym(sym)   => xt.RealType()
     case TypeRef(_, sym, _) if isStringSym(sym) => xt.StringType()
+    case TypeRef(_, sym, _) if isUint8Sym(sym) => xt.BVType(false, 8)
+    case TypeRef(_, sym, _) if isUint256Sym(sym) => xt.BVType(false, 256)
 
     case TypeRef(_, sym, btt :: Nil) if isSetSym(sym) =>
       xt.SetType(extractType(btt))

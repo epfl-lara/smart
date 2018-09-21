@@ -80,6 +80,8 @@ trait ASTExtractors {
   protected lazy val someClassSym       = classFromName("scala.Some")
   protected lazy val byNameSym          = classFromName("scala.<byname>")
   protected lazy val bigIntSym          = classFromName("scala.math.BigInt")
+  protected lazy val uint8Sym           = classFromName("stainless.smartcontracts.Uint8")
+  protected lazy val uint256Sym         = classFromName("stainless.smartcontracts.Uint256")
   protected lazy val stringSym          = classFromName("java.lang.String")
 
   protected def functionTraitSym(i:Int) = {
@@ -90,6 +92,9 @@ trait ASTExtractors {
   def isTuple(sym: Symbol, size: Int): Boolean = (size > 0 && size <= 22) && (sym == classFromName(s"scala.Tuple$size"))
 
   def isBigIntSym(sym: Symbol) : Boolean = getResolvedTypeSym(sym) == bigIntSym
+  
+  def isUint8Sym(sym: Symbol) : Boolean = getResolvedTypeSym(sym) == uint8Sym
+  def isUint256Sym(sym: Symbol) : Boolean = getResolvedTypeSym(sym) == uint256Sym
 
   def isStringSym(sym: Symbol) : Boolean = getResolvedTypeSym(sym) match { case `stringSym` => true case _ => false }
 
@@ -1134,6 +1139,62 @@ trait ASTExtractors {
           val newRec = rec.filter(r => r.symbol == null || !(r.symbol.isModule && !r.symbol.isCase || r.symbol.isModuleClass))
           (newRec, sym, tps, args)
         }
+      }
+    }
+
+    object ExZero {
+      def unapply(tree: Tree): Boolean = {
+        tree match {
+          case ExSelected("stainless", "smartcontracts", "package", "Uint256", "ZERO") => true
+          case ExSelected("package", "Uint256", "ZERO") => true
+          case _ => false
+        }
+      }
+    }
+
+    object ExOne {
+      def unapply(tree: Tree): Boolean = {
+        tree match {
+          case ExSelected("stainless", "smartcontracts", "package", "Uint256", "ONE") => true
+          case ExSelected("package", "Uint256", "ONE") => true
+          case _ => false
+        }
+      }
+    }
+
+    object ExTwo {
+      def unapply(tree: Tree): Boolean = {
+        tree match {
+          case ExSelected("stainless", "smartcontracts", "package", "Uint256", "TWO") => true
+          case ExSelected("package", "Uint256", "TWO") => true
+          case _ => false
+        }
+      }
+    }
+
+    object ExUint8Literal {
+      def unapply(tree: Apply): Option[BigInt] = { 
+        if (tree.toString.contains("Uint8") || tree.toString.contains("UInt8"))
+          println(tree);
+        tree
+      } match {
+        case Apply(ExSelected("stainless", "smartcontracts", "package", "Uint8", "apply"), Seq(StructuralExtractors.ExStringLiteral(s))) =>
+          val b = BigInt(s)
+          assert(0 <= b && b < 256,
+            "Uint8 can only represent numbers between 0 and 255")
+          Some(b)
+        case _ => None
+      }
+    }
+
+    object ExUint256Literal {
+      def unapply(tree: Apply): Option[BigInt] = tree match {
+        case Apply(ExSelected("stainless", "smartcontracts", "package", "Uint256", "apply"), Seq(StructuralExtractors.ExStringLiteral(s))) =>
+          val b = BigInt(s)
+          assert(0 <= b && b < BigInt("115792089237316195423570985008687907853269984665640564039457584007913129639936"),
+            "Uint256 can only represent numbers between 0 and 2^256 - 1")
+          Some(b)
+        case _ => None
       }
     }
 
