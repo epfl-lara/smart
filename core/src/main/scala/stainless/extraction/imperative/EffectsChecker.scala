@@ -80,16 +80,16 @@ trait EffectsChecker { self: EffectsAnalyzer =>
             case fi: FunctionInvocation if isMutableSynthetic(fi.id) =>
               throw ImperativeEliminationException(fi, s"Cannot call '${fi.id}' on a class with mutable fields")
 
-            case fi @ FunctionInvocation(id, tps, args) if fi.tfd.params.exists(_.flags contains Ghost) =>
-              fi.tfd.params.zip(args)
-                .filter { case (vd, _) => vd.flags contains Ghost }
-                .foreach { case (vd, arg) =>
-                  if (!effects(arg).forall(validGhostEffects))
-                    throw ImperativeEliminationException(arg,
-                      s"Argument to ghost parameter `${vd.id}` of method `${fi.id}` must only have effects on ghost fields")
-                }
+            // case fi @ FunctionInvocation(id, tps, args) if fi.tfd.params.exists(_.flags contains Ghost) =>
+            //   fi.tfd.params.zip(args)
+            //     .filter { case (vd, _) => vd.flags contains Ghost }
+            //     .foreach { case (vd, arg) =>
+            //       if (!effects(arg).forall(validGhostEffects))
+            //         throw ImperativeEliminationException(arg,
+            //           s"Argument to ghost parameter `${vd.id}` of method `${fi.id}` must only have effects on ghost fields")
+            //     }
 
-              super.traverse(fi)
+            //   super.traverse(fi)
 
             case adt @ ADT(id, tps, args) =>
               val cons = adt.getConstructor
@@ -193,8 +193,8 @@ trait EffectsChecker { self: EffectsAnalyzer =>
       if (isPure(fd) && !effs.isEmpty)
         throw ImperativeEliminationException(fd, s"Function marked @pure cannot have side-effects")
 
-      if (isGhost(fd) && effs.exists(eff => !validGhostEffects(eff)))
-        throw ImperativeEliminationException(fd, s"Ghost function cannot have effect on non-ghost state")
+      // if (isGhost(fd) && effs.exists(eff => !validGhostEffects(eff)))
+      //   throw ImperativeEliminationException(fd, s"Ghost function cannot have effect on non-ghost state")
     }
 
     def isPure(fd: FunAbstraction): Boolean = fd.flags.contains(IsPure)
