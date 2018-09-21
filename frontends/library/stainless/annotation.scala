@@ -42,6 +42,43 @@ class inlineOnce   extends Annotation
 @ignore
 class partialEval extends Annotation
 
+/** Solidity annotation
+**  A function declared payable can receive ether
+**/
+@ignore
+class payable extends Annotation
+
+/** Solidity annotation
+**  A function declared payable can receive ether
+**/
+@ignore
+class solidityPure extends Annotation
+
+/** Solidity annotation
+**  TODO
+**/
+@ignore
+class modifier extends Annotation
+
+/** Solidity annotation
+**  TODO
+**/
+@ignore
+class view extends Annotation
+
+/** Solidity annotation
+**  TODO
+**/
+@ignore
+class indexed extends Annotation
+
+/** Solidity annotation
+**  TODO
+**/
+@ignore
+class solidityLibrary(name: String) extends Annotation
+
+
 /**
  * Code annotated with @ghost is removed after stainless extraction.
  *
