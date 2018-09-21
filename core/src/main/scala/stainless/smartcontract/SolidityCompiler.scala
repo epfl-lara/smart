@@ -1,0 +1,568 @@
+/* Copyright 2009-2018 EPFL, Lausanne */
+package stainless
+package smartcontract
+
+import extraction.xlang.{trees => xt}
+import scala.concurrent.Future
+import scala.language.existentials
+import inox.utils.Position
+import scala.reflect.runtime.{universe => u}
+
+import extraction._
+import SolidityImportBuilder._
+
+object optSolidityCompiler extends inox.FlagOptionDef("solidity", false)
+
+object SolidityCompiler {
+  def apply(filename: String)(implicit symbols: xt.Symbols, ctx: inox.Context) = {
+    import xt._
+    import exprOps._
+
+    val classes = symbols.classes.values.filter { cd => cd.getPos.file.getCanonicalPath == filename }
+    val functions = symbols.functions.values.filter { fd => fd.getPos.file.getCanonicalPath == filename }
+
+    val enumsClasses = classes.filter { cd =>
+      cd.flags.contains(IsCaseObject)
+    }.filter(_.parents.size == 1)
+
+    val enumsTypeMap = enumsClasses.map( cd => cd.typed(symbols).toType -> cd.parents.head)
+                                   .toMap
+
+    val enums = enumsClasses.groupBy(_.parents)
+      .map{ case (a,b) => val values = b.map(_.id.toString).toSeq
+                          SEnumDefinition(a.head.toString, values)
+          }
+      .toSeq
+
+    val idsToFunctions = symbols.functions
+
+    def isAnnotation(name: String, flag: Flag) = flag match {
+      case Annotation(`name`, _) => true
+      case _ => false
+    }
+
+    def isLibraryAnnotation(flag: Flag) = isAnnotation("solidityLibrary", flag)
+
+    def isIdentifier(name: String, id: Identifier) = id match {
+      case ast.SymbolIdentifier(`name`) => true
+      case _ => false
+    }
+
+    def isSolidityNumericType(expr: Expr) = expr.getType(symbols) match {
+      case BVType(false, _) => true
+      // case BVType(true, _) => true // signed types are not yet supported
+      case _ => false
+    }
+
+    def isModifierFunDef(fd: FunDef) = {
+      fd.flags.exists { case f => isAnnotation("modifier", f) }
+    }
+
+    def isModifierFunDefId(id: Identifier) = {
+      idsToFunctions.isDefinedAt(id) && isModifierFunDef(idsToFunctions(id))
+    }
+
+    def isLibrary(fd: FunDef) = fd.flags.exists(isLibraryAnnotation)
+
+    // This function must only be called on functions that are known to have 
+    // a `solidityLibrary` flag.
+    // The function extracts the library name associated with the function.
+    def libraryName(fd: FunDef): String = {
+      require(isLibrary(fd))
+      fd.flags.collectFirst { f => f match {
+        case Annotation("solidityLibrary", Seq(StringLiteral(s))) => s
+      }}.get
+    }
+
+    def transformFlags(flags: Seq[Flag]) = {
+      def process(l: Seq[Flag]): Seq[SFlag] = l match {
+        case Nil => Nil
+        case Private :: xs => SPrivate() +: process(xs)
+        case x :: xs if x == IsPure =>
+          // FIXME: this warning doesn't show up for some reason
+          ctx.reporter.warning("The @pure annotation is ignored by the compiler to Solidity. Use @solidityPure instead.")
+          process(xs)
+        case x :: xs if isAnnotation("payable", x)  => SPayable() +: process(xs)
+        case x :: xs if isAnnotation("solidityPure", x)   => SPure() +: process(xs)
+        case x :: xs if isAnnotation("view", x)   => SView() +: process(xs)
+        case x :: xs => process(xs)
+      }
+      
+      process(flags)
+    }
+
+    def transformType(tpe: Type): SolidityType = {
+      tpe match {
+        case IntegerType() =>
+          ctx.reporter.warning("The BigInt type was translated to int256 during compilation. Overflows might occur.") 
+          SIntType(256)
+        case BooleanType() => SBooleanType()
+        case StringType() => SStringType()
+        case Int32Type() => SIntType(32)
+        case UnitType() => SUnitType()
+        case BVType(false, size) => SUIntType(size)
+        case BVType(true, size) => SIntType(size)
+        case ClassType(id, Seq(tp1, tp2)) if isIdentifier("stainless.smartcontracts.Mapping", id) =>
+          SMapping(transformType(tp1), transformType(tp2))
+        case ClassType(id, Seq(tp)) if isIdentifier("stainless.collection.List", id) =>
+          SArrayType(transformType(tp))
+        case ClassType(id, Seq()) if isIdentifier("stainless.smartcontracts.Address", id) =>
+          SAddressType()
+        case ct:ClassType if enumsTypeMap.isDefinedAt(ct) => SEnumType(enumsTypeMap(ct).toString)
+        case ClassType(id, Seq()) => SContractType(id.toString)
+
+        case _ =>  ctx.reporter.fatalError("Unsupported type " + tpe + " at position " + tpe.getPos + " " + tpe.getPos.file)
+      }
+    }
+
+    def transformFields(cd: ClassDef) = {
+      cd.fields.map {
+        case ValDef(id, tpe, flags) =>
+          SParamDef(!flags.contains(IsVar), id.name, transformType(tpe))
+      }
+    }
+
+    def insertReturns(expr: Expr, funRetType: Type): Expr = {
+      def rec(expr: Expr): Expr = expr match {
+        case Let(v, d, rest) => Let(v, d, rec(rest))
+        case LetVar(v, d, rest) => LetVar(v, d, rec(rest))
+        case Block(es, rest) => Block(es, rec(rest))
+        case IfExpr(c, thenn, elze) => IfExpr(c, rec(thenn), rec(elze))
+        case MatchExpr(scrut, cses) => MatchExpr(scrut, cses.map { case MatchCase(x,y,rhs) => MatchCase(x, y, rec(rhs)) })
+        case Assert(x, y, body) => Assert(x, y, rec(body))
+        case e if e.getType == funRetType => Return(e)
+        case e => e
+      }
+
+      rec(expr)
+    }
+
+    def extractModifiers(expr: Expr) = {
+      def process(expr: Expr, acc: Set[SFlag]):(Expr, Set[SFlag]) = expr match {
+        case MethodInvocation(rcv, id, _, args) if isModifierFunDefId(id) =>
+          val followExpr = args.head
+          process(followExpr, acc + SModifierFun(id.name))
+        case e => (e, acc)
+      }
+
+      process(expr, Set.empty)
+    }
+
+    def transformExpr(expr: Expr): SolidityExpr = expr match {
+      // Transform call to field addr of a contract
+      case MethodInvocation(rcv, id, _, args) if isIdentifier("stainless.smartcontracts.ContractInterface.addr", id) =>
+        rcv match {
+          case This(_) => SAddress(SVariable("this"))
+          case ClassSelector(_, selector) => SAddress(SVariable(selector.name))
+        }
+
+      // Desugar call to method balance on class address
+      case MethodInvocation(rcv, id, _, _) if isIdentifier("stainless.smartcontracts.Address.balance", id) =>
+        val srcv = transformExpr(rcv)
+        SClassSelector(srcv, "balance")
+
+      case MethodInvocation(rcv, id, _, args) if isIdentifier("stainless.smartcontracts.Mapping.apply", id) =>
+        val Seq(arg) = args
+        val newArg = transformExpr(arg)
+        val newRcv = transformExpr(rcv)
+        SMappingRef(newRcv, newArg)
+
+      case MethodInvocation(rcv, id, _, args) if isIdentifier("stainless.smartcontracts.Mapping.update", id) =>
+        val Seq(key, value) = args
+        val newKey = transformExpr(key)
+        val newVal = transformExpr(value)
+        val newRcv = transformExpr(rcv)
+
+        SAssignment(SMappingRef(newRcv, newKey), newVal)
+
+      case MethodInvocation(rcv, id, _, args) if isModifierFunDefId(id) =>
+        ctx.reporter.fatalError(rcv.getPos, "A modifier function cannot be used inside the body of a function")
+
+      case MethodInvocation(rcv, id, _, Seq(arg)) if isSolidityNumericType(rcv) =>
+        val tpe = rcv.getType(symbols)
+        val newRcv = transformExpr(rcv)
+        val newArg = transformExpr(arg)
+
+        id match {
+          case i if isIdentifier("stainless.smartcontracts." + tpe + ".$greater", i) => SGreaterThan(newRcv, newArg)
+          case i if isIdentifier("stainless.smartcontracts." + tpe + ".$greater$eq", i) => SGreaterEquals(newRcv, newArg)
+          case i if isIdentifier("stainless.smartcontracts." + tpe + ".$less", i) => SLessThan(newRcv, newArg)
+          case i if isIdentifier("stainless.smartcontracts." + tpe + ".$less$eq", i) => SLessEquals(newRcv, newArg)
+          case i if isIdentifier("stainless.smartcontracts." + tpe + ".$minus", i) => SMinus(newRcv, newArg)
+          case i if isIdentifier("stainless.smartcontracts." + tpe + ".$plus", i) => SPlus(newRcv, newArg)
+          case i if isIdentifier("stainless.smartcontracts." + tpe + ".$times", i) => SMult(newRcv, newArg)
+          case i if isIdentifier("stainless.smartcontracts." + tpe + ".$div", i) => SDivision(newRcv, newArg)
+          case _ => 
+            ctx.reporter.fatalError(rcv.getPos, "Unknown operator: " + id.name)
+        }
+        
+      case MethodInvocation(rcv, id, _, args) =>
+        val srcv = transformExpr(rcv)
+        val newArgs = args.map(transformExpr)
+                          .zip(symbols.functions(id).params)
+                          .filterNot{ case (a,p) => p.flags.contains(Ghost)}
+                          .map(_._1)
+                          
+        SMethodInvocation(srcv, id.name, newArgs, None)
+
+      /*case fi@FunctionInvocation(id, _, args) if compareFunInvoc(id, emitFun) =>
+        val Seq(arg) = args
+        transformExpr(arg) match {
+          case s:SClassConstructor => SEmit(s)
+        }
+      */
+
+      case FunctionInvocation(id, _, args) if isIdentifier("stainless.smartcontracts.get", id) =>
+        val Seq(array,index) = args
+        val newArray = transformExpr(array)
+        val newIndex = transformExpr(index)
+        SArrayRef(newArray, newIndex)
+
+      case FunctionInvocation(id, _, args) if isIdentifier("stainless.smartcontracts.length", id) =>
+        val Seq(array) = args
+        val newArray = transformExpr(array)
+        SArrayLength(newArray)
+
+      case fi@FunctionInvocation(id, _, args) if isIdentifier("stainless.smartcontracts.dynRequire", id) =>
+        val Seq(cond:Expr) = args
+        SRequire(transformExpr(cond), "error")
+
+      case fi@FunctionInvocation(id, _, args) if isIdentifier("stainless.smartcontracts.dynAssert", id) =>
+        val Seq(cond:Expr) = args
+        SAssert(transformExpr(cond), "error")
+
+      /*// Desugar constantMapping function
+      case fi@FunctionInvocation(id, _, _) if isIdentifier("stainless.smartcontracts.Mapping.constant", id) =>
+        ctx.reporter.fatalError(fi.getPos, "The function constant mapping cannot be used inside a method")*/
+
+      // Desugar pay function
+      case fi@FunctionInvocation(id, _, args) if isIdentifier("stainless.smartcontracts.pay",id) =>
+        val Seq(m:MethodInvocation, amount: Expr) = args
+        if(!symbols.functions(m.id).flags.contains(Annotation("payable", Seq()))) {
+          ctx.reporter.fatalError(fi.getPos, "The method pay can only be used on a payable function.")
+        }
+
+        transformExpr(m) match {
+          case SMethodInvocation(rcv, method, args, _) =>
+            SMethodInvocation(rcv, method, args, Some(transformExpr(amount)))
+          case _ =>
+            ctx.reporter.fatalError(fi.getPos, "The compiler to Solidity should only return SMethodInvocation's for this invocation.")
+        }
+
+      // Desugar call to the function 'address' of the library
+      case fi@FunctionInvocation(id, _, Seq(arg)) if isIdentifier("stainless.smartcontracts.address", id) =>
+        SAddress(transformExpr(arg))
+
+      // Desugar call to the function 'now' of the library
+      case FunctionInvocation(id, _, _) if isIdentifier("stainless.smartcontracts.now", id) =>
+        SNow()
+
+      // Desugar call to the field sender on the variable msg
+      case FunctionInvocation(id, _, _) if isIdentifier("stainless.smartcontracts.Msg.sender", id) =>
+        SClassSelector(SVariable("msg"), "sender")
+
+      // Desugar call to the field value on the variable msg
+      case FunctionInvocation(id, _, _) if isIdentifier("stainless.smartcontracts.Msg.value", id) =>
+        SClassSelector(SVariable("msg"), "value")
+
+      case FunctionInvocation(id, _, Seq(lhs, rhs)) if isIdentifier("stainless.smartcontracts.unsafe_$plus", id) =>
+        SPlus(transformExpr(lhs), transformExpr(rhs))
+
+      case FunctionInvocation(id, _, Seq(lhs, rhs)) if isIdentifier("stainless.smartcontracts.unsafe_$minus", id) =>
+        SMinus(transformExpr(lhs), transformExpr(rhs))
+
+      case FunctionInvocation(id, _, Seq(lhs, rhs)) if isIdentifier("stainless.smartcontracts.unsafe_$times", id) =>
+        SMult(transformExpr(lhs), transformExpr(rhs))
+
+      case FunctionInvocation(id, _, Seq(lhs, rhs)) if isIdentifier("stainless.smartcontracts.unsafe_$div", id) =>
+        SDivision(transformExpr(lhs), transformExpr(rhs))
+
+      // case FunctionInvocation(id, _, _) if isIdentifier("stainless.smartcontracts.Uint256.ZERO", id) =>
+      //   SLiteral("0")
+
+      // case FunctionInvocation(id, _, _) if isIdentifier("stainless.smartcontracts.Uint256.ONE", id) =>
+      //   SLiteral("1")
+
+      // case FunctionInvocation(id, _, _) if isIdentifier("stainless.smartcontracts.Uint256.TWO", id) =>
+        // SLiteral("2")
+
+      case FunctionInvocation(id, _, _) if isIdentifier("stainless.lang.ghost", id) =>
+        STerminal()
+
+      case FunctionInvocation(id, _, args) =>
+        assert(symbols.functions.contains(id), "Symbols do not contain the function: " + id)
+        val f = symbols.functions(id)
+        val name = 
+          if (isLibrary(f)) {
+            (libraryName(f) + "." + id.name)
+          } else {
+            id.name
+          }
+        val newArgs = args.map(transformExpr)
+                          .zip(symbols.functions(id).params)
+                          .filterNot{ case (a,p) => p.flags.contains(Ghost)}
+                          .map(_._1)
+        SFunctionInvocation(name, newArgs)
+      
+
+      /*// Case to throw error if a method of a contract call a function that is not compiled to Solidity
+      case fi@FunctionInvocation(id, _, args) =>
+        ctx.reporter.fatalError(fi.getPos, "Cannot call function that are outside contract")
+      */
+
+      case Block(exprs, last) => SBlock(exprs.map(transformExpr),
+                      transformExpr(last))
+
+      case This(tpe) => SThis()
+
+      case FieldAssignment(obj, sel, expr) =>
+        SFieldAssignment(transformExpr(obj),
+                sel.name,
+                transformExpr(expr))
+
+      case ClassConstructor(tpe, args) if isIdentifier("stainless.smartcontracts.Address", tpe.id) =>
+        val Seq(x) = args
+        SAddress(transformExpr(x)) 
+
+      // case ClassConstructor(tpe, args) if isIdentifier("stainless.smartcontracts.Uint256", tpe.id) =>
+      //   val Seq(IntegerLiteral(x)) = args
+      //   SLiteral(x.toString) 
+
+      /*case ClassConstructor(tpe, args) if tpe == eventType =>
+        transformType(tpe) match {
+          case tpe:SEventType => SEvent(tpe, args.map(transformExpr))
+        }
+      */
+
+      case ClassConstructor(tpe, args) if(enumsTypeMap.isDefinedAt(tpe)) =>
+        val id = enumsTypeMap(tpe)
+        SEnumValue(id.toString, tpe.toString)
+      
+      case ClassConstructor(tpe, args) =>
+        val newArgs = args.map(transformExpr)
+        SClassConstructor(transformType(tpe), newArgs)
+
+      case ClassSelector(expr, id) =>
+        val se = transformExpr(expr)
+        SClassSelector(se, id.name)
+
+      case While(cond, body, pred) => SWhile(transformExpr(cond), transformExpr(body))
+        
+      case UnitLiteral() => STerminal()
+
+      case BooleanLiteral(b) => SLiteral(b.toString)
+      case b@BVLiteral(false, _, _) => SLiteral(b.toBigInt.toString)
+      case IntegerLiteral(b) => SLiteral(b.toString)
+
+      case Variable(id, _, _) => SVariable(id.name)
+
+      case Let(vd, _, body) if vd.flags.contains(Ghost) =>
+        transformExpr(body)
+
+      case Let(vd, value, body) => 
+        val p = SParamDef(true, vd.id.name, transformType(vd.tpe))
+        val v = transformExpr(value)
+        val b = transformExpr(body)
+        SLet(p,v,b)
+
+      case Assignment(variable, expr) => SAssignment(transformExpr(variable), transformExpr(expr))
+
+      case And(exprs) => SAnd(exprs.map(transformExpr))
+      case Or(exprs) => SOr(exprs.map(transformExpr))
+      case Not(expr) => SNot(transformExpr(expr))
+      case Equals(l,r) => SEquals(transformExpr(l), transformExpr(r))
+      case GreaterThan(l,r) => SGreaterThan(transformExpr(l), transformExpr(r))
+      case GreaterEquals(l,r) => SGreaterEquals(transformExpr(l), transformExpr(r))
+      case LessThan(l,r) => SLessThan(transformExpr(l), transformExpr(r))
+      case LessEquals(l,r) => SLessEquals(transformExpr(l), transformExpr(r))
+
+      case IfExpr(cond, thenn, elze) =>
+        SIfExpr(transformExpr(cond),
+            transformExpr(thenn),
+            transformExpr(elze))
+
+      case Plus(l, r) => SPlus(transformExpr(l),transformExpr(r))
+      case Minus(l, r) => SMinus(transformExpr(l),transformExpr(r))
+      case Division(l, r) => SDivision(transformExpr(l),transformExpr(r))
+      case Times(l, r) => SMult(transformExpr(l),transformExpr(r))
+      case Remainder(l, r) => SRemainder(transformExpr(l), transformExpr(r))
+
+      case LetVar(vd, value, body) =>
+        val p = SParamDef(false, vd.id.name, transformType(vd.tpe))
+        val v = transformExpr(value)
+        val b = transformExpr(body)
+        SLet(p,v,b)
+
+      case Assert(_,_,body) => transformExpr(body)
+      case Choose(_,_) => STerminal()
+      case Return(e) => SReturn(transformExpr(e))
+
+      
+      // Recursive Functions
+      case LetRec(fds, _) => ctx.reporter.fatalError("The compiler to Solidity does not support locally defined recursive functions:\n" + fds.head)
+
+      // Unsupported by default
+      case e => ctx.reporter.fatalError("The compiler to Solidity does not support this expression : " + e + "(" + e.getClass + ")")
+    }
+
+    def transformAbstractMethods(fd: FunDef) = {
+      val newParams = fd.params.map(p => SParamDef(false, p.id.name, transformType(p.tpe)))
+      val rteType = transformType(fd.returnType)
+      val sflags = transformFlags(fd.flags)
+      SAbstractFunDef(fd.id.name, newParams, rteType, sflags)
+    }
+
+    def transformModifier(fd: FunDef) = {
+      val substParam = fd.params.head
+   
+      val newParams = Seq.empty
+      val rteType = SUnitType()
+      val sflags = Seq.empty
+      val bodyWithoutSpec = exprOps.withoutSpecs(fd.fullBody)
+
+      val newBody = 
+            if(bodyWithoutSpec.isDefined)
+              SolidityTreeOps.transform({
+                  case SVariable(name) if name == substParam.id.name => SModifierBodyVariable()
+              }, transformExpr(bodyWithoutSpec.get))
+            else STerminal()
+                     
+      SFunDef(fd.id.name, newParams, rteType, newBody, sflags)
+    }
+
+
+    def transformMethod(fd: FunDef) = {
+      SolidityChecker.checkFunction(fd)
+
+      val name = if(fd.id.name == "fallback") ""
+             else fd.id.name
+
+      val newParams = fd.params
+                        .filterNot(_.flags.contains(Ghost))
+                        .map(p => SParamDef(false, p.id.name, transformType(p.tpe)))
+
+      val rteType = transformType(fd.returnType)
+      val sflags = transformFlags(fd.flags)
+    
+      val bodyWithoutSpec = exprOps.withoutSpecs(fd.fullBody)
+
+      val pre = exprOps.preconditionOf(fd.fullBody)
+
+      if (pre.isDefined) {
+        ctx.reporter.warning("Ignoring require(" + pre.get.asString(new PrinterOptions()) + ").")
+        ctx.reporter.warning("Replace `require` with `dynRequire` if you want the require to remain in the compiled code.\n")
+      }
+
+      if(bodyWithoutSpec.isDefined) {
+        val (bodyWithoutMods, mods) = extractModifiers(bodyWithoutSpec.get)
+        val body1 = if(fd.returnType != UnitType()) insertReturns(bodyWithoutMods, fd.returnType) 
+                    else bodyWithoutMods
+        val body2 = transformExpr(body1)
+        SFunDef(name, newParams, rteType, body2, sflags ++ mods)
+      } else {
+        SFunDef(name, newParams, rteType, STerminal(), sflags)
+      }
+    }
+
+    def functionShouldBeDiscarded(id: Identifier) = {
+      val name = id.name
+      if(name.startsWith("copy")) {
+        ctx.reporter.warning("Ignoring a method named `copy*` (you can safely ignore this warning if you have no such method).")
+        true
+      } else {
+        name == "constructor"
+      }
+    }
+
+    def transformConstructor(cd: ClassDef) = {
+      val constructors = cd.methods(symbols).filter { _.name == "constructor" }
+      
+      if (constructors.size > 1)
+        ctx.reporter.fatalError("There can be only one constructor for contract " + cd.id.name + ".")
+
+      if (constructors.isEmpty)
+        SConstructorDef(Seq(), STerminal())
+      else {
+        val fd = idsToFunctions(constructors.head)
+        if(fd.returnType != UnitType()) {
+          ctx.reporter.fatalError(s"The constructor must have unit type, not ${fd.returnType}.")
+        }
+
+        val classFieldsName = cd.fields.map(_.id.name).toSet
+        val SFunDef(_, params, _, body, _) = transformMethod(fd)
+        SConstructorDef(params, body)
+      }
+    }
+
+    
+
+    def transformInterface(cd: ClassDef) = {
+      ctx.reporter.info("Compiling Interface : " + cd.id.name + " in file " + filename)
+      val methods = cd.methods(symbols)
+                      .filterNot(functionShouldBeDiscarded)
+                      .map(idsToFunctions)
+                      .filter(fd => !fd.flags.contains(xt.IsInvariant) && 
+                                    !isIdentifier("stainless.smartcontracts.ContractInterface.addr", fd.id))
+                      .map(transformAbstractMethods)
+
+      SContractInterface(cd.id.name, Seq(), methods)
+    }
+
+    def transformContract(cd: ClassDef) = {
+      ctx.reporter.info("Compiling Contract : " + cd.id.name + " in file " + filename)
+      SolidityChecker.checkClass(cd)
+
+      val parents = cd.parents.map(_.toString)
+      val fields = transformFields(cd)
+      val methods = cd.methods(symbols).filterNot(functionShouldBeDiscarded).map(idsToFunctions)
+
+      val (modifierMethods, standardMethods) = methods partition isModifierFunDef
+      
+      val newModifierMethods = modifierMethods.map(transformModifier)
+      val newStandardMethods = standardMethods.filter(fd => !fd.flags.contains(xt.IsInvariant) && 
+                                                            !fd.flags.contains(xt.Ghost) && 
+                                                            !isIdentifier("stainless.smartcontracts.ContractInterface.addr", fd.id))
+                                               .map(transformMethod)
+
+      val constructor = transformConstructor(cd)
+      SContractDefinition(cd.id.name, parents, constructor, Seq.empty, enums, fields, newModifierMethods ++ newStandardMethods)
+    }
+
+    def transformLibrary(fds: Seq[FunDef]) = {
+      def max(x: Int,y: Int) = if(x > y) x else y
+
+      if(fds.isEmpty) Seq()
+      else {
+        val i = max(filename.lastIndexOf("/") + 1, 0)
+        val name = filename.substring(i).replace(".scala", "")
+        Seq(SLibrary(name, fds.map(transformMethod)))
+      }
+    }
+
+    ctx.reporter.info("Compiling file : " + filename)
+    val transformedImports = buildImports(filename).map(i => SolidityImport(i))
+    if(!transformedImports.isEmpty) {
+      ctx.reporter.info("The following imports have been found :")
+      transformedImports.foreach( i => ctx.reporter.info(i.path))
+    }
+
+    val interfaces = classes.filter { cd =>
+      cd.parents.exists{ case p => isIdentifier("stainless.smartcontracts.ContractInterface", p.id) }
+    }.map(transformInterface).toSeq
+    
+    val contracts = classes.filter { cd =>
+      cd.parents.exists{ case p => isIdentifier("stainless.smartcontracts.Contract", p.id) }
+    }.map(transformContract).toSeq
+
+    val library = transformLibrary(functions.filter { fd =>
+      fd.flags.exists(isLibraryAnnotation)
+    }.toSeq)
+
+    val allDefs = interfaces ++ contracts ++ library
+    if(!allDefs.isEmpty)
+      SolidityPrinter.writeFile(ctx, filename, transformedImports, allDefs)
+    else {
+      ctx.reporter.warning("The file " + filename + " has been discarded since it does not contain smart contract code")
+    }
+  }
+}
