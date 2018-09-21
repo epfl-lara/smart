@@ -10,7 +10,8 @@ trait Trees extends innerfuns.Trees with Definitions { self =>
 
   /* XLang imperative trees to desugar */
 
-  /** $encodingof `return expr;` */
+  /** $encodingof `return expr;` 
+    * This tree is only used internally and not extracted by the frontends */
   case class Return(e: Expr) extends Expr with CachingTyped {
     protected def computeType(implicit s: Symbols): Type = e.getType
   }
