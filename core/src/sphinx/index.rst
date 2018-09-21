@@ -22,6 +22,7 @@ Contents:
    neon
    limitations
    options
+   smartcontracts
    faq
    references
    internals

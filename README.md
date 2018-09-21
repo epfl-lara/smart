@@ -12,6 +12,20 @@ To get started, see the documentation chapters, such as
   * [Getting Started](core/src/sphinx/gettingstarted.rst)
   * [Introduction to Stainless](core/src/sphinx/intro.rst)
 
+### Smart Contracts
+
+Stainless supports verification of [smart
+contracts](core/src/sphinx/smartcontracts.rst) written in (a subset of) Scala.
+In addition to verifying invariant and assertions of your smart contracts,
+Stainless can compile them to Solidity.
+
+#### Disclaimer
+
+Support for smart contracts is highly experimental. This branch is in active
+development and subject to frequent changes. Only use it with great caution, 
+and at your own risk.
+
+
 ### Relation to [Inox](https://github.com/epfl-lara/inox)
 
 Stainless relies on Inox to solve the various queries stemming from program verification.
