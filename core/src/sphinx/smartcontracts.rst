@@ -16,7 +16,7 @@ Development happens on the `smart repository
 <https://github.com/epfl-lara/smart>`_, a fork of `Stainless
 <https://github.com/epfl-lara/stainess>`_ which is frequently rebased on top of
 Stainless's master. You can follow the Stainless `installation guide
-<installation.rst#Linux & Mac OS-X>`_ by changing the repository:
+<installation.rst>`_ by changing the repository:
 
 .. code-block:: bash
 
@@ -32,7 +32,7 @@ to a ``stainless`` command-line (assuming ~/bin is in your path).
 
 .. code-block:: bash
 
-  $ ln -s /path/stainless/frontends/scalac/target/universal/stage/bin/stainless-scalac ~/bin/stainless
+  $ ln -s /path/to/smart/frontends/scalac/target/universal/stage/bin/stainless-scalac ~/bin/stainless
 
 
 Formal Verification of Smart Contracts
