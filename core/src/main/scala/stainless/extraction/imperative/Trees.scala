@@ -10,6 +10,11 @@ trait Trees extends innerfuns.Trees with Definitions { self =>
 
   /* XLang imperative trees to desugar */
 
+  /** $encodingof `return expr;` */
+  case class Return(e: Expr) extends Expr with CachingTyped {
+    protected def computeType(implicit s: Symbols): Type = e.getType
+  }
+
   /** $encodingof `{ expr1; expr2; ...; exprn; last }` */
   case class Block(exprs: Seq[Expr], last: Expr) extends Expr with CachingTyped {
     protected def computeType(implicit s: Symbols): Type = if (exprs.forall(_.isTyped)) last.getType else Untyped
