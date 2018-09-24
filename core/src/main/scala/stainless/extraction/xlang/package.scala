@@ -22,7 +22,7 @@ package object xlang {
   def extractor(implicit ctx: inox.Context) = {
     val lowering: ExtractionPipeline {
       val s: trees.type
-      val t: methods.trees.type
+      val t: smartcontracts.trees.type
     } = new oo.SimplePhase with SimplyCachedFunctions with SimplyCachedSorts with oo.SimplyCachedClasses { self =>
       override val s: trees.type = trees
       override val t: smartcontracts.trees.type = smartcontracts.trees

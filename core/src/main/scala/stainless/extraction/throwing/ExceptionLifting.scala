@@ -15,6 +15,9 @@ trait ExceptionLifting
 
   override protected type TransformerContext = s.Symbols
   override protected def getContext(symbols: s.Symbols) = symbols
+
+  override val phaseName = "throwing.ExceptionLifting"
+  override val debugTransformation = true
 }
 
 object ExceptionLifting {
