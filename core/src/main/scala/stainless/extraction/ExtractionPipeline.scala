@@ -14,80 +14,6 @@ trait ExtractionPipeline { self =>
 
   def extract(symbols: s.Symbols): t.Symbols
 
-  // make a String representation for a table of Symbols `s`, only keeping 
-  // functions and classes whose names appear in `objs`
-  def symbolsToString(tt: ast.Trees)(s: tt.Symbols, objs: Set[String]): String = {
-    val printerOpts = tt.PrinterOptions.fromContext(context)
-    def objectsToString(m: Iterable[(Identifier,tt.Definition)]): String = 
-      m.collect { 
-        case (id,d) if objs.isEmpty || objs.contains(id.name) => 
-          d.asString(printerOpts)
-      }.mkString("\n\n")
-
-    val functions = objectsToString(s.functions)
-    val sorts = objectsToString(s.sorts)
-    val classes = 
-      if (tt == oo.trees) 
-        // we do the casts in both directions since the compiler doesn't 
-        // recognize that tt == oo.trees
-        objectsToString(s.asInstanceOf[oo.trees.Symbols]
-                         .classes
-                         .asInstanceOf[Iterable[(Identifier,tt.Definition)]])
-      else
-        ""
-
-    def wrapWith(header: String, s: String) = {
-      if (s.isEmpty) ""
-      else 
-        "-------------" + header + "-------------\n" +
-        s + "\n\n"
-    }
-
-    wrapWith("Functions", functions) ++
-    wrapWith("Sorts", sorts) ++
-    wrapWith("Classes", classes)
-  }
-
-  // `extractWithDebug` is a wrapper around `extract` which outputs trees for debugging
-  // and which outputs position checks
-  def extractWithDebug(symbols: s.Symbols): t.Symbols = {
-    implicit val debugSection = inox.ast.DebugSectionTrees
-    val phases = context.options.findOption(optDebugPhases)
-    val objs = context.options.findOption(optDebugObjects).getOrElse(Seq()).toSet
-    val debug: Boolean = 
-      debugTransformation && 
-      (phases.isEmpty || (phases.isDefined && phases.get.exists(phaseName.contains _)))
-
-    context.reporter.synchronized {
-      val symbolsToPrint = symbolsToString(s)(symbols, objs)
-      if (debug && !symbolsToPrint.isEmpty) {
-        context.reporter.debug("\n\n\n\nSymbols before " + phaseName + "\n")
-        context.reporter.debug(symbolsToPrint)
-      }
-
-      // start the position checker before extracting the symbols, if the option if on
-      if (debug && self.context.reporter.debugSections.contains(utils.DebugSectionPositions)) {
-        val posChecker = utils.PositionChecker(self.phaseName)(self.s)(self.context)(true)
-        symbols.functions.values.toSeq.foreach(posChecker.traverse)
-      }
-
-      val res = extract(symbols)
-      val resToPrint = symbolsToString(t)(res, objs)
-
-      if (debug && (!symbolsToPrint.isEmpty || !resToPrint.isEmpty)) {
-        context.reporter.debug("\n\nSymbols after " + phaseName +  "\n")
-        context.reporter.debug(resToPrint)
-        context.reporter.debug("\n\n")
-      }
-
-      if (debug && self.context.reporter.debugSections.contains(utils.DebugSectionPositions)) {
-        val posChecker = utils.PositionChecker(self.phaseName)(self.t)(self.context)(false)
-        res.functions.values.toSeq.foreach(posChecker.traverse)
-      }
-      res
-    }
-  }
-
   def invalidate(id: Identifier): Unit
 
   def andThen(that: ExtractionPipeline { val s: self.t.type }): ExtractionPipeline {
@@ -99,7 +25,7 @@ trait ExtractionPipeline { self =>
     override val context = self.context
 
     override def extract(symbols: s.Symbols): t.Symbols = {
-      that.extractWithDebug(self.extractWithDebug(symbols))
+      that.extract(self.extract(symbols))
     }
 
     override def invalidate(id: Identifier): Unit = {
@@ -143,8 +69,6 @@ object ExtractionPipeline {
 }
 
 trait CachingPhase extends ExtractionPipeline with ExtractionCaches { self =>
-  override val debugTransformation = true
-
   protected type FunctionResult
   protected val funCache: ExtractionCache[s.FunDef, FunctionResult]
 
@@ -167,8 +91,7 @@ trait CachingPhase extends ExtractionPipeline with ExtractionCaches { self =>
 
   protected def extractSymbols(context: TransformerContext, symbols: s.Symbols): t.Symbols = {
     val functions = symbols.functions.values.map { fd =>
-      // funCache.cached(fd, symbols)(extractFunction(context, fd))
-      extractFunction(context, fd)
+      funCache.cached(fd, symbols)(extractFunction(context, fd))
     }.toSeq
 
     val sorts = symbols.sorts.values.map { sort =>
