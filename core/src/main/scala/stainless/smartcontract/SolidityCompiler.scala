@@ -54,14 +54,6 @@ object SolidityCompiler {
       case _ => false
     }
 
-    def isModifierFunDef(fd: FunDef) = {
-      fd.flags.exists { case f => isAnnotation("modifier", f) }
-    }
-
-    def isModifierFunDefId(id: Identifier) = {
-      idsToFunctions.isDefinedAt(id) && isModifierFunDef(idsToFunctions(id))
-    }
-
     def isLibrary(fd: FunDef) = fd.flags.exists(isLibraryAnnotation)
 
     // This function must only be called on functions that are known to have 
@@ -137,17 +129,6 @@ object SolidityCompiler {
       rec(expr)
     }
 
-    def extractModifiers(expr: Expr) = {
-      def process(expr: Expr, acc: Set[SFlag]):(Expr, Set[SFlag]) = expr match {
-        case MethodInvocation(rcv, id, _, args) if isModifierFunDefId(id) =>
-          val followExpr = args.head
-          process(followExpr, acc + SModifierFun(id.name))
-        case e => (e, acc)
-      }
-
-      process(expr, Set.empty)
-    }
-
     def transformExpr(expr: Expr): SolidityExpr = expr match {
       // Transform call to field addr of a contract
       case MethodInvocation(rcv, id, _, args) if isIdentifier("stainless.smartcontracts.ContractInterface.addr", id) =>
@@ -182,9 +163,6 @@ object SolidityCompiler {
         val newRcv = transformExpr(rcv)
 
         SAssignment(SMappingRef(newRcv, newKey), newVal)
-
-      case MethodInvocation(rcv, id, _, args) if isModifierFunDefId(id) =>
-        ctx.reporter.fatalError(rcv.getPos, "A modifier function cannot be used inside the body of a function")
 
       case MethodInvocation(rcv, id, _, Seq(arg)) if isSolidityNumericType(rcv) =>
         val tpe = rcv.getType(symbols)
@@ -383,25 +361,6 @@ object SolidityCompiler {
       SAbstractFunDef(fd.id.name, newParams, rteType, sflags)
     }
 
-    def transformModifier(fd: FunDef) = {
-      val substParam = fd.params.head
-   
-      val newParams = Seq.empty
-      val rteType = SUnitType()
-      val sflags = Seq.empty
-      val bodyWithoutSpec = exprOps.withoutSpecs(fd.fullBody)
-
-      val newBody = 
-            if(bodyWithoutSpec.isDefined)
-              SolidityTreeOps.transform({
-                  case SVariable(name) if name == substParam.id.name => SModifierBodyVariable()
-              }, transformExpr(bodyWithoutSpec.get))
-            else STerminal()
-                     
-      SFunDef(fd.id.name, newParams, rteType, newBody, sflags)
-    }
-
-
     def transformMethod(fd: FunDef) = {
       SolidityChecker.checkFunction(fd)
 
@@ -425,11 +384,10 @@ object SolidityCompiler {
       }
 
       if(bodyWithoutSpec.isDefined) {
-        val (bodyWithoutMods, mods) = extractModifiers(bodyWithoutSpec.get)
-        val body1 = if(fd.returnType != UnitType()) insertReturns(bodyWithoutMods, fd.returnType) 
-                    else bodyWithoutMods
+        val body1 = if(fd.returnType != UnitType()) insertReturns(bodyWithoutSpec.get, fd.returnType) 
+                    else bodyWithoutSpec.get
         val body2 = transformExpr(body1)
-        SFunDef(name, newParams, rteType, body2, sflags ++ mods)
+        SFunDef(name, newParams, rteType, body2, sflags)
       } else {
         SFunDef(name, newParams, rteType, STerminal(), sflags)
       }
@@ -484,17 +442,14 @@ object SolidityCompiler {
       val parents = cd.parents.map(_.toString)
       val fields = transformFields(cd)
       val methods = cd.methods(symbols).filterNot(functionShouldBeDiscarded).map(idsToFunctions)
-
-      val (modifierMethods, standardMethods) = methods partition isModifierFunDef
       
-      val newModifierMethods = modifierMethods.map(transformModifier)
-      val newStandardMethods = standardMethods.filter(fd => !fd.flags.contains(xt.IsInvariant) && 
-                                                            !fd.flags.contains(xt.Ghost) && 
-                                                            !isIdentifier("stainless.smartcontracts.ContractInterface.addr", fd.id))
-                                               .map(transformMethod)
+      val newMethods = methods.filter(fd => !fd.flags.contains(xt.IsInvariant) && 
+                                            !fd.flags.contains(xt.Ghost) && 
+                                            !isIdentifier("stainless.smartcontracts.ContractInterface.addr", fd.id))
+                               .map(transformMethod)
 
       val constructor = transformConstructor(cd)
-      SContractDefinition(cd.id.name, parents, constructor, Seq.empty, enums, fields, newModifierMethods ++ newStandardMethods)
+      SContractDefinition(cd.id.name, parents, constructor, Seq.empty, enums, fields, newMethods)
     }
 
     def transformLibrary(fds: Seq[FunDef]): Option[SLibrary] = {

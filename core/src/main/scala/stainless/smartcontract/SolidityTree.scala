@@ -32,7 +32,6 @@ case class SEventDef(name: String, args: Seq[SParamDef]) extends SolidityDef
 case class SConstructorDef(params: Seq[SParamDef], body: SolidityExpr) extends SolidityDef
 case class SFunDef(name: String,params: Seq[SParamDef], returnType: SolidityType, body: SolidityExpr, flags: Seq[SFlag]) extends SolidityDef
 case class SAbstractFunDef(name: String, params: Seq[SParamDef], returnType: SolidityType, flags: Seq[SFlag]) extends SolidityDef
-case class SModifierFunction(name: String, params: Seq[SParamDef], body: SolidityExpr) extends SolidityDef
 
 sealed trait SolidityExpr
 
@@ -55,7 +54,6 @@ case class STransfer(receiver: SolidityExpr, amount: SolidityExpr) extends Solid
 case class SAssignment(rcv: SolidityExpr, value: SolidityExpr) extends SolidityExpr
 case class SEmit(event: SClassConstructor) extends SolidityExpr
 case class SWhile(cond: SolidityExpr, body: SolidityExpr) extends SolidityExpr
-case class SModifierBodyVariable() extends SolidityExpr
 
 case class SMappingRef(rcv: SolidityExpr, index: SolidityExpr) extends SolidityExpr
 case class SArrayRef(rcv: SolidityExpr, index: SolidityExpr) extends SolidityExpr
@@ -103,11 +101,9 @@ case class SArrayType(underlying: SolidityType) extends SolidityType
 
 sealed trait SFlag
 case class SPayable()                  extends SFlag
-case class SModifier()                 extends SFlag
 case class SPure()                     extends SFlag
 case class SView()                     extends SFlag
 case class SPrivate()                  extends SFlag
-case class SModifierFun(name: String)  extends SFlag
 
 object SolidityTreeOps {
     def transform(f: PartialFunction[SolidityExpr, SolidityExpr], expr: SolidityExpr) = {

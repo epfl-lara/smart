@@ -58,12 +58,6 @@ class solidityPure extends Annotation
 **  TODO
 **/
 @ignore
-class modifier extends Annotation
-
-/** Solidity annotation
-**  TODO
-**/
-@ignore
 class view extends Annotation
 
 /** Solidity annotation

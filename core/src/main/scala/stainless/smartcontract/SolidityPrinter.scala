@@ -24,11 +24,9 @@ object SolidityPrinter {
     def printFunModifiers(mod: Seq[SFlag])(implicit out: Writer) = {
       mod.foreach{
         case SPayable() => out.write("payable ")
-        case SModifier() => out.write("modifier ")
         case SPure() => out.write("pure ")
         case SPrivate() => out.write("private ")
         case SView() => out.write("view ")
-        case SModifierFun(name) => out.write(name + " ")
       }
     }
 
@@ -269,9 +267,7 @@ object SolidityPrinter {
         ppCode(cond)(out, 0)
         out.write(");")
         // Solidity doesn't allow error messages for assertions?
-        // out.write(", \"" + err + "\")") 
-
-      case SModifierBodyVariable() => writeWithIndent("_")
+        // out.write(", \"" + err + "\")")
 
       case SAddress(code) =>
         writeWithIndent("address(")
@@ -291,6 +287,7 @@ object SolidityPrinter {
           out.write(") ")
         else
           out.write(") public ")
+        // the private keyword is printed here
         printFunModifiers(modifiers)
         if(!isUnitType(rteType)) {
           out.write("returns (" + typeToString(rteType) + ") ")
