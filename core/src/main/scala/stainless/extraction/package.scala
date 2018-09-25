@@ -88,8 +88,6 @@ package object extraction {
     override val t: to.type = to
     override val context = ctx
 
-    override val debugTransformation = true
-
     override def invalidate(id: Identifier): Unit = ()
     override def extract(symbols: s.Symbols): t.Symbols = completeSymbols(symbols)(to)
   }
