@@ -497,14 +497,14 @@ object SolidityCompiler {
       SContractDefinition(cd.id.name, parents, constructor, Seq.empty, enums, fields, newModifierMethods ++ newStandardMethods)
     }
 
-    def transformLibrary(fds: Seq[FunDef]) = {
+    def transformLibrary(fds: Seq[FunDef]): Option[SLibrary] = {
       def max(x: Int,y: Int) = if(x > y) x else y
 
-      if(fds.isEmpty) Seq()
+      if(fds.isEmpty) None
       else {
         val i = max(filename.lastIndexOf("/") + 1, 0)
         val name = filename.substring(i).replace(".scala", "")
-        Seq(SLibrary(name, fds.map(transformMethod)))
+        Some(SLibrary(name, fds.map(transformMethod)))
       }
     }
 
