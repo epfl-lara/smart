@@ -35,7 +35,6 @@ package object frontend {
    */
   val allComponents: Seq[Component] = Seq(
     verification.VerificationComponent,
-    // smartcontract.SmartContractComponent,
     termination.TerminationComponent,
     evaluators.EvaluatorComponent
   )

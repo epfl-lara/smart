@@ -156,6 +156,14 @@ object SolidityCompiler {
           case ClassSelector(_, selector) => SAddress(SVariable(selector.name))
         }
 
+      // Transform call to field transfer of an address
+      case MethodInvocation(rcv, id, _, Seq(amount)) if isIdentifier("stainless.smartcontracts.Address.transfer", id) =>
+        STransfer(transformExpr(rcv), transformExpr(amount))
+
+      // Calls to selfdestruct
+      case MethodInvocation(rcv, id, _, Seq(receiver)) if isIdentifier("stainless.smartcontracts.ContractInterface.selfdestruct", id) =>
+        SSelfDestruct(transformExpr(receiver))
+
       // Desugar call to method balance on class address
       case MethodInvocation(rcv, id, _, _) if isIdentifier("stainless.smartcontracts.Address.balance", id) =>
         val srcv = transformExpr(rcv)
@@ -196,7 +204,7 @@ object SolidityCompiler {
             ctx.reporter.fatalError(rcv.getPos, "Unknown operator: " + id.name)
         }
         
-      case MethodInvocation(rcv, id, _, args) =>
+      case MethodInvocation(rcv, id, _, args) if symbols.functions.contains(id) =>
         val srcv = transformExpr(rcv)
         val newArgs = args.map(transformExpr)
                           .zip(symbols.functions(id).params)
@@ -204,13 +212,6 @@ object SolidityCompiler {
                           .map(_._1)
                           
         SMethodInvocation(srcv, id.name, newArgs, None)
-
-      /*case fi@FunctionInvocation(id, _, args) if compareFunInvoc(id, emitFun) =>
-        val Seq(arg) = args
-        transformExpr(arg) match {
-          case s:SClassConstructor => SEmit(s)
-        }
-      */
 
       case FunctionInvocation(id, _, args) if isIdentifier("stainless.smartcontracts.get", id) =>
         val Seq(array,index) = args
@@ -230,10 +231,6 @@ object SolidityCompiler {
       case fi@FunctionInvocation(id, _, args) if isIdentifier("stainless.smartcontracts.dynAssert", id) =>
         val Seq(cond:Expr) = args
         SAssert(transformExpr(cond), "error")
-
-      /*// Desugar constantMapping function
-      case fi@FunctionInvocation(id, _, _) if isIdentifier("stainless.smartcontracts.Mapping.constant", id) =>
-        ctx.reporter.fatalError(fi.getPos, "The function constant mapping cannot be used inside a method")*/
 
       // Desugar pay function
       case fi@FunctionInvocation(id, _, args) if isIdentifier("stainless.smartcontracts.pay",id) =>
@@ -277,15 +274,6 @@ object SolidityCompiler {
       case FunctionInvocation(id, _, Seq(lhs, rhs)) if isIdentifier("stainless.smartcontracts.unsafe_$div", id) =>
         SDivision(transformExpr(lhs), transformExpr(rhs))
 
-      // case FunctionInvocation(id, _, _) if isIdentifier("stainless.smartcontracts.Uint256.ZERO", id) =>
-      //   SLiteral("0")
-
-      // case FunctionInvocation(id, _, _) if isIdentifier("stainless.smartcontracts.Uint256.ONE", id) =>
-      //   SLiteral("1")
-
-      // case FunctionInvocation(id, _, _) if isIdentifier("stainless.smartcontracts.Uint256.TWO", id) =>
-        // SLiteral("2")
-
       case FunctionInvocation(id, _, _) if isIdentifier("stainless.lang.ghost", id) =>
         STerminal()
 
@@ -303,12 +291,6 @@ object SolidityCompiler {
                           .filterNot{ case (a,p) => p.flags.contains(Ghost)}
                           .map(_._1)
         SFunctionInvocation(name, newArgs)
-      
-
-      /*// Case to throw error if a method of a contract call a function that is not compiled to Solidity
-      case fi@FunctionInvocation(id, _, args) =>
-        ctx.reporter.fatalError(fi.getPos, "Cannot call function that are outside contract")
-      */
 
       case Block(exprs, last) => SBlock(exprs.map(transformExpr),
                       transformExpr(last))
@@ -322,17 +304,7 @@ object SolidityCompiler {
 
       case ClassConstructor(tpe, args) if isIdentifier("stainless.smartcontracts.Address", tpe.id) =>
         val Seq(x) = args
-        SAddress(transformExpr(x)) 
-
-      // case ClassConstructor(tpe, args) if isIdentifier("stainless.smartcontracts.Uint256", tpe.id) =>
-      //   val Seq(IntegerLiteral(x)) = args
-      //   SLiteral(x.toString) 
-
-      /*case ClassConstructor(tpe, args) if tpe == eventType =>
-        transformType(tpe) match {
-          case tpe:SEventType => SEvent(tpe, args.map(transformExpr))
-        }
-      */
+        SAddress(transformExpr(x))
 
       case ClassConstructor(tpe, args) if(enumsTypeMap.isDefinedAt(tpe)) =>
         val id = enumsTypeMap(tpe)
@@ -397,7 +369,6 @@ object SolidityCompiler {
       case Choose(_,_) => STerminal()
       case Return(e) => SReturn(transformExpr(e))
 
-      
       // Recursive Functions
       case LetRec(fds, _) => ctx.reporter.fatalError("The compiler to Solidity does not support locally defined recursive functions:\n" + fds.head)
 
@@ -493,8 +464,6 @@ object SolidityCompiler {
         SConstructorDef(params, body)
       }
     }
-
-    
 
     def transformInterface(cd: ClassDef) = {
       ctx.reporter.info("Compiling Interface : " + cd.id.name + " in file " + filename)

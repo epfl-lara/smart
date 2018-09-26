@@ -50,6 +50,8 @@ case class STerminal() extends SolidityExpr
 case class SLet(vd: SParamDef, value: SolidityExpr, body: SolidityExpr) extends SolidityExpr
 case class SNow() extends SolidityExpr
 case class SAddress(code: SolidityExpr) extends SolidityExpr
+case class SSelfDestruct(receiver: SolidityExpr) extends SolidityExpr
+case class STransfer(receiver: SolidityExpr, amount: SolidityExpr) extends SolidityExpr
 case class SAssignment(rcv: SolidityExpr, value: SolidityExpr) extends SolidityExpr
 case class SEmit(event: SClassConstructor) extends SolidityExpr
 case class SWhile(cond: SolidityExpr, body: SolidityExpr) extends SolidityExpr

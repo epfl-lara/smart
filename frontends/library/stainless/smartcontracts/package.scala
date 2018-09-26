@@ -68,6 +68,7 @@ package object smartcontracts {
 	//@extern
 	//def emit(e: Event): Unit = ???
 
+	@library
 	case class Mapping[A, B](
 		private var underlying: A => B
 	) {
@@ -93,6 +94,7 @@ package object smartcontracts {
 		def duplicate[A,B](that: Mapping[A,B]) = Mapping(that.underlying)
 	}
 
+	@library
 	case class Environment(
 	  var balance: Mapping[Address, Uint256] = Mapping.constant(Uint256.ZERO)
 	) {
@@ -103,7 +105,7 @@ package object smartcontracts {
 		}
 
 		@library
-  		def balanceOf(addr: Address) = balance(addr)
+		def balanceOf(addr: Address) = balance(addr)
 	}
 
 	object Environment {
@@ -114,19 +116,21 @@ package object smartcontracts {
 	  def updateBalance(from: Address, to: Address, amnt: Uint256): Unit = ???
 	}
 
+	@library
 	case class Msg(
 	  val sender: Address,
 	  val value: Uint256
 	)
 
 	object Msg {
-	  @extern
+	  @extern @library
 	  def sender: Address = ???
 
-	  @extern
+	  @extern @library
 	  def value: Uint256 = ???
  	}
 
+	@library
 	case class Address(id: BigInt) {
 		@library
 		def balance = Environment.balanceOf(this)
@@ -138,6 +142,7 @@ package object smartcontracts {
 		}
 	}
 
+	@library
 	trait ContractInterface {
 		@library
 		def addr: Address = ???
@@ -149,6 +154,7 @@ package object smartcontracts {
 		}
 	} 
 
+	@library
 	trait Contract extends ContractInterface
 	
 	@ignore

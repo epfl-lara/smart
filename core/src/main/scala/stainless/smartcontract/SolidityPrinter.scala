@@ -70,9 +70,13 @@ object SolidityPrinter {
       case e:SFieldAssignment =>
       case e:SAssignment =>
       case e:SReturn =>
+      case e:STransfer =>
+      case e:SAssert =>
+      case e:SRequire =>
+      case e:SSelfDestruct =>
       case e:STerminal =>
       case e:SWhile =>
-      case _ => out.write(";\n")
+      case _ => out.write(";")
     }
 
     def writeWithSeparator(ls: Seq[SolidityExpr], sep: String)(implicit out: Writer, indentLvl: Int): Unit = ls match {
@@ -117,19 +121,30 @@ object SolidityPrinter {
         writeWithSeparator(args, ", ")(out, 0)
         out.write(")")
 
+      case STransfer(receiver, amount) =>
+        ppCode(receiver)
+        out.write(".transfer(")
+        ppCode(amount)(out, 0)
+        out.write(");")
+
+      case SSelfDestruct(receiver) =>
+        writeWithIndent("selfdestruct(")
+        ppCode(receiver)(out, 0)
+        out.write(");")
+
       case SReturn(expr) => 
         writeWithIndent("return ")
         ppCode(expr)(out, 0)
         out.write(";")
 
       case SBlock(exprs, last) =>
-        //writeWithIndent("{\n")
-        (exprs :+ last).foreach{ e =>  
+        for (e <- exprs) {  
           ppCode(e)
           shouldAddColon(e)
-          // out.write("\n")
+          out.write("\n")
         }
-        //writeWithIndent("}\n")
+        ppCode(last)
+        shouldAddColon(last)
 
       case SFieldAssignment(obj, sel, expr) =>
         if(obj != SThis()) {
@@ -139,12 +154,12 @@ object SolidityPrinter {
 
         out.write(" = ")
         ppCode(expr)(out, 0)
-        out.write(";\n")
+        out.write(";")
       case SAssignment(rcv, value) =>
         ppCode(rcv)
         out.write(" = ")
         ppCode(value)(out, 0)
-        out.write(";\n")
+        out.write(";")
 
       case SVariable(value) => writeWithIndent(value)
 
@@ -196,15 +211,17 @@ object SolidityPrinter {
         shouldAddColon(body)
 
       case SIfExpr(cond, thenn, elze) =>
-        writeWithIndent("if(")
+        writeWithIndent("if (")
         ppCode(cond)(out, 0)
         out.write(") {\n")
         ppCode(thenn)(out, indentLvl + 1)
+        shouldAddColon(thenn)
         out.write("\n")
         writeWithIndent("}")
         if(elze != STerminal()) {
           out.write(" else {\n")
           ppCode(elze)(out, indentLvl + 1)
+          shouldAddColon(elze)
           out.write("\n")
           writeWithIndent("}")
         } else {
@@ -212,10 +229,11 @@ object SolidityPrinter {
         }
 
       case SWhile(cond, body) => 
-        writeWithIndent("while(")
+        writeWithIndent("while (")
         ppCode(cond)(out, 0)
         out.write(") {\n")
         ppCode(body)(out, indentLvl + 1)
+        shouldAddColon(body)
         writeWithIndent("}\n")
 
       case SAnd(exprs) =>
@@ -244,12 +262,12 @@ object SolidityPrinter {
       case SRequire(cond, err) => 
         writeWithIndent("require(")
         ppCode(cond)(out, 0)
-        out.write(", \"" + err + "\")")
+        out.write(", \"" + err + "\");")
 
       case SAssert(cond, err) => 
         writeWithIndent("assert(")
         ppCode(cond)(out, 0)
-        out.write(")")
+        out.write(");")
         // Solidity doesn't allow error messages for assertions?
         // out.write(", \"" + err + "\")") 
 
