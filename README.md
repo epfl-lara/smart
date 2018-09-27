@@ -88,6 +88,7 @@ indeed valid (assuming that the `require` holds).
 
 ```
 $ stainless Candy.scala
+[...]
 [  Info  ]   ┌───────────────────┐
 [  Info  ] ╔═╡ stainless summary ╞══════════════════════════════════════════════════════════════════════╗
 [  Info  ] ║ └───────────────────┘                                                                      ║
@@ -98,12 +99,14 @@ $ stainless Candy.scala
 [  Info  ] ╚════════════════════════════════════════════════════════════════════════════════════════════╝
 ```
 
-Despite the overflows, the invariant property will stay true. Stainless has 
-a `--strict-arithmetic` mode that ensures that no overflow happens. Run on this 
-example with `--strict-arithmetic`, Stainless produces the following output. 
+Despite the overflows, the invariant of the contract holds. Stainless features a
+`--strict-arithmetic` mode that checks that no overflow happens. Run on this
+example with `--strict-arithmetic`, Stainless is indeed able to report the
+overflows, with the following output. 
 
 ```
 $ stainless Candy.scala --strict-arithmetic
+[...]
 [  Info  ]   ┌───────────────────┐
 [  Info  ] ╔═╡ stainless summary ╞══════════════════════════════════════════════════════════════════════╗
 [  Info  ] ║ └───────────────────┘                                                                      ║
@@ -174,7 +177,8 @@ The contract can be compiled to Solidity using
 
 > stainless --solidity Candy.scala
 
-which produces a file `Candy.sol`:
+which produces a file `Candy.sol`. The compiler drops the assertions, but
+compiles the `dynRequire` commands to `require` in Solidity.
 
 ```javascript
 pragma solidity ^0.4.24;
