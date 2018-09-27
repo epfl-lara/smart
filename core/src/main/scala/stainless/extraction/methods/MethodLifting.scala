@@ -6,18 +6,57 @@ package methods
 
 import inox.utils.Position
 
-trait MethodLifting extends ExtractionPipeline with ExtractionCaches { self =>
+trait MethodLifting extends oo.ExtractionPipeline with oo.ExtractionCaches { self =>
   val s: Trees
   val t: oo.Trees
   import s._
 
-  override val phaseName = "methods.MethodLifting"
-  override val debugTransformation = true
+  // The function cache must consider all direct overrides of the current function.
+  // Note that we actually use the set of transitive overrides here as computing
+  // the set of direct overrides is significantly more expensive and shouldn't improve
+  // the cache hit rate that much.
+  private[this] final val funCache = new CustomCache[s.FunDef, t.FunDef]({ (fd, symbols) =>
+    new DependencyKey(fd.id, fd.flags
+      .collectFirst { case s.IsMethodOf(id) => symbols.getClass(id) }.toSeq
+      .flatMap { cd =>
+        val descendants = cd.descendants(symbols)
+        val descendantIds = descendants.map(_.id).toSet
 
-  // private[this] final val funCache   = ExtractionCache[s.FunDef, t.FunDef]()
-  private[this] final val classCache = new ExtractionCache[Set[Identifier], s.ClassDef, (t.ClassDef, Option[t.FunDef])](
-    (cd, syms) => cd.descendantsIdsWithSelf(syms)
-  )
+        val isInvariant = fd.flags contains s.IsInvariant
+
+        def symbolOf(fd: s.FunDef): Symbol = fd.id.asInstanceOf[SymbolIdentifier].symbol
+
+        val funOverrides = symbols.functions.values
+          .filter(_.flags exists { case s.IsMethodOf(id) => descendantIds(id) case _ => false })
+          .filter { ofd =>
+            if (isInvariant) ofd.flags contains s.IsInvariant
+            else symbolOf(ofd) == symbolOf(fd) // casts are sound after checking `IsMethodOf`
+          }.map(FunctionKey(_, symbols))
+
+        val fieldOverrides = if (fd.tparams.isEmpty && fd.params.isEmpty) {
+          descendants
+            .filter(cd => cd.fields.exists(_.id.name == fd.id.name))
+            .map(ClassKey(_, symbols))
+        } else {
+          Set.empty[CacheKey]
+        }
+
+        funOverrides ++ fieldOverrides
+      }.toSet)
+  })
+
+  // The class cache relies on the ClassKey, as well as whether the class (or one
+  // of its descendants) has an invariant.
+  private[this] final val classCache = new CustomCache[s.ClassDef, (t.ClassDef, Option[t.FunDef])]({
+    (cd, symbols) =>
+      val ids = cd.descendants(symbols).map(_.id).toSet + cd.id
+      val hasInv = symbols.functions.values.exists { fd => 
+        (fd.flags contains IsInvariant) &&
+        (fd.flags exists { case IsMethodOf(cid) => ids(cid) case _ => false })
+      }
+
+      ClassKey(cd, symbols) + new ValueKey(hasInv)
+  })
 
   private sealed trait Override { val cid: Identifier }
   private case class FunOverride(cid: Identifier, fid: Option[Identifier], children: Seq[Override]) extends Override

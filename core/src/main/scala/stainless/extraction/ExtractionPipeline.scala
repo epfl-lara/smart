@@ -154,121 +154,14 @@ object ExtractionPipeline {
   }
 }
 
-trait ExtractionCaches { self: ExtractionPipeline =>
-  /** Represents a definition dependency with some identifier `id`.
-    * Such a dependency can be either a
-    * - function definition
-    * - class definition
-    * - sort definition
-    * These dependencies represent transformation results that can't be cached based
-    * solely on their identifier (e.g. subtyping functions). Such functions are marked
-    * as `Uncached` and MUST be part of the dependencies of all functions that rely on
-    * them in order for caching to be sound.
-    */
-  private final class Dependency(val id: Identifier, val key: AnyRef) {
-    override val hashCode: Int = key.hashCode
-    override def equals(that: Any): Boolean = that match {
-      case dep: Dependency => key == dep.key
-      case _ => false
-    }
-  }
-
-  /** Represents a cache key with all it's `Uncached` dependencies. */
-  protected class CacheKey private(
-    private[ExtractionCaches] val id: Identifier,
-    private[ExtractionCaches] val keys: Set[Dependency],
-    private[ExtractionCaches] val dependencies: Set[Identifier]) {
-
-    override val hashCode: Int = (id, keys).hashCode
-    override def equals(that: Any): Boolean = that match {
-      case ck: CacheKey => id == ck.id && keys == ck.keys
-      case _ => false
-    }
-  }
-
-  protected object CacheKey {
-    def apply(id: Identifier)(implicit symbols: s.Symbols): CacheKey = {
-      new CacheKey(id, symbols.dependencies(id).flatMap { did =>
-        val optKey = symbols.lookupFunction(id).map { fd =>
-          if (fd.flags contains s.Uncached) {
-            Some((fd.id, fd.typeArgs, fd.params.map(_.toVariable), fd.returnType, fd.fullBody, fd.flags))
-          } else {
-            None
-          }
-        } orElse symbols.lookupSort(id).map { sort =>
-          if (sort.flags contains s.Uncached) {
-            Some((sort.id, sort.typeArgs, sort.constructors.map { cons =>
-              (cons.id, cons.sort, cons.fields.map(_.toVariable))
-            }, sort.flags))
-          } else {
-            None
-          }
-        } orElse {
-          if (s.isInstanceOf[oo.Trees]) {
-            val oos = s.asInstanceOf[oo.Trees]
-            symbols.asInstanceOf[oos.Symbols].lookupClass(id).map { cd =>
-              if (cd.flags contains oos.Uncached) {
-                Some((cd.id, cd.typeArgs, cd.parents, cd.fields.map(_.toVariable), cd.flags))
-              } else {
-                None
-              }
-            }
-          } else {
-            None
-          }
-        } getOrElse (throw inox.FatalError(s"Unexpected dependency in ${id.asString}: ${did.asString}"))
-
-        optKey.map(new Dependency(did, _))
-      }, symbols.dependencies(id))
-    }
-
-    def apply(d: s.Definition)(implicit symbols: s.Symbols): CacheKey = apply(d.id)
-  }
-
-  private[this] val caches = new scala.collection.mutable.ListBuffer[ExtractionCache[_, _, _]]
-
-  protected class ExtractionCache[Key, X <: s.Definition, Y](keyOf: (X, s.Symbols) => Key) {
-    private[this] final val cache = new utils.ConcurrentCache[(X, Key), Y]
-
-    def cached(id: X, symbols: s.Symbols)(builder: => Y): Y = cache.cached(id -> keyOf(id, symbols))(builder)
-
-    def contains(id: X, symbols: s.Symbols): Boolean = cache contains (id -> keyOf(id, symbols))
-    def update(id: X, symbols: s.Symbols, value: Y) = cache.update(id -> keyOf(id, symbols), value)
-    def get(id: X, symbols: s.Symbols): Option[Y] = cache.get(id -> keyOf(id, symbols))
-    def apply(id: X, symbols: s.Symbols): Y = cache(id -> keyOf(id, symbols))
-
-    private[ExtractionCaches] def invalidate(id: Identifier): Unit =
-      cache.retain(key => key._1.id != id)
-      // FIXME: key._1.dependencies is not accepted by the compiler
-      // cache.retain(key => key._1.id != id && !(key._1.dependencies contains id)) 
-
-    self.synchronized(caches += this)
-  }
-
-  object ExtractionCache {
-    def apply[X <: s.Definition, Y]() = {
-      new ExtractionCache[CacheKey, X, Y]((x, sym) => CacheKey(x)(sym))
-    }
-  }
-
-  override def invalidate(id: Identifier): Unit = {
-    for (cache <- caches) cache.invalidate(id)
-  }
-}
-
 trait CachingPhase extends ExtractionPipeline with ExtractionCaches { self =>
   override val debugTransformation = true
 
   protected type FunctionResult
-  // Some phases may need to extract the same FunDef differently based on 
-  // symbols (e.g. MethodLifting)
-  // FIXME: this cache can be reenabled if a proper `keyOf` function is provided
-  // private[this] final val funCache = ExtractionCache[s.FunDef, FunctionResult]()
+  protected val funCache: ExtractionCache[s.FunDef, FunctionResult]
 
   protected type SortResult
-  private[this] final val sortCache = new ExtractionCache[Set[Identifier], s.ADTSort, SortResult](
-    (sd, syms) => sd.constructors.map(_.id).toSet + sd.id
-  )
+  protected val sortCache: ExtractionCache[s.ADTSort, SortResult]
 
   protected type TransformerContext
   protected def getContext(symbols: s.Symbols): TransformerContext
@@ -303,7 +196,15 @@ trait SimpleSorts extends CachingPhase {
   override protected def registerSorts(symbols: t.Symbols, sorts: Seq[t.ADTSort]): t.Symbols = symbols.withSorts(sorts)
 }
 
-trait IdentitySorts extends SimpleSorts { self =>
+trait SimplyCachedSorts extends CachingPhase {
+  override protected final val sortCache: ExtractionCache[s.ADTSort, SortResult] = new SimpleCache[s.ADTSort, SortResult]
+}
+
+trait DependentlyCachedSorts extends CachingPhase {
+  override protected final val sortCache: ExtractionCache[s.ADTSort, SortResult] = new DependencyCache[s.ADTSort, SortResult]
+}
+
+trait IdentitySorts extends SimpleSorts with SimplyCachedSorts { self =>
   private[this] final object identity extends ast.TreeTransformer {
     override val s: self.s.type = self.s
     override val t: self.t.type = self.t
@@ -317,7 +218,15 @@ trait SimpleFunctions extends CachingPhase {
   override protected def registerFunctions(symbols: t.Symbols, functions: Seq[t.FunDef]): t.Symbols = symbols.withFunctions(functions)
 }
 
-trait IdentityFunctions extends SimpleFunctions { self =>
+trait SimplyCachedFunctions extends CachingPhase {
+  override protected final val funCache: ExtractionCache[s.FunDef, FunctionResult] = new SimpleCache[s.FunDef, FunctionResult]
+}
+
+trait DependentlyCachedFunctions extends CachingPhase {
+  override protected final val funCache: ExtractionCache[s.FunDef, FunctionResult] = new DependencyCache[s.FunDef, FunctionResult]
+}
+
+trait IdentityFunctions extends SimpleFunctions with SimplyCachedFunctions { self =>
   private[this] final object identity extends ast.TreeTransformer {
     override val s: self.s.type = self.s
     override val t: self.t.type = self.t

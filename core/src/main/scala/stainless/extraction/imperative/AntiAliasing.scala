@@ -10,13 +10,19 @@ trait AntiAliasing
   extends CachingPhase
      with SimpleSorts
      with EffectsAnalyzer
-     with EffectsChecker { self =>
+     with EffectsChecker
+     with GhostChecker { self =>
   import s._
 
-  override val phaseName = "imperative.AntiAliasing"
+  // Function rewriting depends on the effects analysis which relies on all dependencies
+  // of the function, so we use a dependency cache here.
+  override protected final val funCache = new DependencyCache[s.FunDef, FunctionResult]
+
+  // Function types are rewritten by the transformer depending on the result of the
+  // effects analysis, so we again use a dependency cache here.
+  override protected final val sortCache = new DependencyCache[s.ADTSort, SortResult]
 
   override protected type FunctionResult = Option[FunDef]
-
   override protected def registerFunctions(symbols: t.Symbols, functions: Seq[Option[t.FunDef]]): t.Symbols =
     symbols.withFunctions(functions.flatten)
 
@@ -75,7 +81,9 @@ trait AntiAliasing
     import analysis._
     import symbols._
 
-    checkFunction(fd)(symbols, effects) match {
+    checkGhost(fd)(symbols, effects)
+
+    checkEffects(fd)(symbols, effects) match {
       case CheckResult.Ok => ()
       case CheckResult.Skip => return None
       case CheckResult.Error(err) => throw err
@@ -196,15 +204,34 @@ trait AntiAliasing
               } yield {
                 val pos = args(index).getPos
                 val resSelect = TupleSelect(freshRes.toVariable, index + 2)
-                def select(expr: Expr, path: Seq[Accessor]): Expr = path match {
-                  case FieldAccessor(id) +: xs => select(ADTSelector(expr, id).setPos(pos), xs)
-                  case ArrayAccessor(idx) +: xs => select(ArraySelect(expr, idx).setPos(pos), xs)
-                  case Nil => expr
+
+                def select(tpe: Type, expr: Expr, path: Seq[Accessor]): (Expr, Expr) = (tpe, path) match {
+                  case (adt: ADTType, FieldAccessor(id) +: xs) =>
+                    val constructors = adt.getSort.constructors
+                    val constructor = constructors.find(_.fields.exists(_.id == id)).get
+                    val field = constructor.fields.find(_.id == id).get
+
+                    val condition = if (constructors.size > 1) {
+                      IsConstructor(expr, constructor.id).setPos(pos)
+                    } else {
+                      BooleanLiteral(true).setPos(pos)
+                    }
+
+                    val (recCond, recSelect) = select(field.tpe, ADTSelector(expr, id).setPos(pos), xs)
+                    (and(condition, recCond), recSelect)
+
+                  case (ArrayType(base), ArrayAccessor(idx) +: xs) =>
+                    select(base, ArraySelect(expr, idx).setPos(pos), xs)
+
+                  case (_, Nil) => (BooleanLiteral(true).setPos(pos), expr)
                 }
 
-                val result = select(resSelect, outerEffect.target.path)
+                val (cond, result) = select(resSelect.getType, resSelect, outerEffect.target.path)
                 val newValue = applyEffect(effect, Annotated(result, Seq(Unchecked)).setPos(pos))
-                Assignment(effect.receiver, newValue).setPos(args(index))
+                val assignment = Assignment(effect.receiver, newValue).setPos(args(index))
+
+                if (cond == BooleanLiteral(true)) assignment
+                else IfExpr(cond, assignment, UnitLiteral().setPos(pos)).setPos(pos)
               },
               TupleSelect(freshRes.toVariable, 1))
 

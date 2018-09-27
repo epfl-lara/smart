@@ -4,13 +4,13 @@ package stainless
 package extraction
 package oo
 
-trait CachingPhase extends extraction.CachingPhase { self =>
+trait ExtractionPipeline extends extraction.ExtractionPipeline {
   val s: Trees
+}
 
+trait CachingPhase extends ExtractionPipeline with extraction.CachingPhase with ExtractionCaches { self =>
   protected type ClassResult
-  private lazy val classCache = new ExtractionCache[Set[Identifier], s.ClassDef, ClassResult](
-    (cd, syms) => cd.descendantsIdsWithSelf(syms)
-  )
+  protected val classCache: ExtractionCache[s.ClassDef, ClassResult]
 
   protected def extractClass(context: TransformerContext, cd: s.ClassDef): ClassResult
   protected def registerClasses(symbols: t.Symbols, classes: Seq[ClassResult]): t.Symbols
@@ -32,7 +32,15 @@ trait SimpleClasses extends CachingPhase {
   override protected def registerClasses(symbols: t.Symbols, classes: Seq[t.ClassDef]): t.Symbols = symbols.withClasses(classes)
 }
 
-trait IdentityClasses extends SimpleClasses { self =>
+trait SimplyCachedClasses extends CachingPhase {
+  override protected final val classCache: ExtractionCache[s.ClassDef, ClassResult] = new SimpleCache[s.ClassDef, ClassResult]
+}
+
+trait DependentlyCachedClasses extends CachingPhase {
+  override protected final val classCache: ExtractionCache[s.ClassDef, ClassResult] = new DependencyCache[s.ClassDef, ClassResult]
+}
+
+trait IdentityClasses extends SimpleClasses with SimplyCachedClasses { self =>
   private[this] final object identity extends oo.TreeTransformer {
     override val s: self.s.type = self.s
     override val t: self.t.type = self.t

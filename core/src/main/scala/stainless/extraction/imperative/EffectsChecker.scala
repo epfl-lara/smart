@@ -14,7 +14,7 @@ object CheckResult {
 trait EffectsChecker { self: EffectsAnalyzer =>
   import s._
 
-  protected def checkFunction(fd: FunDef)(symbols: Symbols, effects: EffectsAnalysis): CheckResult = {
+  protected def checkEffects(fd: FunDef)(symbols: Symbols, effects: EffectsAnalysis): CheckResult = {
     import symbols._
     import effects._
 
@@ -55,15 +55,12 @@ trait EffectsChecker { self: EffectsAnalyzer =>
                   throw ImperativeEliminationException(e, "Illegal aliasing: " + e)
               }
 
-              if (vd.flags.contains(Ghost) && effects(e).nonEmpty) {
-                throw ImperativeEliminationException(e, "Right-hand side of ghost variable must be pure")
-              }
-
               super.traverse(l)
 
-            case l @ LetVar(vd, e, b) if isMutableType(vd.tpe) =>
-              if (!isExpressionFresh(e))
+            case l @ LetVar(vd, e, b) =>
+              if (!isExpressionFresh(e) && isMutableType(vd.tpe))
                 throw ImperativeEliminationException(e, "Illegal aliasing: " + e)
+
               super.traverse(l)
 
             case l @ LetRec(fds, body) =>
@@ -99,14 +96,6 @@ trait EffectsChecker { self: EffectsAnalyzer =>
                   throw ImperativeEliminationException(e,
                     "Cannot instantiate a non-mutable type parameter with a mutable type")
               }
-
-              cons.fields.zip(args)
-                .filter { case (vd, _) => vd.flags contains Ghost }
-                .foreach { case (vd, arg) =>
-                  if (!effects(arg).forall(validGhostEffects))
-                    throw ImperativeEliminationException(arg,
-                      s"Argument to ghost field `${vd.id}` of class `${id}` must only have effects on ghost fields")
-                }
 
               super.traverse(adt)
 
@@ -190,7 +179,7 @@ trait EffectsChecker { self: EffectsAnalyzer =>
     def checkPurity(fd: FunAbstraction): Unit = {
       val effs = effects(fd.fullBody)
 
-      if (isPure(fd) && !effs.isEmpty)
+      if ((fd.flags contains IsPure) && !effs.isEmpty)
         throw ImperativeEliminationException(fd, s"Function marked @pure cannot have side-effects")
 
       // if (isGhost(fd) && effs.exists(eff => !validGhostEffects(eff)))

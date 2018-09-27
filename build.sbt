@@ -15,8 +15,9 @@ val isMac     = osInf.indexOf("Mac") >= 0
 val osName = if (isWindows) "win" else if (isMac) "mac" else "unix"
 val osArch = System.getProperty("sun.arch.data.model")
 
-val inoxVersion = "1.1.0-243-gd08df9b"
+val inoxVersion = "1.1.0-256-g525e430"
 val dottyVersion = "0.1.1-bin-20170429-10a2ce6-NIGHTLY"
+val circeVersion = "0.10.0-M2"
 
 lazy val nParallel = {
   val p = System.getProperty("parallel")
@@ -76,9 +77,9 @@ lazy val commonSettings: Seq[Setting[_]] = artifactSettings ++ Seq(
     "ch.epfl.lara" %% "inox" % inoxVersion % "test" classifier "tests",
     "ch.epfl.lara" %% "cafebabe" % "1.2",
     "org.scalatest" %% "scalatest" % "3.0.1" % "test",
-    "io.circe" %% "circe-core" % "0.8.0",
-    "io.circe" %% "circe-generic" % "0.8.0",
-    "io.circe" %% "circe-parser" % "0.8.0"
+    "io.circe" %% "circe-core" % circeVersion,
+    "io.circe" %% "circe-generic" % circeVersion,
+    "io.circe" %% "circe-parser" % circeVersion
   ),
 
   concurrentRestrictions in Global += Tags.limit(Tags.Test, nParallel),
