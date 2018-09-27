@@ -60,8 +60,8 @@ trait GhostChecker { self: EffectsAnalyzer =>
           throw ImperativeEliminationException(fun, s"Ghost function cannot have effect on non-ghost state")
         new Checker(true).traverse(fun)
       } else {
-        if (!inGhost && isGhostExpression(fun.fullBody))
-          throw ImperativeEliminationException(fun, s"Non-ghost function cannot return a ghost result")
+        // if (!inGhost && isGhostExpression(fun.fullBody))
+        //   throw ImperativeEliminationException(fun, s"Non-ghost function cannot return a ghost result")
         new Checker(inGhost).traverse(fun)
       }
     }
@@ -76,9 +76,9 @@ trait GhostChecker { self: EffectsAnalyzer =>
           val newVd = vd.copy(flags = vd.flags :+ Ghost)
           traverse(Let(newVd, e, exprOps.replaceFromSymbols(Map(vd -> newVd.toVariable), b)).copiedFrom(expr))
 
-        case Let(vd, e, _) if !(vd.flags contains Ghost) && isGhostExpression(e) =>
-          throw ImperativeEliminationException(expr,
-            "Right-hand side of non-ghost variable cannot be ghost")
+        // case Let(vd, e, _) if !(vd.flags contains Ghost) && isGhostExpression(e) =>
+        //   throw ImperativeEliminationException(expr,
+        //     "Right-hand side of non-ghost variable cannot be ghost")
 
         case LetVar(vd, e, b) if (vd.flags contains Ghost) && !effects(e).forall(isGhostEffect) =>
           throw ImperativeEliminationException(expr,
@@ -88,9 +88,9 @@ trait GhostChecker { self: EffectsAnalyzer =>
           val newVd = vd.copy(flags = vd.flags :+ Ghost)
           traverse(LetVar(newVd, e, exprOps.replaceFromSymbols(Map(vd -> newVd.toVariable), b)).copiedFrom(expr))
 
-        case LetVar(vd, e, _) if !(vd.flags contains Ghost) && isGhostExpression(e) =>
-          throw ImperativeEliminationException(expr,
-            "Right-hand side of non-ghost variable cannot be ghost")
+        // case LetVar(vd, e, _) if !(vd.flags contains Ghost) && isGhostExpression(e) =>
+        //   throw ImperativeEliminationException(expr,
+        //     "Right-hand side of non-ghost variable cannot be ghost")
 
         case Assignment(v, e) if (v.flags contains Ghost) && !effects(e).forall(isGhostEffect) =>
           throw ImperativeEliminationException(expr,
