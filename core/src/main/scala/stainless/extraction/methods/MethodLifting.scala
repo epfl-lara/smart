@@ -102,15 +102,13 @@ trait MethodLifting extends oo.ExtractionPipeline with oo.ExtractionCaches { sel
       val funs = cd.methods(symbols)
         .map(symbols.functions)
         .map { fd =>
-          // funCache.cached(fd, symbols)(transformMethod(fd)(symbols))
-          transformMethod(fd)(symbols)
+          funCache.cached(fd, symbols)(transformMethod(fd)(symbols))
         }
 
       functions ++= funs
 
       val inv = invariant map { inv =>
-        // funCache.cached(inv, symbols)(transformMethod(inv)(symbols.withFunctions(Seq(inv))))
-        transformMethod(inv)(symbols.withFunctions(Seq(inv)))
+        funCache.cached(inv, symbols)(transformMethod(inv)(symbols.withFunctions(Seq(inv))))
       }
 
       val (cls, fun) = classCache.cached(cd, symbols) {
@@ -125,8 +123,7 @@ trait MethodLifting extends oo.ExtractionPipeline with oo.ExtractionCaches { sel
     functions ++= symbols.functions.values
       .filterNot(_.flags exists { case IsMethodOf(_) => true case _ => false })
       .map { fd =>
-        // funCache.cached(fd, symbols)(default.transform(fd))
-        default.transform(fd)
+        funCache.cached(fd, symbols)(default.transform(fd))
       }
 
     t.NoSymbols.withFunctions(functions.toSeq).withClasses(classes.toSeq)
