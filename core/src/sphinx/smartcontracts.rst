@@ -39,7 +39,7 @@ Formal Verification of Smart Contracts
 --------------------------------------
 
 Let us have a look at ``MinimumToken`` which implements a token with just a
-``transfer`` function. From the ``smart`` repository, issue the following
+``transferFrom`` function. From the ``smart`` repository, issue the following
 commands:
 
 .. code-block:: bash 
@@ -71,24 +71,18 @@ a token with a ``transferFrom`` function.
     @ghost val b0 = Mapping.duplicate(balanceOf)
 
     // code to remove balance from `from` address
-    balanceOf set (from, balanceOf(from) - amount)
+    balanceOf(from) = balanceOf(from) - amount
 
     // balanceOf mapping before after the first update, before the second update
     @ghost val b1 = Mapping.duplicate(balanceOf)
 
     // code to add balance to recipient `to`
-    balanceOf set (to, balanceOf(to) + amount)
+    balanceOf(to) = balanceOf(to) + amount
 
     // proof that the sum of balances stays equal to `total`
-    assert((
-      sumBalances(participants, balanceOf)                                    ==| balancesUpdatedLemma(participants, b1, to, b1(to) + amount) | 
-      sumBalances(participants, b1) - b1(to) + (b1(to) + amount)              ==| trivial |
-      sumBalances(participants, b1) + amount                                  ==| (balancesUpdatedLemma(participants, b0, from, b0(from) - amount) && sumBalances(participants, b1) == sumBalances(participants, b0) - b0(from) + (b0(from) - amount)) |
-      sumBalances(participants, b0) - b0(from) + (b0(from) - amount) + amount ==| ((b0(from) - amount) + amount == b0(from)) |
-      sumBalances(participants, b0) - b0(from) + b0(from)                     ==| trivial |
-      sumBalances(participants, b0)                                           ==| trivial |
-      total
-    ).qed)
+    ghost {
+      transferProof(b0,b1,balanceOf,from,to,amount,participants,total)
+    }
 
   } ensuring { _ =>
     contractInvariant(this)
@@ -241,6 +235,7 @@ Known Issues
 
 * Your code must contain a case class that extends the `Contract` class (from stainless.smartcontracts), otherwise you will get an exception during verification.
 * For readability, the compiler to Solidity currently print the names of the variables as they appear in your Stainless source code. As such, you should avoid using two variables with the same name in the same scope.
+* Some checks for ghost code who were giving false positives are currently disabled.
 
 Reporting Issues
 ----------------

@@ -89,4 +89,38 @@ object MinimumTokenInvariant {
     val b1 = balances.updated(to, newBalance)
     sumBalances(participants, b1) == sumBalances(participants, balances) - balances(to) + newBalance
   })
+
+  // Proof the that the sum of balances is maintained after two updates
+  @ghost
+  def transferProof(
+    @ghost b0: Mapping[Address,Uint256],
+    @ghost b1: Mapping[Address,Uint256],
+    @ghost balanceOf: Mapping[Address,Uint256],
+    @ghost from: Address,
+    @ghost to: Address,
+    @ghost amount: Uint256,
+    @ghost participants: List[Address],
+    @ghost total: Uint256
+  ) = {
+    require(
+      contractInvariant(MinimumToken(b0, total, participants)) &&
+      b1 == b0.updated(from, b0(from) - amount) &&
+      balanceOf == b1.updated(to, b1(to) + amount) &&
+      participants.contains(from) &&
+      participants.contains(to)
+    )
+
+    assert((
+      sumBalances(participants, balanceOf)                                             ==| balancesUpdatedLemma(participants, b1, to, b1(to) + amount) |:
+      sumBalances(participants, b1) - b1(to) + (b1(to) + amount)                       ==| trivial |:
+      sumBalances(participants, b1) + amount                                           ==| 
+        (balancesUpdatedLemma(participants, b0, from, b0(from) - amount) && 
+        sumBalances(participants, b1) == sumBalances(participants, b0) - b0(from) + (b0(from) - amount))
+        |:
+      sumBalances(participants, b0) - b0(from) + (b0(from) - amount) + amount         ==| ((b0(from) - amount) + amount == b0(from)) |:
+      sumBalances(participants, b0) - b0(from) + b0(from)                             ==| trivial |:
+      sumBalances(participants, b0)                                                   ==| trivial |:
+      total
+    ).qed)
+  } ensuring( _ => sumBalances(participants, balanceOf) == total)
 }

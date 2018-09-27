@@ -19,10 +19,6 @@ case class MinimumToken (
   var participants: List[Address]
 ) extends Contract {
 
-  // def constructor(owner: Address, amount: Uint256): Unit = {
-  //   balanceOf set ()
-  // }
-
   def transferFrom(from: Address, to: Address, amount: Uint256): Unit = {
     require(contractInvariant(this))
 
@@ -50,18 +46,9 @@ case class MinimumToken (
     balanceOf(to) = balanceOf(to) + amount
 
     // proof that the sum of balances stays equal to `total`
-    assert((
-      sumBalances(participants, balanceOf)                                             ==| balancesUpdatedLemma(participants, b1, to, b1(to) + amount) |:
-      sumBalances(participants, b1) - b1(to) + (b1(to) + amount)                       ==| trivial |:
-      sumBalances(participants, b1) + amount                                           ==| 
-        (balancesUpdatedLemma(participants, b0, from, b0(from) - amount) && 
-        sumBalances(participants, b1) == sumBalances(participants, b0) - b0(from) + (b0(from) - amount))
-        |:
-      sumBalances(participants, b0) - b0(from) + (b0(from) - amount) + amount         ==| ((b0(from) - amount) + amount == b0(from)) |:
-      sumBalances(participants, b0) - b0(from) + b0(from)                             ==| trivial |:
-      sumBalances(participants, b0)                                                   ==| trivial |:
-      total
-    ).qed)
+    ghost {
+      transferProof(b0,b1,balanceOf,from,to,amount,participants,total)
+    }
 
   } ensuring { _ =>
     contractInvariant(this)
