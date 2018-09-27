@@ -47,20 +47,22 @@ class StainlessSerializer(override val trees: ast.Trees, serializeProducts: Bool
       classSerializer[ArrayType](138),
 
       // Stainless Flags
-      classSerializer[Ghost.type]      (147),
       classSerializer[Extern.type]     (139),
       classSerializer[Opaque.type]     (140),
       classSerializer[Unchecked.type]  (141),
-      classSerializer[PartialEval.type](146),
-      classSerializer[Private.type]    (148),
       classSerializer[Derived]         (142),
       classSerializer[IsField]         (143),
       classSerializer[IsUnapply]       (144),
-      classSerializer[Synthetic.type]  (182),
 
       mappingSerializer[SymbolIdentifier](145)
         (id => (id.globalId, id.id, id.symbol.path, id.symbol.id))
-        (p => new SymbolIdentifier(new Identifier(p._3.last, p._1, p._2), new Symbol(p._3, p._4)))
+        (p => new SymbolIdentifier(new Identifier(p._3.last, p._1, p._2), new Symbol(p._3, p._4))),
+      
+      classSerializer[PartialEval.type](146),
+      classSerializer[Ghost.type]      (147),
+      classSerializer[Private.type]    (148),
+      classSerializer[Synthetic.type]  (182)
+
     )
 }
 
