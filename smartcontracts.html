@@ -1,0 +1,321 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Stainless Smart Contracts &#8212; Stainless 3.0 documentation</title>
+    <link rel="stylesheet" href="_static/css/stainless.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Frequently Asked Questions" href="faq.html" />
+    <link rel="prev" title="Command Line Options" href="options.html" /> 
+  </head><body>
+    <div class="header-wrapper">
+      <div class="header">
+        <div class="left">
+            <div class="headertitle"><a
+              href="index.html">Stainless Documentation</a></div>
+            <div class="rel">
+              <a href="options.html">Command Line Options</a> |
+              <a class="uplink" href="index.html">Contents</a>
+              | <a href="faq.html">Frequently Asked Questions</a>
+            </div>
+        </div>
+        <div class="right">
+          <form class="search" action="search.html" method="get">
+            <input type="text" name="q" placeholder="Search.." />
+            <input type="submit" value="Go" />
+            <input type="hidden" name="check_keywords" value="yes" />
+            <input type="hidden" name="area" value="default" />
+          </form>
+        </div>
+        <div class="clearer"></div>
+       </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="stainless-smart-contracts">
+<h1>Stainless Smart Contracts<a class="headerlink" href="#stainless-smart-contracts" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Permalink to this headline">¶</a></h2>
+<p>Stainless now has experimental support for formally verifying smart contracts,
+and compiling them to Solidity.</p>
+</div>
+<div class="section" id="installation">
+<h2>Installation<a class="headerlink" href="#installation" title="Permalink to this headline">¶</a></h2>
+<p>Development happens on the <a class="reference external" href="https://github.com/epfl-lara/smart">smart repository</a>, a fork of <a class="reference external" href="https://github.com/epfl-lara/stainess">Stainless</a> which is frequently rebased on top of
+Stainless’s master. You can follow the Stainless <a class="reference external" href="installation.rst">installation guide</a> by changing the repository:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ git clone https://github.com/epfl-lara/smart.git
+Cloning into <span class="s1">&#39;smart&#39;</span>...
+// ...
+$ <span class="nb">cd</span> smart
+$ sbt clean universal:stage
+// takes about <span class="m">1</span> minute
+</pre></div>
+</div>
+<p>You can then create a symbolic link (e.g. for Linux &amp; Mac OS-X) to have access
+to a <code class="docutils literal notranslate"><span class="pre">stainless</span></code> command-line (assuming ~/bin is in your path).</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ ln -s /path/to/smart/frontends/scalac/target/universal/stage/bin/stainless-scalac ~/bin/stainless
+</pre></div>
+</div>
+</div>
+<div class="section" id="formal-verification-of-smart-contracts">
+<h2>Formal Verification of Smart Contracts<a class="headerlink" href="#formal-verification-of-smart-contracts" title="Permalink to this headline">¶</a></h2>
+<p>Let us have a look at <code class="docutils literal notranslate"><span class="pre">MinimumToken</span></code> which implements a token with just a
+<code class="docutils literal notranslate"><span class="pre">transfer</span></code> function. From the <code class="docutils literal notranslate"><span class="pre">smart</span></code> repository, issue the following
+commands:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ <span class="nb">cd</span> frontends/benchmarks/smartcontracts/valid/MinimumToken
+$ stainless *.scala
+</pre></div>
+</div>
+<p>After 30 seconds or so, Stainless should report that all verification conditions
+are valid. What do these correspond to? The file <code class="docutils literal notranslate"><span class="pre">MinimumToken.scala</span></code> defines
+a token with a <code class="docutils literal notranslate"><span class="pre">transferFrom</span></code> function.</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">transferFrom</span><span class="o">(</span><span class="n">from</span><span class="k">:</span> <span class="kt">Address</span><span class="o">,</span> <span class="n">to</span><span class="k">:</span> <span class="kt">Address</span><span class="o">,</span> <span class="n">amount</span><span class="k">:</span> <span class="kt">Uint256</span><span class="o">)</span><span class="k">:</span> <span class="kt">Unit</span> <span class="o">=</span> <span class="o">{</span>
+  <span class="n">require</span><span class="o">(</span><span class="n">contractInvariant</span><span class="o">(</span><span class="k">this</span><span class="o">))</span>
+
+  <span class="c1">// input validation at runtime</span>
+  <span class="n">dynRequire</span><span class="o">(</span><span class="n">to</span> <span class="o">!=</span> <span class="nc">Address</span><span class="o">(</span><span class="mi">0</span><span class="o">))</span>
+  <span class="n">dynRequire</span><span class="o">(</span><span class="n">from</span> <span class="o">!=</span> <span class="n">to</span><span class="o">)</span>
+  <span class="n">dynRequire</span><span class="o">(</span><span class="n">amount</span> <span class="o">&lt;=</span> <span class="n">balanceOf</span><span class="o">(</span><span class="n">from</span><span class="o">))</span>
+
+  <span class="c1">// ghost code to update the list of participants</span>
+  <span class="n">ghost</span> <span class="o">{</span>
+    <span class="n">addParticipant</span><span class="o">(</span><span class="n">from</span><span class="o">)</span>
+    <span class="n">addParticipant</span><span class="o">(</span><span class="n">to</span><span class="o">)</span>
+  <span class="o">}</span>
+
+  <span class="c1">// balanceOf mapping before any update</span>
+  <span class="nd">@ghost</span> <span class="k">val</span> <span class="n">b0</span> <span class="k">=</span> <span class="nc">Mapping</span><span class="o">.</span><span class="n">duplicate</span><span class="o">(</span><span class="n">balanceOf</span><span class="o">)</span>
+
+  <span class="c1">// code to remove balance from `from` address</span>
+  <span class="n">balanceOf</span> <span class="n">set</span> <span class="o">(</span><span class="n">from</span><span class="o">,</span> <span class="n">balanceOf</span><span class="o">(</span><span class="n">from</span><span class="o">)</span> <span class="o">-</span> <span class="n">amount</span><span class="o">)</span>
+
+  <span class="c1">// balanceOf mapping before after the first update, before the second update</span>
+  <span class="nd">@ghost</span> <span class="k">val</span> <span class="n">b1</span> <span class="k">=</span> <span class="nc">Mapping</span><span class="o">.</span><span class="n">duplicate</span><span class="o">(</span><span class="n">balanceOf</span><span class="o">)</span>
+
+  <span class="c1">// code to add balance to recipient `to`</span>
+  <span class="n">balanceOf</span> <span class="n">set</span> <span class="o">(</span><span class="n">to</span><span class="o">,</span> <span class="n">balanceOf</span><span class="o">(</span><span class="n">to</span><span class="o">)</span> <span class="o">+</span> <span class="n">amount</span><span class="o">)</span>
+
+  <span class="c1">// proof that the sum of balances stays equal to `total`</span>
+  <span class="n">assert</span><span class="o">((</span>
+    <span class="n">sumBalances</span><span class="o">(</span><span class="n">participants</span><span class="o">,</span> <span class="n">balanceOf</span><span class="o">)</span>                                    <span class="o">==|</span> <span class="n">balancesUpdatedLemma</span><span class="o">(</span><span class="n">participants</span><span class="o">,</span> <span class="n">b1</span><span class="o">,</span> <span class="n">to</span><span class="o">,</span> <span class="n">b1</span><span class="o">(</span><span class="n">to</span><span class="o">)</span> <span class="o">+</span> <span class="n">amount</span><span class="o">)</span> <span class="o">|</span>
+    <span class="n">sumBalances</span><span class="o">(</span><span class="n">participants</span><span class="o">,</span> <span class="n">b1</span><span class="o">)</span> <span class="o">-</span> <span class="n">b1</span><span class="o">(</span><span class="n">to</span><span class="o">)</span> <span class="o">+</span> <span class="o">(</span><span class="n">b1</span><span class="o">(</span><span class="n">to</span><span class="o">)</span> <span class="o">+</span> <span class="n">amount</span><span class="o">)</span>              <span class="o">==|</span> <span class="n">trivial</span> <span class="o">|</span>
+    <span class="n">sumBalances</span><span class="o">(</span><span class="n">participants</span><span class="o">,</span> <span class="n">b1</span><span class="o">)</span> <span class="o">+</span> <span class="n">amount</span>                                  <span class="o">==|</span> <span class="o">(</span><span class="n">balancesUpdatedLemma</span><span class="o">(</span><span class="n">participants</span><span class="o">,</span> <span class="n">b0</span><span class="o">,</span> <span class="n">from</span><span class="o">,</span> <span class="n">b0</span><span class="o">(</span><span class="n">from</span><span class="o">)</span> <span class="o">-</span> <span class="n">amount</span><span class="o">)</span> <span class="o">&amp;&amp;</span> <span class="n">sumBalances</span><span class="o">(</span><span class="n">participants</span><span class="o">,</span> <span class="n">b1</span><span class="o">)</span> <span class="o">==</span> <span class="n">sumBalances</span><span class="o">(</span><span class="n">participants</span><span class="o">,</span> <span class="n">b0</span><span class="o">)</span> <span class="o">-</span> <span class="n">b0</span><span class="o">(</span><span class="n">from</span><span class="o">)</span> <span class="o">+</span> <span class="o">(</span><span class="n">b0</span><span class="o">(</span><span class="n">from</span><span class="o">)</span> <span class="o">-</span> <span class="n">amount</span><span class="o">))</span> <span class="o">|</span>
+    <span class="n">sumBalances</span><span class="o">(</span><span class="n">participants</span><span class="o">,</span> <span class="n">b0</span><span class="o">)</span> <span class="o">-</span> <span class="n">b0</span><span class="o">(</span><span class="n">from</span><span class="o">)</span> <span class="o">+</span> <span class="o">(</span><span class="n">b0</span><span class="o">(</span><span class="n">from</span><span class="o">)</span> <span class="o">-</span> <span class="n">amount</span><span class="o">)</span> <span class="o">+</span> <span class="n">amount</span> <span class="o">==|</span> <span class="o">((</span><span class="n">b0</span><span class="o">(</span><span class="n">from</span><span class="o">)</span> <span class="o">-</span> <span class="n">amount</span><span class="o">)</span> <span class="o">+</span> <span class="n">amount</span> <span class="o">==</span> <span class="n">b0</span><span class="o">(</span><span class="n">from</span><span class="o">))</span> <span class="o">|</span>
+    <span class="n">sumBalances</span><span class="o">(</span><span class="n">participants</span><span class="o">,</span> <span class="n">b0</span><span class="o">)</span> <span class="o">-</span> <span class="n">b0</span><span class="o">(</span><span class="n">from</span><span class="o">)</span> <span class="o">+</span> <span class="n">b0</span><span class="o">(</span><span class="n">from</span><span class="o">)</span>                     <span class="o">==|</span> <span class="n">trivial</span> <span class="o">|</span>
+    <span class="n">sumBalances</span><span class="o">(</span><span class="n">participants</span><span class="o">,</span> <span class="n">b0</span><span class="o">)</span>                                           <span class="o">==|</span> <span class="n">trivial</span> <span class="o">|</span>
+    <span class="n">total</span>
+  <span class="o">).</span><span class="n">qed</span><span class="o">)</span>
+
+<span class="o">}</span> <span class="n">ensuring</span> <span class="o">{</span> <span class="k">_</span> <span class="k">=&gt;</span>
+  <span class="n">contractInvariant</span><span class="o">(</span><span class="k">this</span><span class="o">)</span>
+<span class="o">}</span>
+</pre></div>
+</div>
+<p>Ignoring the body of the function for a while, the <code class="docutils literal notranslate"><span class="pre">require</span></code> and <code class="docutils literal notranslate"><span class="pre">ensuring</span></code>
+annotations (pre and post-conditions) ask Stainless to show that, regardless
+with which arguments the <code class="docutils literal notranslate"><span class="pre">transferFrom</span></code> function is called, as long as the
+contract <cite>invariant</cite> holds before the function call, then it will still hold
+after the function call.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">contractInvariant</span></code> function is defined in the file
+<code class="docutils literal notranslate"><span class="pre">MinimumTokenInvariant.scala</span></code>.</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">contractInvariant</span><span class="o">(</span><span class="n">contract</span><span class="k">:</span> <span class="kt">MinimumToken</span><span class="o">)</span><span class="k">:</span> <span class="kt">Boolean</span> <span class="o">=</span> <span class="o">{</span>
+  <span class="n">distinctAddresses</span><span class="o">(</span><span class="n">contract</span><span class="o">.</span><span class="n">participants</span><span class="o">)</span> <span class="o">&amp;&amp;</span>
+  <span class="n">sumBalances</span><span class="o">(</span><span class="n">contract</span><span class="o">.</span><span class="n">participants</span><span class="o">,</span> <span class="n">contract</span><span class="o">.</span><span class="n">balanceOf</span><span class="o">)</span> <span class="o">==</span> <span class="n">contract</span><span class="o">.</span><span class="n">total</span> <span class="o">&amp;&amp;</span>
+  <span class="n">forall</span><span class="o">((</span><span class="n">x</span><span class="k">:</span> <span class="kt">Address</span><span class="o">)</span> <span class="k">=&gt;</span>
+    <span class="o">(</span><span class="n">contract</span><span class="o">.</span><span class="n">balanceOf</span><span class="o">(</span><span class="n">x</span><span class="o">)</span> <span class="o">!=</span> <span class="nc">Uint256</span><span class="o">.</span><span class="nc">ZERO</span><span class="o">)</span> <span class="o">==&gt;</span>
+    <span class="n">contract</span><span class="o">.</span><span class="n">participants</span><span class="o">.</span><span class="n">contains</span><span class="o">(</span><span class="n">x</span><span class="o">)</span>
+  <span class="o">)</span>
+<span class="o">}</span>
+</pre></div>
+</div>
+<p>It states that all addresses that appear in the (ghost) variable participants
+are distinct, that the sum of all balances of participants equals to
+<cite>total</cite>, and that all addresses with a non-zero balance appear in the list of
+participants.</p>
+<p>Showing that this invariant holds after the updates that happens in the
+<cite>transferFrom</cite> function requires some work. Some lemmas that are used to relate
+the sum of all balances before and after updates are stated and proven in the
+<code class="docutils literal notranslate"><span class="pre">MinimumTokenInvariant.scala</span></code> file. In the <cite>transferFrom</cite> function, we then
+invoke the lemmas using assertions that will be used for verification. These
+<cite>ghost</cite> expressions are ignored during compilation.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">==|</span></code> and <code class="docutils literal notranslate"><span class="pre">|</span></code> notations are defined in <code class="docutils literal notranslate"><span class="pre">stainless.equations</span></code>. They
+enable to prove that two expressions are equal by detailing the sequence of
+intermediary steps, while providing evidence for each step (or <code class="docutils literal notranslate"><span class="pre">trivial</span></code> if
+not evidence is required).</p>
+<p><cite>MinimumToken</cite> is not so useful as is, since there is no way to create tokens.
+As an exercise, the reader may try to add a function for minting tokens, and
+prove that this function maintains <cite>contractInvariant</cite>. Additionally, we can add
+a custom constructor to this contract by adding a function called <cite>constructor</cite>
+which will be translated to a constructor in Solidity during compilation.</p>
+</div>
+<div class="section" id="compilation-to-solidity">
+<h2>Compilation to Solidity<a class="headerlink" href="#compilation-to-solidity" title="Permalink to this headline">¶</a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">MinimumToken</span></code> example can be compiled to Solidity using the following
+command (still in the <code class="docutils literal notranslate"><span class="pre">MinimumToken</span></code> folder):</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$ stainless --solidity *.scala
+</pre></div>
+</div>
+<p>It will produce the following Solidity code (in the file <cite>MinimumToken.sol</cite>),
+which can be compiled by the Solidity compiler to Ethereum Virtual Machine
+bytecode.</p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="kd">function</span> <span class="nx">transferFrom</span> <span class="p">(</span><span class="nx">address</span> <span class="nx">from</span><span class="p">,</span> <span class="nx">address</span> <span class="nx">to</span><span class="p">,</span> <span class="nx">uint256</span> <span class="nx">amount</span><span class="p">)</span> <span class="kr">public</span> <span class="p">{</span>
+    <span class="nx">require</span><span class="p">(</span><span class="o">!</span><span class="p">(</span><span class="nx">to</span> <span class="o">==</span> <span class="nx">address</span><span class="p">(</span><span class="mi">0</span><span class="p">)),</span> <span class="s2">&quot;error&quot;</span><span class="p">);</span>
+    <span class="nx">require</span><span class="p">(</span><span class="o">!</span><span class="p">(</span><span class="nx">from</span> <span class="o">==</span> <span class="nx">to</span><span class="p">),</span> <span class="s2">&quot;error&quot;</span><span class="p">);</span>
+    <span class="nx">require</span><span class="p">(</span><span class="nx">amount</span> <span class="o">&lt;=</span> <span class="nx">balanceOf</span><span class="p">[</span><span class="nx">from</span><span class="p">],</span> <span class="s2">&quot;error&quot;</span><span class="p">);</span>
+    <span class="nx">balanceOf</span><span class="p">[</span><span class="nx">to</span><span class="p">]</span> <span class="o">=</span> <span class="nx">balanceOf</span><span class="p">[</span><span class="nx">to</span><span class="p">]</span> <span class="o">+</span> <span class="nx">amount</span><span class="p">;</span>
+    <span class="nx">balanceOf</span><span class="p">[</span><span class="nx">from</span><span class="p">]</span> <span class="o">=</span> <span class="nx">balanceOf</span><span class="p">[</span><span class="nx">from</span><span class="p">]</span> <span class="o">-</span> <span class="nx">amount</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>All ghost expressions have been eliminated, and only the dynamic requires
+(<code class="docutils literal notranslate"><span class="pre">dynRequire</span></code>) and the code that updates the balances remain.</p>
+</div>
+<div class="section" id="features">
+<h2>Features<a class="headerlink" href="#features" title="Permalink to this headline">¶</a></h2>
+<div class="section" id="ghost-code">
+<h3>Ghost code<a class="headerlink" href="#ghost-code" title="Permalink to this headline">¶</a></h3>
+<p>Ghost code which is annotated with the <code class="docutils literal notranslate"><span class="pre">&#64;ghost</span></code> annotation is ignored when
+compiling the smart contracts to Solidity.</p>
+</div>
+<div class="section" id="static-and-dynamic-checks">
+<h3>Static and Dynamic Checks<a class="headerlink" href="#static-and-dynamic-checks" title="Permalink to this headline">¶</a></h3>
+<p>Importing <code class="docutils literal notranslate"><span class="pre">stainless.lang.StaticChecks._</span></code> provides the keywords <code class="docutils literal notranslate"><span class="pre">assert</span></code> and
+<code class="docutils literal notranslate"><span class="pre">require</span></code> which trigger the creation of verification conditions. These
+expressions are ghost will not be compiled to Solidity, which allows you to
+save on gas cost once your contracts are deployed.</p>
+<p>On the other hand, importing <code class="docutils literal notranslate"><span class="pre">stainless.smartcontracts._</span></code> gives you the
+keywords <code class="docutils literal notranslate"><span class="pre">dynAssert</span></code> and <code class="docutils literal notranslate"><span class="pre">dynRequire</span></code> which do not trigger the creation of
+verification conditions, and which <em>do</em> get compiled to Solidity (respectively
+to <code class="docutils literal notranslate"><span class="pre">assert</span></code> and <code class="docutils literal notranslate"><span class="pre">require</span></code>) to get runtime checks.</p>
+<p><strong>Remark: Beware if you use require on external functions, as these will not
+appear in the compiled Solidity code. If you want both static verification
+conditions (from internal calls) and dynamic checks at runtime, you can use both
+require and dynRequire as follows.</strong></p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">f</span><span class="o">()</span> <span class="k">=</span> <span class="o">{</span>
+  <span class="n">require</span><span class="o">(</span><span class="n">condition</span><span class="o">)</span>
+  <span class="n">dynRequire</span><span class="o">(</span><span class="n">condition</span><span class="o">)</span>
+  <span class="c1">// rest of the code</span>
+<span class="o">}</span>
+</pre></div>
+</div>
+</div>
+<div class="section" id="strict-arithmetic">
+<h3>Strict Arithmetic<a class="headerlink" href="#strict-arithmetic" title="Permalink to this headline">¶</a></h3>
+<p>The <code class="docutils literal notranslate"><span class="pre">--strict-arithmetic</span></code> mode makes Stainless add verification conditions
+(VCs) that check that arithmetic operations do not overflow. For instance, when
+the mode is active, writing <code class="docutils literal notranslate"><span class="pre">a</span> <span class="pre">+</span> <span class="pre">b</span></code> if <code class="docutils literal notranslate"><span class="pre">a</span></code> and <code class="docutils literal notranslate"><span class="pre">b</span></code> are <code class="docutils literal notranslate"><span class="pre">uint256̀</span></code> will
+create a VC stating that <code class="docutils literal notranslate"><span class="pre">a</span> <span class="pre">+</span> <span class="pre">b</span></code> must be greater or equal to <code class="docutils literal notranslate"><span class="pre">a</span></code>, and
+Stainless will report whether this VC is valid or not (or unknown).</p>
+</div>
+</div>
+<div class="section" id="development">
+<h2>Development<a class="headerlink" href="#development" title="Permalink to this headline">¶</a></h2>
+<p>The <a class="reference external" href="https://github.com/epfl-lara/smart">smart repository</a> is in active
+development and you should expect many (possibly backward-incompatible) changes
+as we implement new features. Here is a list of things that we are working on,
+or plan to work on in the near future:</p>
+<ul class="simple">
+<li>Conversion from Address to Contract.</li>
+<li>Direct compilation to EVM bytecode and other backends.</li>
+<li>Inheritance between contracts (case classes will be replaced by traits).</li>
+<li>Fallback functions.</li>
+<li>More uintX types (only uint8 and uint256 are supported for the moment).</li>
+<li>&#64;internal and &#64;external annotations for functions, to denote functions that
+can only be accessed from the inside or outside, respectively.</li>
+<li>For loops (at the moment, while loops or recursive functions can be used instead).</li>
+</ul>
+<p>If you would love to a see a feature which is not listed here, please open an
+issue in the <a class="reference external" href="https://github.com/epfl-lara/smart">smart repository</a>.</p>
+</div>
+<div class="section" id="known-issues">
+<h2>Known Issues<a class="headerlink" href="#known-issues" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li>Your code must contain a case class that extends the <cite>Contract</cite> class (from stainless.smartcontracts), otherwise you will get an exception during verification.</li>
+<li>For readability, the compiler to Solidity currently print the names of the variables as they appear in your Stainless source code. As such, you should avoid using two variables with the same name in the same scope.</li>
+</ul>
+</div>
+<div class="section" id="reporting-issues">
+<h2>Reporting Issues<a class="headerlink" href="#reporting-issues" title="Permalink to this headline">¶</a></h2>
+<p>As you start experimenting with your own smart contracts in Stainless, you may
+encounter bugs with verification and compilation. These can be reported in the
+<a class="reference external" href="https://github.com/epfl-lara/smart">smart repository</a>. You may also
+get help in the <a class="reference external" href="https://gitter.im/epfl-lara/smart">gitter channel</a>.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+          <h3>Table Of Contents</h3>
+          <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="intro.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="gettingstarted.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installing Stainless</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial.html">Tutorial: Sorting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="purescala.html">Pure Scala</a></li>
+<li class="toctree-l1"><a class="reference internal" href="library.html">Stainless Library</a></li>
+<li class="toctree-l1"><a class="reference internal" href="imperative.html">Imperative</a></li>
+<li class="toctree-l1"><a class="reference internal" href="verification.html">Verification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="neon.html">Proving Theorems</a></li>
+<li class="toctree-l1"><a class="reference internal" href="limitations.html">Limitations of Verification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="options.html">Command Line Options</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Stainless Smart Contracts</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#overview">Overview</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#installation">Installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#formal-verification-of-smart-contracts">Formal Verification of Smart Contracts</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#compilation-to-solidity">Compilation to Solidity</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#features">Features</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#development">Development</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#known-issues">Known Issues</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#reporting-issues">Reporting Issues</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="faq.html">Frequently Asked Questions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="references.html">References</a></li>
+<li class="toctree-l1"><a class="reference internal" href="internals.html">Stainless’ Internals</a></li>
+</ul>
+
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+      <div class="footer">
+        <div class="left">
+            <a href="_sources/smartcontracts.rst.txt"
+               rel="nofollow">Show Source</a>
+        </div>
+
+        <div class="right">
+            &copy; Copyright 2017 (alphabetically) by M. Antognini, R. Blanc, S. Gruetter, L. Hupel, E. Kneuss, M. Koukoutos, V. Kuncak, R. Madhavan, S. Stucki, P. Suter.
+          Last updated on Sep 27, 2018.
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+  </body>
+</html>

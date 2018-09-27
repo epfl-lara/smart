@@ -1,0 +1,297 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Imperative &#8212; Stainless 3.0 documentation</title>
+    <link rel="stylesheet" href="_static/css/stainless.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Verification" href="verification.html" />
+    <link rel="prev" title="Stainless Library" href="library.html" /> 
+  </head><body>
+    <div class="header-wrapper">
+      <div class="header">
+        <div class="left">
+            <div class="headertitle"><a
+              href="index.html">Stainless Documentation</a></div>
+            <div class="rel">
+              <a href="library.html">Stainless Library</a> |
+              <a class="uplink" href="index.html">Contents</a>
+              | <a href="verification.html">Verification</a>
+            </div>
+        </div>
+        <div class="right">
+          <form class="search" action="search.html" method="get">
+            <input type="text" name="q" placeholder="Search.." />
+            <input type="submit" value="Go" />
+            <input type="hidden" name="check_keywords" value="yes" />
+            <input type="hidden" name="area" value="default" />
+          </form>
+        </div>
+        <div class="clearer"></div>
+       </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="imperative">
+<span id="id1"></span><h1>Imperative<a class="headerlink" href="#imperative" title="Permalink to this headline">¶</a></h1>
+<p>To complement the core <a class="reference internal" href="purescala.html"><span class="doc">Pure Scala</span></a> language, Stainless
+proposes a few extensions to that core language.</p>
+<p>On the technical side, these extensions do not have specific treatment in the
+back-end of Stainless. Instead, they are desugared into <a class="reference internal" href="purescala.html"><span class="doc">Pure Scala</span></a>
+constructs during a preprocessing phase in the Stainless front-end.</p>
+<div class="section" id="imperative-code">
+<h2>Imperative Code<a class="headerlink" href="#imperative-code" title="Permalink to this headline">¶</a></h2>
+<p>Stainless lets you introduce local variables in functions, and use Scala assignments
+syntax.</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">foo</span><span class="o">(</span><span class="n">x</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span><span class="k">:</span> <span class="kt">Int</span> <span class="o">=</span> <span class="o">{</span>
+  <span class="k">var</span> <span class="n">a</span> <span class="k">=</span> <span class="n">x</span>
+  <span class="k">var</span> <span class="n">b</span> <span class="k">=</span> <span class="mi">42</span>
+  <span class="n">a</span> <span class="k">=</span> <span class="n">a</span> <span class="o">+</span> <span class="n">b</span>
+  <span class="n">b</span> <span class="k">=</span> <span class="n">a</span>
+  <span class="n">b</span>
+<span class="o">}</span>
+</pre></div>
+</div>
+<p>The above example illustrates three new features introduced by imperative support:</p>
+<ol class="arabic simple">
+<li>Declaring a variable in a local scope</li>
+<li>Blocks of expressions</li>
+<li>Assignments</li>
+</ol>
+<p>You can use Scala variables with a few restrictions. The variables can only be
+declared and used locally, no variable declaration outside of a function body.
+There is also support for variables in case classes constructors. Imperative support
+introduces the possibility to use sequences of expressions (blocks) – a
+feature not available in <a class="reference internal" href="purescala.html"><span class="doc">Pure Scala</span></a>, where your only
+option is a sequence of <code class="docutils literal notranslate"><span class="pre">val</span></code> which essentially introduce nested <code class="docutils literal notranslate"><span class="pre">let</span></code>
+declarations.</p>
+</div>
+<div class="section" id="while-loops">
+<h2>While loops<a class="headerlink" href="#while-loops" title="Permalink to this headline">¶</a></h2>
+<p>You can use the <code class="docutils literal notranslate"><span class="pre">while</span></code> keyword. While loops usually combine the ability to
+declare variables and make a sequence of assignments in order to compute
+something useful:</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">foo</span><span class="o">(</span><span class="n">x</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span><span class="k">:</span> <span class="kt">Int</span> <span class="o">=</span> <span class="o">{</span>
+  <span class="k">var</span> <span class="n">res</span> <span class="k">=</span> <span class="mi">0</span>
+  <span class="k">var</span> <span class="n">i</span> <span class="k">=</span> <span class="mi">0</span>
+  <span class="k">while</span><span class="o">(</span><span class="n">i</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="o">)</span> <span class="o">{</span>
+    <span class="n">res</span> <span class="k">=</span> <span class="n">res</span> <span class="o">+</span> <span class="n">i</span>
+    <span class="n">i</span> <span class="k">=</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span>
+  <span class="o">}</span>
+  <span class="n">res</span>
+<span class="o">}</span>
+</pre></div>
+</div>
+<p>Stainless will automatically generate a postcondition to the <code class="docutils literal notranslate"><span class="pre">while</span></code> loop, using
+the negation of the loop condition. It will automatically prove that
+verification condition and you should see an <code class="docutils literal notranslate"><span class="pre">invariant</span> <span class="pre">postcondition</span></code> marked
+as <code class="docutils literal notranslate"><span class="pre">valid</span></code>.</p>
+<p>Stainless internally handles loops as a function with a postcondition. For the end-user, it
+means that Stainless is only going to rely on the postcondition of the loop to prove properties
+of code relying on loops. Usually that invariant is too weak to prove anything remotely
+useful and you will need to annotate the loop with a stronger invariant.</p>
+<p>You can annotate a loop with an invariant as follows:</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span><span class="k">var</span> <span class="n">res</span> <span class="k">=</span> <span class="mi">0</span>
+<span class="k">var</span> <span class="n">i</span> <span class="k">=</span> <span class="mi">0</span>
+<span class="o">(</span><span class="k">while</span><span class="o">(</span><span class="n">i</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="o">)</span> <span class="o">{</span>
+  <span class="n">res</span> <span class="k">=</span> <span class="n">res</span> <span class="o">+</span> <span class="n">i</span>
+  <span class="n">i</span> <span class="k">=</span> <span class="n">i</span> <span class="o">+</span> <span class="mi">1</span>
+<span class="o">})</span> <span class="n">invariant</span><span class="o">(</span><span class="n">i</span> <span class="o">&gt;=</span> <span class="mi">0</span> <span class="o">&amp;&amp;</span> <span class="n">res</span> <span class="o">&gt;=</span> <span class="n">i</span><span class="o">)</span>
+</pre></div>
+</div>
+<p>The strange syntax comes from some Scala magic in order to make the keyword
+<code class="docutils literal notranslate"><span class="pre">invariant</span></code> a valid keyword. Stainless is defining an implicit conversion from
+<code class="docutils literal notranslate"><span class="pre">Unit</span></code> to an <code class="docutils literal notranslate"><span class="pre">InvariantFunction</span></code> object that provides an <code class="docutils literal notranslate"><span class="pre">invariant</span></code>
+method. The <code class="docutils literal notranslate"><span class="pre">invariant</span></code> method takes a boolean expression as a parameter and
+its semantics is to hold at the following points during the execution of the loop:</p>
+<ol class="arabic simple">
+<li>When first entering the loop: initialization.</li>
+<li>After each complete execution of the body.</li>
+<li>On exiting the loop.</li>
+</ol>
+<p>Stainless will generate verification conditions <code class="docutils literal notranslate"><span class="pre">invariant</span> <span class="pre">inductive</span></code> and
+<code class="docutils literal notranslate"><span class="pre">invariant</span> <span class="pre">postcondition</span></code> to verify points (2) and (3) above. It will also
+generate a <code class="docutils literal notranslate"><span class="pre">precondition</span></code> corresponding to the line of the while loop. This
+verification condition is used to prove the invariant on initialization of the
+loop.</p>
+</div>
+<div class="section" id="arrays">
+<h2>Arrays<a class="headerlink" href="#arrays" title="Permalink to this headline">¶</a></h2>
+<p>PureScala supports functional arrays, that is, the operations <code class="docutils literal notranslate"><span class="pre">apply</span></code> and
+<code class="docutils literal notranslate"><span class="pre">updated</span></code> which do not modify an array but only returns some result. In
+particular, <code class="docutils literal notranslate"><span class="pre">updated</span></code> returns a new copy of the array.</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">f</span><span class="o">(</span><span class="n">a</span><span class="k">:</span> <span class="kt">Array</span><span class="o">[</span><span class="kt">Int</span><span class="o">])</span><span class="k">:</span> <span class="kt">Array</span><span class="o">[</span><span class="kt">Int</span><span class="o">]</span> <span class="k">=</span> <span class="o">{</span>
+  <span class="n">a</span><span class="o">.</span><span class="n">updated</span><span class="o">(</span><span class="mi">0</span><span class="o">,</span> <span class="n">a</span><span class="o">(</span><span class="mi">1</span><span class="o">))</span>
+<span class="o">}</span>
+</pre></div>
+</div>
+<p>However, using functional arrays is not the most natural way to work with
+arrays, and arrays are often used in imperative implementations of algorithms.
+We add the usual <code class="docutils literal notranslate"><span class="pre">update</span></code> operation on arrays:</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span><span class="k">val</span> <span class="n">a</span> <span class="k">=</span> <span class="nc">Array</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span><span class="mi">2</span><span class="o">,</span><span class="mi">3</span><span class="o">,</span><span class="mi">4</span><span class="o">)</span>
+<span class="n">a</span><span class="o">(</span><span class="mi">1</span><span class="o">)</span> <span class="c1">//2</span>
+<span class="n">a</span><span class="o">(</span><span class="mi">1</span><span class="o">)</span> <span class="k">=</span> <span class="mi">10</span>
+<span class="n">a</span><span class="o">(</span><span class="mi">1</span><span class="o">)</span> <span class="c1">//10</span>
+</pre></div>
+</div>
+<p>Stainless simply rewrite arrays using <code class="docutils literal notranslate"><span class="pre">update</span></code> operation as the assignment of function arrays
+using <code class="docutils literal notranslate"><span class="pre">updated</span></code>.  This leverages the built-in algorithm for functional arrays
+and relies on the elimination procedure for assignments. Concretely, it would
+transform the above on the following equivalent implementation:</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span><span class="k">var</span> <span class="n">a</span> <span class="k">=</span> <span class="nc">Array</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span><span class="mi">2</span><span class="o">,</span><span class="mi">3</span><span class="o">,</span><span class="mi">4</span><span class="o">)</span>
+<span class="n">a</span><span class="o">(</span><span class="mi">1</span><span class="o">)</span> <span class="c1">//2</span>
+<span class="n">a</span> <span class="k">=</span> <span class="n">a</span><span class="o">.</span><span class="n">updated</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span> <span class="mi">10</span><span class="o">)</span>
+<span class="n">a</span><span class="o">(</span><span class="mi">1</span><span class="o">)</span> <span class="c1">//10</span>
+</pre></div>
+</div>
+<p>Then Stainless would apply the same process as for any other imperative program.</p>
+</div>
+<div class="section" id="mutable-objects">
+<h2>Mutable Objects<a class="headerlink" href="#mutable-objects" title="Permalink to this headline">¶</a></h2>
+<p>A restricted form of mutable classes is supported via case classes with <code class="docutils literal notranslate"><span class="pre">var</span></code>
+arguments:</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span><span class="k">case</span> <span class="k">class</span> <span class="nc">A</span><span class="o">(</span><span class="k">var</span> <span class="n">x</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span>
+<span class="k">def</span> <span class="n">f</span><span class="o">()</span><span class="k">:</span> <span class="kt">Int</span> <span class="o">=</span> <span class="o">{</span>
+  <span class="k">val</span> <span class="n">a</span> <span class="k">=</span> <span class="k">new</span> <span class="n">A</span><span class="o">(</span><span class="mi">10</span><span class="o">)</span>
+  <span class="n">a</span><span class="o">.</span><span class="n">x</span> <span class="k">=</span> <span class="mi">13</span>
+  <span class="n">a</span><span class="o">.</span><span class="n">x</span>
+<span class="o">}</span>
+</pre></div>
+</div>
+<p>Mutable case classes are behaving similarly to <code class="docutils literal notranslate"><span class="pre">Array</span></code>, and are handled with a
+rewriting, where each field updates becomes essentially a copy of the object with
+the modified parameter changed.</p>
+</div>
+<div class="section" id="aliasing">
+<h2>Aliasing<a class="headerlink" href="#aliasing" title="Permalink to this headline">¶</a></h2>
+<p>With mutable data structures comes the problem of aliasing. In Stainless, we
+maintain the invariant that in any scope, there is at most one pointer to some
+mutable structure. Stainless will issue an error if you try to create an alias to
+some mutable structure in the same scope:</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span><span class="k">val</span> <span class="n">a</span> <span class="k">=</span> <span class="nc">Array</span><span class="o">(</span><span class="mi">1</span><span class="o">,</span><span class="mi">2</span><span class="o">,</span><span class="mi">3</span><span class="o">,</span><span class="mi">4</span><span class="o">)</span>
+<span class="k">val</span> <span class="n">b</span> <span class="k">=</span> <span class="n">a</span> <span class="c1">//error: illegal aliasing</span>
+<span class="n">b</span><span class="o">(</span><span class="mi">0</span><span class="o">)</span> <span class="k">=</span> <span class="mi">10</span>
+<span class="n">assert</span><span class="o">(</span><span class="n">a</span><span class="o">(</span><span class="mi">0</span><span class="o">)</span> <span class="o">==</span> <span class="mi">10</span><span class="o">)</span>
+</pre></div>
+</div>
+<p>However, Stainless correctly supports aliasing mutable structures when passing it
+as a parameter to a function (assuming its scope is not shared with the call
+site, i.e. not a nested function). Essentially you can do:</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span><span class="k">case</span> <span class="k">class</span> <span class="nc">A</span><span class="o">(</span><span class="k">var</span> <span class="n">x</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span>
+<span class="k">def</span> <span class="n">updateA</span><span class="o">(</span><span class="n">a</span><span class="k">:</span> <span class="kt">A</span><span class="o">)</span><span class="k">:</span> <span class="kt">Unit</span> <span class="o">=</span> <span class="o">{</span>
+  <span class="n">a</span><span class="o">.</span><span class="n">x</span> <span class="k">=</span> <span class="mi">14</span>
+<span class="o">}</span>
+<span class="k">def</span> <span class="n">f</span><span class="o">()</span><span class="k">:</span> <span class="kt">Unit</span> <span class="o">=</span> <span class="o">{</span>
+  <span class="k">val</span> <span class="n">a</span> <span class="k">=</span> <span class="n">A</span><span class="o">(</span><span class="mi">10</span><span class="o">)</span>
+  <span class="n">updateA</span><span class="o">(</span><span class="n">a</span><span class="o">)</span>
+  <span class="n">assert</span><span class="o">(</span><span class="n">a</span><span class="o">.</span><span class="n">x</span> <span class="o">==</span> <span class="mi">14</span><span class="o">)</span>
+<span class="o">}</span>
+</pre></div>
+</div>
+<p>The function <code class="docutils literal notranslate"><span class="pre">updateA</span></code> will have the side effect of updating its argument
+<code class="docutils literal notranslate"><span class="pre">a</span></code> and this will be visible at the call site.</p>
+</div>
+<div class="section" id="annotations-for-imperative-programming">
+<h2>Annotations for Imperative Programming<a class="headerlink" href="#annotations-for-imperative-programming" title="Permalink to this headline">¶</a></h2>
+<p>We introduce the special function <code class="docutils literal notranslate"><span class="pre">old</span></code> that can be used in postconditions to
+talk about the value of a variable before the execution of the block. When you refer to a variable
+or mutable structure in a post-condition, Stainless will always consider the current value of
+the object, so that in the case of a post-condition this would refer to the final value of the
+object. Using <code class="docutils literal notranslate"><span class="pre">old</span></code>, you can refer to the original value of the variable and check some
+properties:</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span><span class="k">case</span> <span class="k">class</span> <span class="nc">A</span><span class="o">(</span><span class="k">var</span> <span class="n">x</span><span class="k">:</span> <span class="kt">Int</span><span class="o">)</span>
+<span class="k">def</span> <span class="n">inc</span><span class="o">(</span><span class="n">a</span><span class="k">:</span> <span class="kt">A</span><span class="o">)</span><span class="k">:</span> <span class="kt">Unit</span> <span class="o">=</span> <span class="o">{</span>
+  <span class="n">a</span><span class="o">.</span><span class="n">x</span> <span class="k">=</span> <span class="n">a</span><span class="o">.</span><span class="n">x</span> <span class="o">+</span> <span class="mi">1</span>
+<span class="o">}</span> <span class="n">ensuring</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="n">a</span><span class="o">.</span><span class="n">x</span> <span class="o">==</span> <span class="n">old</span><span class="o">(</span><span class="n">a</span><span class="o">).</span><span class="n">x</span> <span class="o">+</span> <span class="mi">1</span><span class="o">)</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">old</span></code> can be wrapped around any identifier that is affected by the body. You can also use
+<code class="docutils literal notranslate"><span class="pre">old</span></code> for variables in scope, in the case of nested functions:</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">f</span><span class="o">()</span><span class="k">:</span> <span class="kt">Int</span> <span class="o">=</span> <span class="o">{</span>
+  <span class="k">var</span> <span class="n">x</span> <span class="k">=</span> <span class="mi">0</span>
+  <span class="k">def</span> <span class="n">inc</span><span class="o">()</span><span class="k">:</span> <span class="kt">Unit</span> <span class="o">=</span> <span class="o">{</span>
+    <span class="n">x</span> <span class="k">=</span> <span class="n">x</span> <span class="o">+</span> <span class="mi">1</span>
+  <span class="o">}</span> <span class="n">ensuring</span><span class="o">(</span><span class="k">_</span> <span class="k">=&gt;</span> <span class="n">x</span> <span class="o">==</span> <span class="n">old</span><span class="o">(</span><span class="n">x</span><span class="o">)</span> <span class="o">+</span> <span class="mi">1</span><span class="o">)</span>
+
+  <span class="n">inc</span><span class="o">();</span> <span class="n">inc</span><span class="o">();</span>
+  <span class="n">assert</span><span class="o">(</span><span class="n">x</span> <span class="o">==</span> <span class="mi">2</span><span class="o">)</span>
+<span class="o">}</span>
+</pre></div>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+          <h3>Table Of Contents</h3>
+          <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="intro.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="gettingstarted.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installing Stainless</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial.html">Tutorial: Sorting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="purescala.html">Pure Scala</a></li>
+<li class="toctree-l1"><a class="reference internal" href="library.html">Stainless Library</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Imperative</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#imperative-code">Imperative Code</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#while-loops">While loops</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#arrays">Arrays</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#mutable-objects">Mutable Objects</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#aliasing">Aliasing</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#annotations-for-imperative-programming">Annotations for Imperative Programming</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="verification.html">Verification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="neon.html">Proving Theorems</a></li>
+<li class="toctree-l1"><a class="reference internal" href="limitations.html">Limitations of Verification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="options.html">Command Line Options</a></li>
+<li class="toctree-l1"><a class="reference internal" href="smartcontracts.html">Stainless Smart Contracts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="faq.html">Frequently Asked Questions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="references.html">References</a></li>
+<li class="toctree-l1"><a class="reference internal" href="internals.html">Stainless’ Internals</a></li>
+</ul>
+
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+      <div class="footer">
+        <div class="left">
+            <a href="_sources/imperative.rst.txt"
+               rel="nofollow">Show Source</a>
+        </div>
+
+        <div class="right">
+            &copy; Copyright 2017 (alphabetically) by M. Antognini, R. Blanc, S. Gruetter, L. Hupel, E. Kneuss, M. Koukoutos, V. Kuncak, R. Madhavan, S. Stucki, P. Suter.
+          Last updated on Sep 27, 2018.
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+  </body>
+</html>

@@ -1,0 +1,285 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Verification &#8212; Stainless 3.0 documentation</title>
+    <link rel="stylesheet" href="_static/css/stainless.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Proving Theorems" href="neon.html" />
+    <link rel="prev" title="Imperative" href="imperative.html" /> 
+  </head><body>
+    <div class="header-wrapper">
+      <div class="header">
+        <div class="left">
+            <div class="headertitle"><a
+              href="index.html">Stainless Documentation</a></div>
+            <div class="rel">
+              <a href="imperative.html">Imperative</a> |
+              <a class="uplink" href="index.html">Contents</a>
+              | <a href="neon.html">Proving Theorems</a>
+            </div>
+        </div>
+        <div class="right">
+          <form class="search" action="search.html" method="get">
+            <input type="text" name="q" placeholder="Search.." />
+            <input type="submit" value="Go" />
+            <input type="hidden" name="check_keywords" value="yes" />
+            <input type="hidden" name="area" value="default" />
+          </form>
+        </div>
+        <div class="clearer"></div>
+       </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="verification">
+<span id="id1"></span><h1>Verification<a class="headerlink" href="#verification" title="Permalink to this headline">¶</a></h1>
+<p>Software verification aims at making software safer. In its typical use case,
+it is a tool that takes as input the source code of a program with
+specifications as annotations and attempt to prove — or disprove — their
+validity.</p>
+<p>One of the core modules of Stainless is a verifier for the subset of Scala described
+in the sections <a class="reference internal" href="purescala.html"><span class="doc">Pure Scala</span></a> and <a class="reference internal" href="imperative.html"><span class="doc">Imperative</span></a>. In this
+section, we describe the specification language that can be used to declare
+properties of programs, as well as the safety properties automatically checked
+by Stainless. We also discuss how Stainless can be used to prove mathematical theorems.</p>
+<div class="section" id="verification-conditions">
+<h2>Verification conditions<a class="headerlink" href="#verification-conditions" title="Permalink to this headline">¶</a></h2>
+<p>Given an input program, Stainless generates individual verification conditions
+corresponding to different properties of the program. A program is correct if
+all of the generated verification conditions are <code class="docutils literal notranslate"><span class="pre">valid</span></code>. The validity of some
+conditions depends on the validity of other conditions — typically a
+postcondition is <code class="docutils literal notranslate"><span class="pre">valid</span></code> assuming the precondition is <code class="docutils literal notranslate"><span class="pre">valid</span></code>.</p>
+<p>For each function, Stainless attempts to verify its contract, if there is one. A
+<em>contract</em> is the combination of a <em>precondition</em> and a <em>postcondition</em>. A
+function meets its contract if, for any input parameter that passes the
+precondition, the postcondition holds after executing the function.
+Preconditions and postconditions are annotations given by the user — they are
+the specifications and hence cannot be inferred by a tool and must be provided.</p>
+<p>In addition to user-provided contracts, Stainless will also generate a few safety
+verification conditions of its own. It will check that all of the array
+accesses are within proper bounds, and that pattern matching always covers all
+possible cases, even given complex precondition. The latter is different from
+the Scala compiler checks on pattern matching exhaustiveness, as Stainless considers
+information provided by (explicit or implicit) preconditions to the <code class="docutils literal notranslate"><span class="pre">match</span></code>
+expression.</p>
+<div class="section" id="postconditions">
+<h3>Postconditions<a class="headerlink" href="#postconditions" title="Permalink to this headline">¶</a></h3>
+<p>One core concept in verification is to check the contract of functions. The most
+important part of a contract is the postcondition. The postcondition specifies
+the behavior of the function. It takes into account the precondition and only
+asserts the property of the output when the input satisfies the precondition.</p>
+<p>Formally, we consider a function with a single parameter (one can generalize
+the following for any number of parameters):</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">f</span><span class="o">(</span><span class="n">x</span><span class="k">:</span> <span class="kt">A</span><span class="o">)</span><span class="k">:</span> <span class="kt">B</span> <span class="o">=</span> <span class="o">{</span>
+  <span class="n">require</span><span class="o">(</span><span class="n">prec</span><span class="o">)</span>
+  <span class="n">body</span>
+<span class="o">}</span> <span class="n">ensuring</span><span class="o">(</span><span class="n">r</span> <span class="k">=&gt;</span> <span class="n">post</span><span class="o">)</span>
+</pre></div>
+</div>
+<p>where, <span class="math notranslate nohighlight">\(\mbox{prec}(x)\)</span> is a Boolean expression with free variables
+contained in <span class="math notranslate nohighlight">\(\{ x \}\)</span>, <span class="math notranslate nohighlight">\(\mbox{body}(x)\)</span> is an expression with
+free variables contained in <span class="math notranslate nohighlight">\(\{ x \}\)</span> and <span class="math notranslate nohighlight">\(\mbox{post}(x, r)\)</span> is a
+Boolean expression with free variables contained in <span class="math notranslate nohighlight">\(\{ x, r \}\)</span>. The
+types of <span class="math notranslate nohighlight">\(x\)</span> and <span class="math notranslate nohighlight">\(r\)</span> are respectively <code class="docutils literal notranslate"><span class="pre">A</span></code> and <code class="docutils literal notranslate"><span class="pre">B</span></code>. We write
+<span class="math notranslate nohighlight">\(\mbox{expr}(a)\)</span> to mean the substitution in <span class="math notranslate nohighlight">\(\mbox{expr}\)</span> of its
+free variable by <span class="math notranslate nohighlight">\(a\)</span>.</p>
+<p>Stainless attempts to prove the following theorem:</p>
+<div class="math notranslate nohighlight">
+\[\forall x. \mbox{prec}(x) \implies \mbox{post}(x, \mbox{body}(x))\]</div>
+<p>If Stainless is able to prove the above theorem, it returns <code class="docutils literal notranslate"><span class="pre">valid</span></code> for the
+function <code class="docutils literal notranslate"><span class="pre">f</span></code>. This gives you a guarantee that the function <code class="docutils literal notranslate"><span class="pre">f</span></code> is correct
+with respect to its contract.</p>
+<p>However, if the theorem is not valid, Stainless will return a counterexample to the
+theorem. The negation of the theorem is:</p>
+<div class="math notranslate nohighlight">
+\[\exists x. \mbox{prec}(x) \land \neg \mbox{post}(x, \mbox{body}(x))\]</div>
+<p>and to prove the validity of the negation, Stainless finds a witness <span class="math notranslate nohighlight">\(x\)</span> — a
+counterexample — such that the precondition is verified and the postcondition
+is not.</p>
+<p>The general problem of verification is undecidable for a Turing-complete
+language, and the Stainless language is Turing-complete. So Stainless has to be
+incomplete in some sense. Generally, Stainless will eventually find a counterexample
+if one exists. However, in practice, some program structures require too many
+unrollings and Stainless is likely to timeout (or being out of memory) before
+finding the counterexample.  When the postcondition is valid, it could also
+happen that Stainless keeps unrolling the program forever, without being able to
+prove the correctness. We discuss the exact conditions for this in the
+chapter on Stainless’s algorithms.</p>
+</div>
+<div class="section" id="preconditions">
+<h3>Preconditions<a class="headerlink" href="#preconditions" title="Permalink to this headline">¶</a></h3>
+<p>Preconditions are used as part of the contract of functions. They are a way to
+restrict the input to only relevant inputs, without having to implement guards
+and error handling in the functions themselves.</p>
+<p>Preconditions are contracts that the call sites should respect, and thus are
+not checked as part of verifying the function. Given the following definition:</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="n">f</span><span class="o">(</span><span class="n">x</span><span class="k">:</span> <span class="kt">A</span><span class="o">)</span><span class="k">:</span> <span class="kt">B</span> <span class="o">=</span> <span class="o">{</span>
+  <span class="n">require</span><span class="o">(</span><span class="n">prec</span><span class="o">)</span>
+  <span class="n">body</span>
+<span class="o">}</span>
+</pre></div>
+</div>
+<p>For each call site in the whole program (including in <code class="docutils literal notranslate"><span class="pre">f</span></code> itself):</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span><span class="o">...</span>
+<span class="n">f</span><span class="o">(</span><span class="n">e</span><span class="o">)</span>
+<span class="o">...</span>
+</pre></div>
+</div>
+<p>where the expression <span class="math notranslate nohighlight">\(\mbox{e}(x)\)</span> is an expression of type <code class="docutils literal notranslate"><span class="pre">A</span></code> with
+free variables among <span class="math notranslate nohighlight">\(\{ x \}\)</span>. Let us define the path condition on <span class="math notranslate nohighlight">\(x\)</span>
+at that program point as <span class="math notranslate nohighlight">\(\mbox{pc}(x)\)</span>. The path condition is a formula that
+summarizes the facts known about <span class="math notranslate nohighlight">\(x\)</span> at that call site. A typical example is
+when the call site is inside an if expression:</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span><span class="k">if</span><span class="o">(</span><span class="n">x</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="o">)</span>
+  <span class="n">f</span><span class="o">(</span><span class="n">x</span><span class="o">)</span>
+</pre></div>
+</div>
+<p>The path condition on <span class="math notranslate nohighlight">\(x\)</span> would include the fact that <span class="math notranslate nohighlight">\(x &gt; 0\)</span>. This
+path condition is then used as a precondition of proving the validity of the
+call to <span class="math notranslate nohighlight">\(\mbox{f}\)</span>. Formally, for each such call site, Stainless will attempt
+to prove the following theorem:</p>
+<div class="math notranslate nohighlight">
+\[\forall x. \mbox{pc}(x) \implies \mbox{prec}(\mbox{e}(x))\]</div>
+<p>Stainless will generate one such theorem for each static call site of a function with
+a precondition.</p>
+<div class="admonition note">
+<p class="first admonition-title">Note</p>
+<p class="last">Stainless only assumes an open program model, where any function could be called from
+outside of the given program. In particular, Stainless will not derive a precondition
+to a function based on known information in the context of the calls, such as
+knowing that the function is always given positive parameters. Any information needed
+to prove the postcondition will have to be provided as part of the precondition
+of a function.</p>
+</div>
+</div>
+<div class="section" id="loop-invariants">
+<h3>Loop invariants<a class="headerlink" href="#loop-invariants" title="Permalink to this headline">¶</a></h3>
+<p>Stainless supports annotations for loop invariants in <a class="reference internal" href="imperative.html"><span class="doc">Imperative</span></a>. To
+simplify the presentation we will assume a single variable <span class="math notranslate nohighlight">\(x\)</span> is in
+scope, but the definitions generalize to any number of variables. Given the
+following program:</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span><span class="o">(</span><span class="k">while</span><span class="o">(</span><span class="n">cond</span><span class="o">)</span> <span class="o">{</span>
+  <span class="n">body</span>
+<span class="o">})</span> <span class="n">invariant</span><span class="o">(</span><span class="n">inv</span><span class="o">)</span>
+</pre></div>
+</div>
+<p>where the Boolean expression <span class="math notranslate nohighlight">\(\mbox{cond}(x)\)</span> is over the free variable
+<span class="math notranslate nohighlight">\(x\)</span> and the expression <span class="math notranslate nohighlight">\(\mbox{body}(x, x')\)</span> relates the value of
+<span class="math notranslate nohighlight">\(x\)</span> when entering the loop to its updated value <span class="math notranslate nohighlight">\(x'\)</span> on loop exit.
+The expression <span class="math notranslate nohighlight">\(\mbox{inv}(x)\)</span> is a Boolean formula over the free
+variable <span class="math notranslate nohighlight">\(x\)</span>.</p>
+<dl class="docutils">
+<dt>A loop invariant must hold:</dt>
+<dd><ol class="first last arabic simple">
+<li>when the program enters the loop initially</li>
+<li>after each completion of the body</li>
+<li>right after exiting the loop (when the condition turns false)</li>
+</ol>
+</dd>
+</dl>
+<p>Stainless will prove the points (1) and (2) above. Together, and by induction, they imply
+that point (3) holds as well.</p>
+</div>
+<div class="section" id="array-access-safety">
+<h3>Array access safety<a class="headerlink" href="#array-access-safety" title="Permalink to this headline">¶</a></h3>
+<p>Stainless generates verification conditions for the safety of array accesses. For
+each array variable, Stainless carries along a symbolic information on its length.
+This information is used to prove that each expression used as an index in the
+array is strictly smaller than that length. The expression is also checked to
+be positive.</p>
+</div>
+<div class="section" id="pattern-matching-exhaustiveness">
+<h3>Pattern matching exhaustiveness<a class="headerlink" href="#pattern-matching-exhaustiveness" title="Permalink to this headline">¶</a></h3>
+<p>Stainless verifies that pattern matching is exhaustive. The regular Scala compiler
+only considers the types of expression involved in pattern matching, but Stainless
+will consider information such as precondition to formally prove the
+exhaustiveness of pattern matching.</p>
+<p>As an example, the following code should issue a warning with Scala:</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span><span class="k">abstract</span> <span class="k">class</span> <span class="nc">List</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">Cons</span><span class="o">(</span><span class="n">head</span><span class="k">:</span> <span class="kt">Int</span><span class="o">,</span> <span class="n">tail</span><span class="k">:</span> <span class="kt">List</span><span class="o">)</span> <span class="k">extends</span> <span class="nc">List</span>
+<span class="k">case</span> <span class="k">object</span> <span class="nc">Nil</span> <span class="k">extends</span> <span class="nc">List</span>
+
+<span class="k">def</span> <span class="n">getHead</span><span class="o">(</span><span class="n">l</span><span class="k">:</span> <span class="kt">List</span><span class="o">)</span><span class="k">:</span> <span class="kt">Int</span> <span class="o">=</span> <span class="o">{</span>
+  <span class="n">require</span><span class="o">(!</span><span class="n">l</span><span class="o">.</span><span class="n">isInstanceOf</span><span class="o">[</span><span class="kt">Nil</span><span class="o">])</span>
+  <span class="n">l</span> <span class="k">match</span> <span class="o">{</span>
+    <span class="k">case</span> <span class="nc">Cons</span><span class="o">(</span><span class="n">x</span><span class="o">,</span> <span class="k">_</span><span class="o">)</span> <span class="k">=&gt;</span> <span class="n">x</span>
+  <span class="o">}</span>
+<span class="o">}</span>
+</pre></div>
+</div>
+<p>But Stainless will prove that the pattern matching is actually exhaustive,
+relying on the given precondition.</p>
+</div>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+          <h3>Table Of Contents</h3>
+          <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="intro.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="gettingstarted.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installing Stainless</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial.html">Tutorial: Sorting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="purescala.html">Pure Scala</a></li>
+<li class="toctree-l1"><a class="reference internal" href="library.html">Stainless Library</a></li>
+<li class="toctree-l1"><a class="reference internal" href="imperative.html">Imperative</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Verification</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#verification-conditions">Verification conditions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="neon.html">Proving Theorems</a></li>
+<li class="toctree-l1"><a class="reference internal" href="limitations.html">Limitations of Verification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="options.html">Command Line Options</a></li>
+<li class="toctree-l1"><a class="reference internal" href="smartcontracts.html">Stainless Smart Contracts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="faq.html">Frequently Asked Questions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="references.html">References</a></li>
+<li class="toctree-l1"><a class="reference internal" href="internals.html">Stainless’ Internals</a></li>
+</ul>
+
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+      <div class="footer">
+        <div class="left">
+            <a href="_sources/verification.rst.txt"
+               rel="nofollow">Show Source</a>
+        </div>
+
+        <div class="right">
+            &copy; Copyright 2017 (alphabetically) by M. Antognini, R. Blanc, S. Gruetter, L. Hupel, E. Kneuss, M. Koukoutos, V. Kuncak, R. Madhavan, S. Stucki, P. Suter.
+          Last updated on Sep 27, 2018.
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+  </body>
+</html>

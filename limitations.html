@@ -1,0 +1,141 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Limitations of Verification &#8212; Stainless 3.0 documentation</title>
+    <link rel="stylesheet" href="_static/css/stainless.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Command Line Options" href="options.html" />
+    <link rel="prev" title="Proving Theorems" href="neon.html" /> 
+  </head><body>
+    <div class="header-wrapper">
+      <div class="header">
+        <div class="left">
+            <div class="headertitle"><a
+              href="index.html">Stainless Documentation</a></div>
+            <div class="rel">
+              <a href="neon.html">Proving Theorems</a> |
+              <a class="uplink" href="index.html">Contents</a>
+              | <a href="options.html">Command Line Options</a>
+            </div>
+        </div>
+        <div class="right">
+          <form class="search" action="search.html" method="get">
+            <input type="text" name="q" placeholder="Search.." />
+            <input type="submit" value="Go" />
+            <input type="hidden" name="check_keywords" value="yes" />
+            <input type="hidden" name="area" value="default" />
+          </form>
+        </div>
+        <div class="clearer"></div>
+       </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="limitations-of-verification">
+<span id="limitations"></span><h1>Limitations of Verification<a class="headerlink" href="#limitations-of-verification" title="Permalink to this headline">¶</a></h1>
+<p>A goal of Stainless is to ensure that proven properties hold in
+all program executions so that, for example, verified programs
+do not crash and all of the preconditions and postconditions
+are true in all executions.
+For this to be the case, there needs
+to be a precise correspondence between runtime execution
+semantics and the semantics used in verification, including
+the SMT solvers invoked.</p>
+<p>Below we document several cases where we are aware that the
+discrepancy exists and provide suggested workarounds.</p>
+<div class="section" id="out-of-memory-errors">
+<h2>Out of Memory Errors<a class="headerlink" href="#out-of-memory-errors" title="Permalink to this headline">¶</a></h2>
+<p>By default, Stainless assumes that unbounded data types can
+be arbitrarily large and that all well-founded recursive
+functions have enough stack space to finish their computation.
+Thus a verified program may crash at run-time due to:</p>
+<blockquote>
+<div><ul class="simple">
+<li>stack overflow</li>
+<li>heap overflow</li>
+</ul>
+</div></blockquote>
+<p>Algebraic data types are assumed to be arbitrarily large.
+In any given execution, there will be actual bounds on the
+total available memory. The program could thus crash
+with an out-of-memory error when trying to allocate another
+value of algebraic data type.</p>
+<p>For a safety critical application you may wish to resort to
+tail-recursive programs only, and also write preconditions
+and postconditions that enforce a bound on the maximum size
+of the data structures that your application
+manipulates. For this purpose, you can define size functions
+that return <cite>BigInt</cite> data types.</p>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+          <h3>Table Of Contents</h3>
+          <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="intro.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="gettingstarted.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installing Stainless</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial.html">Tutorial: Sorting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="purescala.html">Pure Scala</a></li>
+<li class="toctree-l1"><a class="reference internal" href="library.html">Stainless Library</a></li>
+<li class="toctree-l1"><a class="reference internal" href="imperative.html">Imperative</a></li>
+<li class="toctree-l1"><a class="reference internal" href="verification.html">Verification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="neon.html">Proving Theorems</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Limitations of Verification</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#out-of-memory-errors">Out of Memory Errors</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="options.html">Command Line Options</a></li>
+<li class="toctree-l1"><a class="reference internal" href="smartcontracts.html">Stainless Smart Contracts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="faq.html">Frequently Asked Questions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="references.html">References</a></li>
+<li class="toctree-l1"><a class="reference internal" href="internals.html">Stainless’ Internals</a></li>
+</ul>
+
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+      <div class="footer">
+        <div class="left">
+            <a href="_sources/limitations.rst.txt"
+               rel="nofollow">Show Source</a>
+        </div>
+
+        <div class="right">
+            &copy; Copyright 2017 (alphabetically) by M. Antognini, R. Blanc, S. Gruetter, L. Hupel, E. Kneuss, M. Koukoutos, V. Kuncak, R. Madhavan, S. Stucki, P. Suter.
+          Last updated on Sep 27, 2018.
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+  </body>
+</html>

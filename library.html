@@ -1,0 +1,533 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Stainless Library &#8212; Stainless 3.0 documentation</title>
+    <link rel="stylesheet" href="_static/css/stainless.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <script type="text/javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Imperative" href="imperative.html" />
+    <link rel="prev" title="Pure Scala" href="purescala.html" /> 
+  </head><body>
+    <div class="header-wrapper">
+      <div class="header">
+        <div class="left">
+            <div class="headertitle"><a
+              href="index.html">Stainless Documentation</a></div>
+            <div class="rel">
+              <a href="purescala.html">Pure Scala</a> |
+              <a class="uplink" href="index.html">Contents</a>
+              | <a href="imperative.html">Imperative</a>
+            </div>
+        </div>
+        <div class="right">
+          <form class="search" action="search.html" method="get">
+            <input type="text" name="q" placeholder="Search.." />
+            <input type="submit" value="Go" />
+            <input type="hidden" name="check_keywords" value="yes" />
+            <input type="hidden" name="area" value="default" />
+          </form>
+        </div>
+        <div class="clearer"></div>
+       </div>
+    </div>
+
+    <div class="content-wrapper">
+      <div class="content">
+        <div class="document">
+            
+            
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="stainless-library">
+<span id="library"></span><h1>Stainless Library<a class="headerlink" href="#stainless-library" title="Permalink to this headline">¶</a></h1>
+<p>Stainless defines its own library with some core data types and
+operations on them, which work with the fragment supported
+by Stainless. One of the reasons for a separate library is to
+ensure that these operations can be correctly mapped to
+mathematical functions and relations inside of SMT solvers,
+largely defined by the SMT-LIB standard (see
+<a class="reference external" href="http://www.smt-lib.org/">http://www.smt-lib.org/</a>). Thus for some data types, such as
+<code class="docutils literal notranslate"><span class="pre">BigInt</span></code>, Stainless provides a dedicated mapping to support reasoning.
+(If you are a fan
+of growing the language only through libraries, keep in mind that
+growing operations together with the ability to reason about them
+is what the development of mathematical theories is all about, and
+is a process slower than putting together
+libraries of unverified code–efficient automation of reasoning about a
+single decidable theory generally results in multiple research papers.)
+For other operations (e.g., <cite>List[T]</cite>), the library
+is much like Stainless user-defined code, but specifies some
+useful preconditions and postconditions of the operations, thus
+providing reasoning abilities using mechanisms entirely available
+to the user.</p>
+<p>To use Stainless’ libraries, you need to use the appropriate
+<cite>import</cite> directive at the top of Stainless’ compilation units.
+Here is a quick summary of what to import.
+For the most up-to-date version of the library,
+please consult the <code class="docutils literal notranslate"><span class="pre">library/</span></code> directory in your Stainless
+distribution.</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="38%" />
+<col width="62%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Package to import</th>
+<th class="head">What it gives access to</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td><cite>stainless.annotation._</cite></td>
+<td>Stainless annotations, e.g. &#64;induct</td>
+</tr>
+<tr class="row-odd"><td><cite>stainless.lang._</cite></td>
+<td><cite>Map</cite>, <cite>Set</cite>, <cite>holds</cite>, <cite>passes</cite>, <cite>invariant</cite></td>
+</tr>
+<tr class="row-even"><td><cite>stainless.collection._</cite></td>
+<td>List[T] and subclasses, Option[T] and subclasses</td>
+</tr>
+</tbody>
+</table>
+<p>To learn more, we encourage you to
+look in the <cite>library/</cite> subdirectory of Stainless distribution.</p>
+<div class="section" id="annotations">
+<h2>Annotations<a class="headerlink" href="#annotations" title="Permalink to this headline">¶</a></h2>
+<p>Stainless provides some special annotations in the package <code class="docutils literal notranslate"><span class="pre">stainless.annotation</span></code>,
+which instruct Stainless to handle some functions or objects in a specialized way.</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="23%" />
+<col width="77%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Annotation</th>
+<th class="head">Meaning</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td><code class="docutils literal notranslate"><span class="pre">&#64;library</span></code></td>
+<td>Treat this object/function as library, don’t try
+to verify its specification. Can be overridden by
+including a function name in the <code class="docutils literal notranslate"><span class="pre">--functions</span></code>
+command line option.</td>
+</tr>
+<tr class="row-odd"><td><code class="docutils literal notranslate"><span class="pre">&#64;induct</span></code></td>
+<td>Use the inductive tactic when generating
+verification conditions.</td>
+</tr>
+<tr class="row-even"><td><code class="docutils literal notranslate"><span class="pre">&#64;ignore</span></code></td>
+<td>Ignore this definition when extracting Stainless trees.
+This annotation is useful to define functions
+that are not in Stainless’s language but will be
+hard-coded into specialized trees, or to include
+code written in full Scala which is not verifiable
+by Stainless.</td>
+</tr>
+<tr class="row-odd"><td><code class="docutils literal notranslate"><span class="pre">&#64;inline</span></code></td>
+<td>Inline this function. Stainless will refuse to inline
+(mutually) recursive functions.</td>
+</tr>
+<tr class="row-even"><td><code class="docutils literal notranslate"><span class="pre">&#64;inlineOnce</span></code></td>
+<td>Inline this function but only once, which is allowed
+even on (mutually) recursive functions.
+Note: A recursive function will not be inlined within itself.</td>
+</tr>
+<tr class="row-odd"><td><code class="docutils literal notranslate"><span class="pre">&#64;extern</span></code></td>
+<td>Only extract the contracts of a function, replacing
+its body by a <code class="docutils literal notranslate"><span class="pre">choose</span></code> expression.</td>
+</tr>
+<tr class="row-even"><td><code class="docutils literal notranslate"><span class="pre">&#64;pure</span></code></td>
+<td>Specify that this function is pure, which will then
+be checked. If the function is also annotated with
+<code class="docutils literal notranslate"><span class="pre">&#64;extern</span></code>, it will not be checked, but assumed pure.</td>
+</tr>
+<tr class="row-odd"><td><code class="docutils literal notranslate"><span class="pre">&#64;partialEval</span></code></td>
+<td>Partially evaluate calls to this function.
+Note: <code class="docutils literal notranslate"><span class="pre">stainless.lang.partialEval</span></code> can also be used to
+partially evaluate an expression.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="list-t">
+<h2>List[T]<a class="headerlink" href="#list-t" title="Permalink to this headline">¶</a></h2>
+<p>As there is no special support for Lists in SMT solvers, Stainless Lists are encoded
+as an ordinary algebraic data type:</p>
+<div class="highlight-scala notranslate"><div class="highlight"><pre><span></span><span class="k">sealed</span> <span class="k">abstract</span> <span class="k">class</span> <span class="nc">List</span><span class="o">[</span><span class="kt">T</span><span class="o">]</span>
+<span class="nc">case</span> <span class="k">class</span> <span class="nc">Cons</span><span class="o">[</span><span class="kt">T</span><span class="o">](</span><span class="n">h</span><span class="k">:</span> <span class="kt">T</span><span class="o">,</span> <span class="n">t</span><span class="k">:</span> <span class="kt">List</span><span class="o">[</span><span class="kt">T</span><span class="o">])</span> <span class="k">extends</span> <span class="nc">List</span><span class="o">[</span><span class="kt">T</span><span class="o">]</span>
+<span class="k">case</span> <span class="k">class</span> <span class="nc">Nil</span><span class="o">[</span><span class="kt">T</span><span class="o">]()</span> <span class="k">extends</span> <span class="nc">List</span><span class="o">[</span><span class="kt">T</span><span class="o">]</span>
+</pre></div>
+</div>
+<div class="section" id="list-api">
+<h3>List API<a class="headerlink" href="#list-api" title="Permalink to this headline">¶</a></h3>
+<p>Stainless Lists support a rich and strongly specified API.</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="50%" />
+<col width="50%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Method signature for <code class="docutils literal notranslate"><span class="pre">List[T]</span></code></th>
+<th class="head">Short description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td><code class="docutils literal notranslate"><span class="pre">size:</span> <span class="pre">BigInt</span></code></td>
+<td>Number of elements in this List.</td>
+</tr>
+<tr class="row-odd"><td><code class="docutils literal notranslate"><span class="pre">content:</span> <span class="pre">Set[T]</span></code></td>
+<td>The set of elements in this List.</td>
+</tr>
+<tr class="row-even"><td><code class="docutils literal notranslate"><span class="pre">contains(v:</span> <span class="pre">T):</span> <span class="pre">Boolean</span></code></td>
+<td>Returns true if this List contains <code class="docutils literal notranslate"><span class="pre">v</span></code>.</td>
+</tr>
+<tr class="row-odd"><td><code class="docutils literal notranslate"><span class="pre">++(that:</span> <span class="pre">List[T]):</span> <span class="pre">List[T]</span></code></td>
+<td>Append this List with <code class="docutils literal notranslate"><span class="pre">that</span></code>.</td>
+</tr>
+<tr class="row-even"><td><code class="docutils literal notranslate"><span class="pre">head:</span> <span class="pre">T</span></code></td>
+<td>Returns the head of this List. Can only be called
+on a nonempty List.</td>
+</tr>
+<tr class="row-odd"><td><code class="docutils literal notranslate"><span class="pre">tail:</span> <span class="pre">List[T]</span></code></td>
+<td>Returns the tail of this List. Can only be called
+on a nonempty List.</td>
+</tr>
+<tr class="row-even"><td><code class="docutils literal notranslate"><span class="pre">apply(index:</span> <span class="pre">BigInt):</span> <span class="pre">T</span></code></td>
+<td>Return the element in index <code class="docutils literal notranslate"><span class="pre">index</span></code> in this
+List (0-indexed).</td>
+</tr>
+<tr class="row-odd"><td><code class="docutils literal notranslate"><span class="pre">::(t:T):</span> <span class="pre">List[T]</span></code></td>
+<td>Prepend an element to this List.</td>
+</tr>
+<tr class="row-even"><td><code class="docutils literal notranslate"><span class="pre">:+(t:T):</span> <span class="pre">List[T]</span></code></td>
+<td>Append an element to this List.</td>
+</tr>
+<tr class="row-odd"><td><code class="docutils literal notranslate"><span class="pre">reverse:</span> <span class="pre">List[T]</span></code></td>
+<td>The reverse of this List.</td>
+</tr>
+<tr class="row-even"><td><code class="docutils literal notranslate"><span class="pre">take(i:</span> <span class="pre">BigInt):</span> <span class="pre">List[T]</span></code></td>
+<td>Take the first <code class="docutils literal notranslate"><span class="pre">i</span></code> elements of this List, or
+the whole List if it has less than <code class="docutils literal notranslate"><span class="pre">i</span></code> elements.</td>
+</tr>
+<tr class="row-odd"><td><code class="docutils literal notranslate"><span class="pre">drop(i:</span> <span class="pre">BigInt):</span> <span class="pre">List[T]</span></code></td>
+<td>This List without the first <code class="docutils literal notranslate"><span class="pre">i</span></code> elements,
+or the Nil() if this List has less than <code class="docutils literal notranslate"><span class="pre">i</span></code>
+elements.</td>
+</tr>
+<tr class="row-even"><td><code class="docutils literal notranslate"><span class="pre">slice(from:</span> <span class="pre">BigInt,</span> <span class="pre">to:</span> <span class="pre">BigInt):</span> <span class="pre">List[T]</span></code></td>
+<td>Take a sublist of this List, from index <code class="docutils literal notranslate"><span class="pre">from</span></code>
+to index <code class="docutils literal notranslate"><span class="pre">to</span></code>.</td>
+</tr>
+<tr class="row-odd"><td><code class="docutils literal notranslate"><span class="pre">replace(from:</span> <span class="pre">T,</span> <span class="pre">to:</span> <span class="pre">T):</span> <span class="pre">List[T]</span></code></td>
+<td>Replace all occurrences of <code class="docutils literal notranslate"><span class="pre">from</span></code> in this List
+with <code class="docutils literal notranslate"><span class="pre">to</span></code>.</td>
+</tr>
+<tr class="row-even"><td><code class="docutils literal notranslate"><span class="pre">chunks(s:</span> <span class="pre">BigInt):</span> <span class="pre">List[List[T]]</span></code></td>
+<td>&#160;</td>
+</tr>
+<tr class="row-odd"><td><code class="docutils literal notranslate"><span class="pre">zip[B](that:</span> <span class="pre">List[B]):</span> <span class="pre">List[(T,</span> <span class="pre">B)]</span></code></td>
+<td>Zip this list with <code class="docutils literal notranslate"><span class="pre">that</span></code>. In case the Lists
+do not have equal size, take a prefix of the
+longer.</td>
+</tr>
+<tr class="row-even"><td><code class="docutils literal notranslate"><span class="pre">-(e:</span> <span class="pre">T):</span> <span class="pre">List[T]</span></code></td>
+<td>Remove all occurrences of <code class="docutils literal notranslate"><span class="pre">e</span></code> from this List.</td>
+</tr>
+<tr class="row-odd"><td><code class="docutils literal notranslate"><span class="pre">--(that:</span> <span class="pre">List[T]):</span> <span class="pre">List[T]</span></code></td>
+<td>Remove all occurrences of any element in <code class="docutils literal notranslate"><span class="pre">that</span></code>
+from this List.</td>
+</tr>
+<tr class="row-even"><td><code class="docutils literal notranslate"><span class="pre">&amp;(that:</span> <span class="pre">List[T]):</span> <span class="pre">List[T]</span></code></td>
+<td>A list of all elements that occur both in
+<code class="docutils literal notranslate"><span class="pre">that</span></code> and this List.</td>
+</tr>
+<tr class="row-odd"><td><code class="docutils literal notranslate"><span class="pre">pad(s:</span> <span class="pre">BigInt,</span> <span class="pre">e:</span> <span class="pre">T):</span> <span class="pre">List[T]</span></code></td>
+<td>Add <code class="docutils literal notranslate"><span class="pre">s</span></code> instances of <code class="docutils literal notranslate"><span class="pre">e</span></code> at the end of this
+List.</td>
+</tr>
+<tr class="row-even"><td><code class="docutils literal notranslate"><span class="pre">find(e:</span> <span class="pre">T):</span> <span class="pre">Option[BigInt]</span></code></td>
+<td>Look for the element <code class="docutils literal notranslate"><span class="pre">e</span></code> in this List, and
+optionally return its index if it is found.</td>
+</tr>
+<tr class="row-odd"><td><code class="docutils literal notranslate"><span class="pre">init:</span> <span class="pre">List[T]</span></code></td>
+<td>Return this List except for the last element.
+Can only be called on nonempty Lists.</td>
+</tr>
+<tr class="row-even"><td><code class="docutils literal notranslate"><span class="pre">last:</span> <span class="pre">T</span></code></td>
+<td>Return the last element of this List.
+Can only be called on nonempty Lists.</td>
+</tr>
+<tr class="row-odd"><td><code class="docutils literal notranslate"><span class="pre">lastOption:</span> <span class="pre">Option[T]</span></code></td>
+<td>Optionally return the last element of this List.</td>
+</tr>
+<tr class="row-even"><td><code class="docutils literal notranslate"><span class="pre">headOption:</span> <span class="pre">Option[T]</span></code></td>
+<td>Optionally return the first element of this List.</td>
+</tr>
+<tr class="row-odd"><td><code class="docutils literal notranslate"><span class="pre">unique:</span> <span class="pre">List[T]</span></code></td>
+<td>Return this List without duplicates.</td>
+</tr>
+<tr class="row-even"><td><code class="docutils literal notranslate"><span class="pre">splitAt(e:</span> <span class="pre">T):</span> <span class="pre">List[List[T]]</span></code></td>
+<td>Split this List to chunks separated by an
+occurrence of <code class="docutils literal notranslate"><span class="pre">e</span></code>.</td>
+</tr>
+<tr class="row-odd"><td><code class="docutils literal notranslate"><span class="pre">split(seps:</span> <span class="pre">List[T]):</span> <span class="pre">List[List[T]]</span></code></td>
+<td>Split this List in chunks separated by an
+occurrence of any element in <code class="docutils literal notranslate"><span class="pre">seps</span></code>.</td>
+</tr>
+<tr class="row-even"><td><code class="docutils literal notranslate"><span class="pre">count(e:</span> <span class="pre">T):</span> <span class="pre">BigInt</span></code></td>
+<td>Count the occurrences of <code class="docutils literal notranslate"><span class="pre">e</span></code> in this List.</td>
+</tr>
+<tr class="row-odd"><td><code class="docutils literal notranslate"><span class="pre">evenSplit:</span> <span class="pre">(List[T],</span> <span class="pre">List[T])</span></code></td>
+<td>Split this List in two halves.</td>
+</tr>
+<tr class="row-even"><td><code class="docutils literal notranslate"><span class="pre">insertAt(pos:</span> <span class="pre">BigInt,</span> <span class="pre">l:</span> <span class="pre">List[T]):</span> <span class="pre">List[T]</span></code></td>
+<td>Insert an element after index <code class="docutils literal notranslate"><span class="pre">pos</span></code> in this
+List.</td>
+</tr>
+<tr class="row-odd"><td><code class="docutils literal notranslate"><span class="pre">replaceAt(pos:</span> <span class="pre">BigInt,</span> <span class="pre">l:</span> <span class="pre">List[T]):</span> <span class="pre">List[T]</span></code></td>
+<td>Replace the <code class="docutils literal notranslate"><span class="pre">l.size</span></code> elements after index
+<code class="docutils literal notranslate"><span class="pre">pos</span></code>, or all elements after index <code class="docutils literal notranslate"><span class="pre">pos</span></code>
+if there are not enough elements,
+with the elements in <code class="docutils literal notranslate"><span class="pre">l</span></code>.</td>
+</tr>
+<tr class="row-even"><td><code class="docutils literal notranslate"><span class="pre">rotate(s:</span> <span class="pre">BigInt):</span> <span class="pre">List[T]</span></code></td>
+<td>Rotate this list by <code class="docutils literal notranslate"><span class="pre">s</span></code> positions.</td>
+</tr>
+<tr class="row-odd"><td><code class="docutils literal notranslate"><span class="pre">isEmpty:</span> <span class="pre">Boolean</span></code></td>
+<td>Returns whether this List is empty.</td>
+</tr>
+<tr class="row-even"><td><code class="docutils literal notranslate"><span class="pre">map[R](f:</span> <span class="pre">T</span> <span class="pre">=&gt;</span> <span class="pre">R):</span> <span class="pre">List[R]</span></code></td>
+<td>Builds a new List by applying a predicate <code class="docutils literal notranslate"><span class="pre">f</span></code>
+to all elements of this list.</td>
+</tr>
+<tr class="row-odd"><td><code class="docutils literal notranslate"><span class="pre">foldLeft[R](z:</span> <span class="pre">R)(f:</span> <span class="pre">(R,T)</span> <span class="pre">=&gt;</span> <span class="pre">R):</span> <span class="pre">R</span></code></td>
+<td>Applies the binary operator <code class="docutils literal notranslate"><span class="pre">f</span></code> to a start value
+<code class="docutils literal notranslate"><span class="pre">z</span></code> and all elements of this List, going left
+to right.</td>
+</tr>
+<tr class="row-even"><td><code class="docutils literal notranslate"><span class="pre">foldRight[R](f:</span> <span class="pre">(T,R)</span> <span class="pre">=&gt;</span> <span class="pre">R)(z:</span> <span class="pre">R):</span> <span class="pre">R</span></code></td>
+<td>Applies a binary operator <code class="docutils literal notranslate"><span class="pre">f</span></code> to all elements of
+this list and a start value <code class="docutils literal notranslate"><span class="pre">z</span></code>, going right to
+left.</td>
+</tr>
+<tr class="row-odd"><td><code class="docutils literal notranslate"><span class="pre">scanLeft[R](z:</span> <span class="pre">R)(f:</span> <span class="pre">(R,T)</span> <span class="pre">=&gt;</span> <span class="pre">R):</span> <span class="pre">List[R]</span></code></td>
+<td>Produces a List containing cumulative results
+of applying the operator <code class="docutils literal notranslate"><span class="pre">f</span></code> going left to
+right.</td>
+</tr>
+<tr class="row-even"><td><code class="docutils literal notranslate"><span class="pre">scanRight[R](f:</span> <span class="pre">(T,R)</span> <span class="pre">=&gt;</span> <span class="pre">R)(z:</span> <span class="pre">R):</span> <span class="pre">List[R]</span></code></td>
+<td>Produces a List containing cumulative results
+of applying the operator <code class="docutils literal notranslate"><span class="pre">f</span></code> going right to
+left.</td>
+</tr>
+<tr class="row-odd"><td><code class="docutils literal notranslate"><span class="pre">flatMap[R](f:</span> <span class="pre">T</span> <span class="pre">=&gt;</span> <span class="pre">List[R]):</span> <span class="pre">List[R]</span></code></td>
+<td>Builds a new List by applying a function <code class="docutils literal notranslate"><span class="pre">f</span></code>
+to all elements of this list and using the
+elements of the resulting Lists.</td>
+</tr>
+<tr class="row-even"><td><code class="docutils literal notranslate"><span class="pre">filter(p:</span> <span class="pre">T</span> <span class="pre">=&gt;</span> <span class="pre">Boolean):</span> <span class="pre">List[T]</span></code></td>
+<td>Selects all elements of this List
+which satisfy the predicate <code class="docutils literal notranslate"><span class="pre">p</span></code></td>
+</tr>
+<tr class="row-odd"><td><code class="docutils literal notranslate"><span class="pre">forall(p:</span> <span class="pre">T</span> <span class="pre">=&gt;</span> <span class="pre">Boolean):</span> <span class="pre">Boolean</span></code></td>
+<td>Tests whether predicate <code class="docutils literal notranslate"><span class="pre">p</span></code> holds
+for all elements of this List.</td>
+</tr>
+<tr class="row-even"><td><code class="docutils literal notranslate"><span class="pre">exists(p:</span> <span class="pre">T</span> <span class="pre">=&gt;</span> <span class="pre">Boolean):</span> <span class="pre">Boolean</span></code></td>
+<td>Tests whether predicate <code class="docutils literal notranslate"><span class="pre">p</span></code>  holds for some of
+the elements of this List.</td>
+</tr>
+<tr class="row-odd"><td><code class="docutils literal notranslate"><span class="pre">find(p:</span> <span class="pre">T</span> <span class="pre">=&gt;</span> <span class="pre">Boolean):</span> <span class="pre">Option[T]</span></code></td>
+<td>Finds the first element of this List satisfying
+predicate <code class="docutils literal notranslate"><span class="pre">p</span></code>, if any.</td>
+</tr>
+<tr class="row-even"><td><code class="docutils literal notranslate"><span class="pre">takeWhile(p:</span> <span class="pre">T</span> <span class="pre">=&gt;</span> <span class="pre">Boolean):</span> <span class="pre">List[T]</span></code></td>
+<td>Takes longest prefix of elements that satisfy
+predicate <code class="docutils literal notranslate"><span class="pre">p</span></code></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="additional-operations-on-lists">
+<h3>Additional operations on Lists<a class="headerlink" href="#additional-operations-on-lists" title="Permalink to this headline">¶</a></h3>
+<p>The object <code class="docutils literal notranslate"><span class="pre">ListOps</span></code> offers this additional operations:</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="52%" />
+<col width="48%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Function signature</th>
+<th class="head">Short description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td><code class="docutils literal notranslate"><span class="pre">flatten[T](ls:</span> <span class="pre">List[List[T]]):</span> <span class="pre">List[T]</span></code></td>
+<td>Converts the List of Lists <code class="docutils literal notranslate"><span class="pre">ls</span></code> into a List
+formed by the elements of these Lists.</td>
+</tr>
+<tr class="row-odd"><td><code class="docutils literal notranslate"><span class="pre">isSorted(ls:</span> <span class="pre">List[BigInt]):</span> <span class="pre">Boolean</span></code></td>
+<td>Returns whether this list of mathematical integers
+is sorted in ascending order.</td>
+</tr>
+<tr class="row-even"><td><code class="docutils literal notranslate"><span class="pre">sorted(ls:</span> <span class="pre">List[BigInt]):</span> <span class="pre">List[BigInt]</span></code></td>
+<td>Sorts this list of mathematical integers
+is sorted in ascending order.</td>
+</tr>
+<tr class="row-odd"><td><code class="docutils literal notranslate"><span class="pre">insSort(ls:</span> <span class="pre">List[BigInt],</span> <span class="pre">v:</span> <span class="pre">BigInt):</span> <span class="pre">List[BigInt]</span></code></td>
+<td>Sorts this list of mathematical integers
+is sorted in ascending order using insertion sort.</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="theorems-on-lists">
+<h3>Theorems on Lists<a class="headerlink" href="#theorems-on-lists" title="Permalink to this headline">¶</a></h3>
+<p>The following theorems on Lists have been proven by Stainless and are included
+in the object <code class="docutils literal notranslate"><span class="pre">ListSpecs</span></code>:</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="53%" />
+<col width="47%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Theorem signature</th>
+<th class="head">Proven Claim</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td><code class="docutils literal notranslate"><span class="pre">snocIndex[T](l:</span> <span class="pre">List[T],</span> <span class="pre">t:</span> <span class="pre">T,</span> <span class="pre">i:</span> <span class="pre">BigInt)</span></code></td>
+<td><code class="docutils literal notranslate"><span class="pre">(l</span> <span class="pre">:+</span> <span class="pre">t).apply(i)</span> <span class="pre">==</span> <span class="pre">(if</span> <span class="pre">(i</span> <span class="pre">&lt;</span> <span class="pre">l.size)</span> <span class="pre">l(i)</span> <span class="pre">else</span> <span class="pre">t)</span></code></td>
+</tr>
+<tr class="row-odd"><td><code class="docutils literal notranslate"><span class="pre">reverseIndex[T](l:</span> <span class="pre">List[T],</span> <span class="pre">i:</span> <span class="pre">BigInt)</span></code></td>
+<td><code class="docutils literal notranslate"><span class="pre">l.reverse.apply(i)</span> <span class="pre">==</span> <span class="pre">l.apply(l.size</span> <span class="pre">-</span> <span class="pre">1</span> <span class="pre">-</span> <span class="pre">i)</span></code></td>
+</tr>
+<tr class="row-even"><td><code class="docutils literal notranslate"><span class="pre">appendIndex[T](l1:</span> <span class="pre">List[T],</span> <span class="pre">l2:</span> <span class="pre">List[T],</span> <span class="pre">i:</span> <span class="pre">BigInt)</span></code></td>
+<td><code class="docutils literal notranslate"><span class="pre">(l1</span> <span class="pre">++</span> <span class="pre">l2).apply(i)</span> <span class="pre">==</span></code>
+<code class="docutils literal notranslate"><span class="pre">(if</span> <span class="pre">(i</span> <span class="pre">&lt;</span> <span class="pre">l1.size)</span> <span class="pre">l1(i)</span> <span class="pre">else</span> <span class="pre">l2(i</span> <span class="pre">-</span> <span class="pre">l1.size))</span></code></td>
+</tr>
+<tr class="row-odd"><td><code class="docutils literal notranslate"><span class="pre">appendAssoc[T](l1:</span> <span class="pre">List[T],</span> <span class="pre">l2:</span> <span class="pre">List[T],</span> <span class="pre">l3:</span> <span class="pre">List[T])</span></code></td>
+<td><code class="docutils literal notranslate"><span class="pre">((l1</span> <span class="pre">++</span> <span class="pre">l2)</span> <span class="pre">++</span> <span class="pre">l3)</span> <span class="pre">==</span> <span class="pre">(l1</span> <span class="pre">++</span> <span class="pre">(l2</span> <span class="pre">++</span> <span class="pre">l3))</span></code></td>
+</tr>
+<tr class="row-even"><td><code class="docutils literal notranslate"><span class="pre">snocIsAppend[T](l:</span> <span class="pre">List[T],</span> <span class="pre">t:</span> <span class="pre">T)</span></code></td>
+<td><code class="docutils literal notranslate"><span class="pre">(l</span> <span class="pre">:+</span> <span class="pre">t)</span> <span class="pre">==</span> <span class="pre">l</span> <span class="pre">++</span> <span class="pre">Cons[T](t,</span> <span class="pre">Nil())</span></code></td>
+</tr>
+<tr class="row-odd"><td><code class="docutils literal notranslate"><span class="pre">snocAfterAppend[T](l1:</span> <span class="pre">List[T],</span> <span class="pre">l2:</span> <span class="pre">List[T],</span> <span class="pre">t:</span> <span class="pre">T)</span></code></td>
+<td><code class="docutils literal notranslate"><span class="pre">(l1</span> <span class="pre">++</span> <span class="pre">l2)</span> <span class="pre">:+</span> <span class="pre">t</span> <span class="pre">==</span> <span class="pre">(l1</span> <span class="pre">++</span> <span class="pre">(l2</span> <span class="pre">:+</span> <span class="pre">t))</span></code></td>
+</tr>
+<tr class="row-even"><td><code class="docutils literal notranslate"><span class="pre">snocReverse[T](l:</span> <span class="pre">List[T],</span> <span class="pre">t:</span> <span class="pre">T)</span></code></td>
+<td><code class="docutils literal notranslate"><span class="pre">(l</span> <span class="pre">:+</span> <span class="pre">t).reverse</span> <span class="pre">==</span> <span class="pre">Cons(t,</span> <span class="pre">l.reverse)</span></code></td>
+</tr>
+<tr class="row-odd"><td><code class="docutils literal notranslate"><span class="pre">reverseReverse[T](l:</span> <span class="pre">List[T])</span></code></td>
+<td><code class="docutils literal notranslate"><span class="pre">l.reverse.reverse</span> <span class="pre">==</span> <span class="pre">l</span></code></td>
+</tr>
+<tr class="row-even"><td><code class="docutils literal notranslate"><span class="pre">scanVsFoldRight[A,B](l:</span> <span class="pre">List[A],</span> <span class="pre">z:</span> <span class="pre">B,</span> <span class="pre">f:</span> <span class="pre">(A,B)</span> <span class="pre">=&gt;</span> <span class="pre">B)</span></code></td>
+<td><code class="docutils literal notranslate"><span class="pre">l.scanRight(f)(z).head</span> <span class="pre">==</span> <span class="pre">l.foldRight(f)(z)</span></code></td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div class="section" id="set-t-map-t">
+<h2>Set[T], Map[T]<a class="headerlink" href="#set-t-map-t" title="Permalink to this headline">¶</a></h2>
+<p>Stainless uses its own Sets and Maps, which are defined in the <code class="docutils literal notranslate"><span class="pre">stainless.lang</span></code> package.
+However, these classes are not implemented within Stainless.
+Instead, they are parsed into specialized trees.
+Methods of these classes are mapped to specialized trees within SMT solvers.
+For code generation, we rely on Java Sets and Maps.</p>
+<p>The API of these classes is a subset of the Scala API and can be found
+in the <a class="reference internal" href="purescala.html"><span class="doc">Pure Scala</span></a> section.</p>
+<p>Additionally, the following functions for Sets are provided in the
+<code class="docutils literal notranslate"><span class="pre">stainless.collection</span></code> package:</p>
+<table border="1" class="docutils">
+<colgroup>
+<col width="58%" />
+<col width="42%" />
+</colgroup>
+<thead valign="bottom">
+<tr class="row-odd"><th class="head">Function signature</th>
+<th class="head">Short description</th>
+</tr>
+</thead>
+<tbody valign="top">
+<tr class="row-even"><td><code class="docutils literal notranslate"><span class="pre">setToList[A](set:</span> <span class="pre">Set[A]):</span> <span class="pre">List[A]</span></code></td>
+<td>Transforms the Set <code class="docutils literal notranslate"><span class="pre">set</span></code> into a List.</td>
+</tr>
+<tr class="row-odd"><td><code class="docutils literal notranslate"><span class="pre">setForall[A](set:</span> <span class="pre">Set[A],</span> <span class="pre">p:</span> <span class="pre">A</span> <span class="pre">=&gt;</span> <span class="pre">Boolean):</span> <span class="pre">Boolean</span></code></td>
+<td>Tests whether predicate <code class="docutils literal notranslate"><span class="pre">p</span></code> holds
+for all elements of Set <code class="docutils literal notranslate"><span class="pre">set</span></code>.</td>
+</tr>
+<tr class="row-even"><td><code class="docutils literal notranslate"><span class="pre">setExists[A](set:</span> <span class="pre">Set[A],</span> <span class="pre">p:</span> <span class="pre">A</span> <span class="pre">=&gt;</span> <span class="pre">Boolean):</span> <span class="pre">Boolean</span></code></td>
+<td>Tests whether predicate <code class="docutils literal notranslate"><span class="pre">p</span></code> holds
+for all elements of Set <code class="docutils literal notranslate"><span class="pre">set</span></code>.</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+        </div>
+        <div class="sidebar">
+          <h3>Table Of Contents</h3>
+          <ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="intro.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="gettingstarted.html">Getting Started</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installing Stainless</a></li>
+<li class="toctree-l1"><a class="reference internal" href="tutorial.html">Tutorial: Sorting</a></li>
+<li class="toctree-l1"><a class="reference internal" href="purescala.html">Pure Scala</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Stainless Library</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#annotations">Annotations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#list-t">List[T]</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#set-t-map-t">Set[T], Map[T]</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="imperative.html">Imperative</a></li>
+<li class="toctree-l1"><a class="reference internal" href="verification.html">Verification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="neon.html">Proving Theorems</a></li>
+<li class="toctree-l1"><a class="reference internal" href="limitations.html">Limitations of Verification</a></li>
+<li class="toctree-l1"><a class="reference internal" href="options.html">Command Line Options</a></li>
+<li class="toctree-l1"><a class="reference internal" href="smartcontracts.html">Stainless Smart Contracts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="faq.html">Frequently Asked Questions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="references.html">References</a></li>
+<li class="toctree-l1"><a class="reference internal" href="internals.html">Stainless’ Internals</a></li>
+</ul>
+
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+    <div class="footer-wrapper">
+      <div class="footer">
+        <div class="left">
+            <a href="_sources/library.rst.txt"
+               rel="nofollow">Show Source</a>
+        </div>
+
+        <div class="right">
+            &copy; Copyright 2017 (alphabetically) by M. Antognini, R. Blanc, S. Gruetter, L. Hupel, E. Kneuss, M. Koukoutos, V. Kuncak, R. Madhavan, S. Stucki, P. Suter.
+          Last updated on Sep 27, 2018.
+        </div>
+        <div class="clearer"></div>
+      </div>
+    </div>
+
+  </body>
+</html>
