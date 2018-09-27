@@ -60,6 +60,10 @@ trait TypeOps extends imperative.TypeOps {
 
     case (t1, t2) if t1 == t2 => Some(t1)
 
+    // maps are covariant in the OO type system
+    case (MapType(f1, t1), MapType(f2, t2)) if f1 == f2 =>
+      Some(MapType(f1, typeBound(t1, t2, upper)))
+
     case _ => None
   }).getOrElse(if (upper) AnyType() else NothingType()).getType
 
@@ -116,7 +120,7 @@ trait TypeOps extends imperative.TypeOps {
   override def greatestLowerBound(tps: Seq[Type]): Type = typeBound(tps, false)
 
   override def isSubtypeOf(t1: Type, t2: Type): Boolean = {
-    (!t1.isTyped && !t2.isTyped) || (t1.isTyped && t2.isTyped && leastUpperBound(t1, t2) == t2)
+    (!t1.isTyped && !t2.isTyped) || (t1.isTyped && t2.isTyped && leastUpperBound(t1, t2) == t2.getType)
   }
 
   def typesCompatible(t1: Type, t2s: Type*) = {
