@@ -23,10 +23,11 @@ I18NSPHINXOPTS  = $(PAPEROPT_$(PAPER)) $(SPHINXOPTS) .
 
 gh-pages:
 	$(MAKE) html
-	cd $(BUILDDIR)/html
-	git init
-	git add .
-	git commit -am "Update documentation"
+	cd $(BUILDDIR)/html && \
+	touch .nojekyll _static/.nojekyll _images/.nojekyll _sources/.nojekyll && \
+	git init && \
+	git add . && \
+	git commit -am "Update documentation" && \
 	git push -f git@github.com:epfl-lara/smart.git master:gh-pages
 
 help:
