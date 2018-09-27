@@ -209,6 +209,15 @@ trait ExtractionCaches { self: ExtractionPipeline =>
       override def apply(key: A, symbols: s.Symbols): CacheKey = gen(key, symbols)
     })
 
+  /** A fake cache */
+  protected final class FakeCache[A: SimpleKeyable, B] extends ExtractionCache[A, B] {
+    override def cached(key: A, symbols: s.Symbols)(builder: => B): B = builder
+    override def contains(key: A, symbols: s.Symbols): Boolean = false
+    override def update(key: A, symbols: s.Symbols, value: B): Unit = ()
+    override def get(key: A, symbols: s.Symbols): Option[B] = None
+    override def apply(key: A, symbols: s.Symbols): B = throw new Exception("FakeCache is not a cache")
+  }
+
   override def invalidate(id: Identifier): Unit = {
     for (cache <- caches) cache.invalidate(id)
   }
