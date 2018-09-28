@@ -8,9 +8,10 @@ import utils._
 import org.scalatest._
 
 class SmartContractVerificationSuite extends SmartContractSuite {
+  val solvers = "--solvers=smt-z3,smt-cvc4"
   for (args <- validArgs) {
     test("stainless " + args.mkString(" ")) {
-      val report = runMainWithArgs(args)
+      val report = runMainWithArgs(solvers +: args)
       assert(report.get.stats.invalid == 0)
       assert(report.get.stats.unknown == 0)
     }
@@ -20,7 +21,7 @@ class SmartContractVerificationSuite extends SmartContractSuite {
 
   for (file <- invalidFiles) {
     test(s"stainless $file") {
-      val report = runMainWithArgs(Array(file))
+      val report = runMainWithArgs(Array(solvers, file))
       assert(report.get.stats.invalid > 0)
     }
   }

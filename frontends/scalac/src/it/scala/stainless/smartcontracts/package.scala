@@ -38,7 +38,6 @@ package object utils {
     compiler.run()
     compiler.join()
     compiler.getReport foreach { _.emit(ctx) }
-    ctx.reporter.terminateIfError()
     compiler.getReport
   }
 }
