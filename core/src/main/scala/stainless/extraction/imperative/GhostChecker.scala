@@ -29,6 +29,12 @@ trait GhostChecker { self: EffectsAnalyzer =>
     def isGhostExpression(e: Expr): Boolean = e match {
       case v: Variable => v.flags contains Ghost
 
+      // This will typically be the case for contracts from `stainless.lang.StaticChecks`
+      case Annotated(e, flags) if flags contains Ghost => false
+
+      // Measures are also considered ghost, as they are never executed
+      case Decreases(_, body) => isGhostExpression(body)
+
       case FunInvocation(id, _, args, _) =>
         val fun = lookupFunction(id).map(Outer(_)).getOrElse(effects.local(id))
         (fun.flags contains Ghost) ||
@@ -55,7 +61,9 @@ trait GhostChecker { self: EffectsAnalyzer =>
     }
 
     def checkFunction(fun: FunAbstraction, inGhost: Boolean): Unit = {
-      if (fun.flags contains Ghost) {
+      if (fun.flags contains Synthetic) {
+        () // Synthetic functions should always be fine with respect to ghost flow
+      } else if (fun.flags contains Ghost) {
         if (!effects(fun).forall(isGhostEffect))
           throw ImperativeEliminationException(fun, s"Ghost function cannot have effect on non-ghost state")
         new Checker(true).traverse(fun)

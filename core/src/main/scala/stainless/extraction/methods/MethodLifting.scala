@@ -45,18 +45,20 @@ trait MethodLifting extends oo.ExtractionPipeline with oo.ExtractionCaches { sel
       }.toSet)
   })
 
-  // The class cache relies on the ClassKey, as well as whether the class (or one
-  // of its descendants) has an invariant.
-  private[this] final val classCache = new FakeCache[s.ClassDef, (t.ClassDef, Option[t.FunDef])](/* {
+  // The class cache must consider all direct overrides of a potential invariant function
+  // attached to the class.
+  // Note that we could again use the set of transitive overrides here instead of all invariants.
+  private[this] final val classCache = new CustomCache[s.ClassDef, (t.ClassDef, Option[t.FunDef])]({
     (cd, symbols) =>
       val ids = cd.descendants(symbols).map(_.id).toSet + cd.id
-      val hasInv = symbols.functions.values.exists { fd => 
-        (fd.flags contains IsInvariant) &&
-        (fd.flags exists { case IsMethodOf(cid) => ids(cid) case _ => false })
-      }
 
-      ClassKey(cd, symbols) + new ValueKey(hasInv)
-  } */)
+      val invariants = symbols.functions.values.filter { fd =>
+        (fd.flags contains s.IsInvariant) &&
+        (fd.flags exists { case s.IsMethodOf(id) => ids(id) case _ => false })
+      }.map(FunctionKey(_, symbols) : CacheKey).toSet
+
+      new DependencyKey(cd.id, invariants)
+  })
 
   private sealed trait Override { val cid: Identifier }
   private case class FunOverride(cid: Identifier, fid: Option[Identifier], children: Seq[Override]) extends Override
