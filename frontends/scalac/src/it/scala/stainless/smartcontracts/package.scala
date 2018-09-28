@@ -26,11 +26,7 @@ package object utils {
 
   def files(dir: String, pred: String => Boolean = _ => true): List[String] = {
     val d = new File(dir)
-    if (d.exists && d.isDirectory) {
-      d.listFiles.toList.filter((f: File) => f.isFile && pred(f.getPath)).map(_.getPath)
-    } else {
-      Nil
-    }
+    d.listFiles.toList.filter((f: File) => f.isFile && pred(f.getPath)).map(_.getPath)
   }
 
   def runMainWithArgs(args: Array[String]) = {
