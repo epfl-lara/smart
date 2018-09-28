@@ -14,9 +14,8 @@ Installation
 
 Development happens on the `smart repository
 <https://github.com/epfl-lara/smart>`_, a fork of `Stainless
-<https://github.com/epfl-lara/stainess>`_ which is frequently rebased on top of
-Stainless's master. You can follow the Stainless `installation guide
-<installation.rst>`_ by changing the repository:
+<https://github.com/epfl-lara/stainess>`_. You can follow the Stainless
+`installation guide <installation.rst>`_ by changing the repository:
 
 .. code-block:: bash
 
@@ -109,27 +108,28 @@ The ``contractInvariant`` function is defined in the file
   }
 
 It states that all addresses that appear in the (ghost) variable participants
-are distinct, that the sum of all balances of participants equals to 
-`total`, and that all addresses with a non-zero balance appear in the list of 
+are distinct, that the sum of all balances of participants equals to ``total``,
+and that all addresses with a non-zero balance appear in the list of
 participants. 
 
 Showing that this invariant holds after the updates that happens in the
-`transferFrom` function requires some work. Some lemmas that are used to relate
-the sum of all balances before and after updates are stated and proven in the
-``MinimumTokenInvariant.scala`` file. In the `transferFrom` function, we then
-invoke the lemmas using assertions that will be used for verification. These
-`ghost` expressions are ignored during compilation. 
+``transferFrom`` function requires some work. Some lemmas that are used to
+relate the sum of all balances before and after updates are stated and proven in
+the ``MinimumTokenInvariant.scala`` file. In the ``transferFrom`` function, we
+then invoke the lemmas using the call to ``transferProof``. These `ghost`
+expressions are ignored during compilation. 
 
 The ``==|`` and ``|`` notations are defined in ``stainless.equations``. They
 enable to prove that two expressions are equal by detailing the sequence of
 intermediary steps, while providing evidence for each step (or ``trivial`` if
 not evidence is required).
 
-`MinimumToken` is not so useful as is, since there is no way to create tokens.
+``MinimumToken`` is not so useful as is, since there is no way to create tokens.
 As an exercise, the reader may try to add a function for minting tokens, and
-prove that this function maintains `contractInvariant`. Additionally, we can add
-a custom constructor to this contract by adding a function called `constructor`
-which will be translated to a constructor in Solidity during compilation.
+prove that this function maintains ``contractInvariant``. Additionally, we can
+add a custom constructor to this contract by adding a function called
+``constructor`` which will be translated to a constructor in Solidity during
+compilation.
 
 
 Compilation to Solidity
@@ -142,9 +142,9 @@ command (still in the ``MinimumToken`` folder):
 
   $ stainless --solidity *.scala
 
-It will produce the following Solidity code (in the file `MinimumToken.sol`),
-which can be compiled by the Solidity compiler to Ethereum Virtual Machine
-bytecode.
+This produces Solidity code (in the file `MinimumToken.sol`) containing the
+following function, and which can be compiled by the Solidity compiler to
+Ethereum Virtual Machine bytecode.
 
 .. code-block:: javascript
 
@@ -217,14 +217,14 @@ as we implement new features. Here is a list of things that we are working on,
 or plan to work on in the near future:
 
 * Conversion from Address to Contract.
-* Direct compilation to EVM bytecode and other backends.
+* Translation from case classes to struct.
 * Inheritance between contracts (case classes will be replaced by traits).
 * Fallback functions.
 * More uintX types (only uint8 and uint256 are supported for the moment).
 * @internal and @external annotations for functions, to denote functions that 
   can only be accessed from the inside or outside, respectively.
 * For loops (at the moment, while loops or recursive functions can be used instead).
-
+* Direct compilation to EVM bytecode and other backends.
 
 If you would love to a see a feature which is not listed here, please open an
 issue in the `smart repository <https://github.com/epfl-lara/smart>`_.
@@ -234,7 +234,7 @@ Known Issues
 ------------
 
 * Your code must contain a case class that extends the `Contract` class (from stainless.smartcontracts), otherwise you will get an exception during verification.
-* For readability, the compiler to Solidity currently print the names of the variables as they appear in your Stainless source code. As such, you should avoid using two variables with the same name in the same scope.
+* For readability, the compiler to Solidity currently prints the names of the variables as they appear in your Stainless source code. As such, you should avoid using two variables with the same name in the same scope.
 * Some checks for ghost code who were giving false positives are currently disabled.
 
 Reporting Issues
