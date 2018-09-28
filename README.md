@@ -13,14 +13,13 @@ Cloning into 'smart'...
 // ...
 $ cd smart
 $ sbt clean universal:stage
-// takes about 1 minute
 ```
 
 You can then create a symbolic link (e.g. for Linux & Mac OS-X) to have access 
-to a ``stainless`` command-line (assuming ~/bin is in your path).
+to a ``stainless`` command-line.
 
 ```bash
- ln -s /path/to/smart/frontends/scalac/target/universal/stage/bin/stainless-scalac ~/bin/stainless
+ ln -s frontends/scalac/target/universal/stage/bin/stainless-scalac stainless
 ```
 
 Fore more information, you can refer to the Stainless documentation:
@@ -41,6 +40,7 @@ invariant that the sum of eaten and remaining candies equals the initial candies
 ```scala
 import stainless.smartcontracts._
 import stainless.lang.StaticChecks._
+import stainless.annotation._
 
 case class Candy(
   var initialCandies: Uint256,
@@ -66,7 +66,8 @@ case class Candy(
     assert(invariant)
   }
 
-  def invariant: Boolean = {
+  @view
+  private def invariant: Boolean = {
     eatenCandies <= initialCandies &&
     remainingCandies <= initialCandies &&
     initialCandies - eatenCandies == remainingCandies
@@ -78,26 +79,28 @@ Stainless is able to verify that the assertions written in the contract are
 indeed valid. Verification for `Uint256` examples is faster if you 
 configure stainless to use the external [CVC4](http://cvc4.cs.stanford.edu/web/) solver:
 
-> stainless Candy.scala --solvers=smt-cvc4
+> ./stainless frontends/benchmarks/smartcontracts/valid/Candy.scala --solvers=smt-cvc4
 
-> [  Info  ]   ┌───────────────────┐
-> [  Info  ] ╔═╡ stainless summary ╞═════════════════════════╗
-> [  Info  ] ║ └───────────────────┘                         ║
-> [  Info  ] ║ constructor  body assertion  valid ... 0.122  ║
-> [  Info  ] ║ eatCandy     body assertion  valid ... 11.109 ║
-> [  Info  ] ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
-> [  Info  ] ║ total: 2    valid: 2 ... invalid: 0  ...      ║
-> [  Info  ] ╚═══════════════════════════════════════════════╝
+```
+[  Info  ]   ┌───────────────────┐
+[  Info  ] ╔═╡ stainless summary ╞═════════════════════════╗
+[  Info  ] ║ └───────────────────┘                         ║
+[  Info  ] ║ constructor  body assertion  valid ... 0.122  ║
+[  Info  ] ║ eatCandy     body assertion  valid ... 11.109 ║
+[  Info  ] ╟┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄╢
+[  Info  ] ║ total: 2    valid: 2 ... invalid: 0  ...      ║
+[  Info  ] ╚═══════════════════════════════════════════════╝
+```
 
 You can also ensure that the arithmetic performed does not include overflows:
 
-> stainless Candy.scala --solvers=smt-cvc4 --strict-arithmetic
+> ./stainless frontends/benchmarks/smartcontracts/valid/Candy.scala --solvers=smt-cvc4 --strict-arithmetic
 
 # Compilation to Solidity
 
 The contract can be compiled to Solidity using 
 
-> stainless --solidity Candy.scala
+> stainless frontends/benchmarks/smartcontracts/valid/Candy.scala --solidity
 
 which produces a file `Candy.sol`. The compiler drops the assertions, but
 compiles the `dynRequire` commands to `require` in Solidity. The compiler also
@@ -129,7 +132,8 @@ contract Candy {
 
     // Private functions
     function invariant () view private returns (bool) {
-        return eatenCandies <= initialCandies && remainingCandies <= initialCandies && initialCandies - eatenCandies == remainingCandies;
+        return eatenCandies <= initialCandies && remainingCandies <= initialCandies && 
+          initialCandies - eatenCandies == remainingCandies;
     }
 }
 ```
@@ -147,4 +151,4 @@ EVEN IF SUCH HOLDER OR OTHER PARTY HAS BEEN ADVISED OF THE POSSIBILITY OF
 SUCH DAMAGES.
 
 
-See also the [licence](LICENCE).
+See also the [license](LICENSE).
