@@ -9,7 +9,7 @@ import org.scalatest._
 
 class SmartContractVerificationSuite extends SmartContractSuite {
   for (args <- validArgs) {
-    test(s"stainless $args") {
+    test("stainless " + args.mkString(" ")) {
       val report = runMainWithArgs(args)
       assert(report.get.stats.invalid == 0)
       assert(report.get.stats.unknown == 0)
