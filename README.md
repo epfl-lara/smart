@@ -178,9 +178,11 @@ The contract can be compiled to Solidity using
 > stainless --solidity Candy.scala
 
 which produces a file `Candy.sol`. The compiler drops the assertions, but
-compiles the `dynRequire` commands to `require` in Solidity.
+compiles the `dynRequire` commands to `require` in Solidity. The compiler also
+drops the functions `invariant` and `noAdditionOverflow`, which we only use for
+specification purposes.
 
-```javascript
+```solidity
 pragma solidity ^0.4.24;
 
 contract CandyContract {
