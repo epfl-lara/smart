@@ -1,30 +1,27 @@
 /* Copyright 2009-2018 EPFL, Lausanne */
 
 package stainless
-package verification
+package smartcontracts
+
+import utils._
 
 import org.scalatest._
 
-class SmartContractVerificationSuite extends ComponentTestSuite {
-  val component = VerificationComponent
-
-  override def filter(ctx: inox.Context, name: String): FilterStatus = name match {
-    case "smartcontracts/valid/VotingToken" => Ignore // too slow
-    case _ => super.filter(ctx, name)
-  }
-
-  testAll("smartcontracts/valid", true) { (analysis, reporter) =>
-    assert(analysis.toReport.stats.validFromCache == 0, "no cache should be used for these tests")
-    for ((vc, vr) <- analysis.vrs) {
-      if (vr.isInvalid) fail(s"The following verification condition was invalid: $vc @${vc.getPos}")
-      if (vr.isInconclusive) fail(s"The following verification condition was inconclusive: $vc @${vc.getPos}")
+class SmartContractVerificationSuite extends SmartContractSuite {
+  for (args <- validArgs) {
+    test(s"stainless $args") {
+      val report = runMainWithArgs(args)
+      assert(report.get.stats.invalid == 0)
+      assert(report.get.stats.unknown == 0)
     }
-    reporter.terminateIfError()
   }
 
-  testAll("smartcontracts/failVerification", true) { (analysis, _) =>
-    val report = analysis.toReport
-    assert(report.totalInvalid > 0, "There should be at least one invalid verification condition. " + report.stats)
+  val invalidFiles = resourceFiles("smartcontracts/failVerification", _.endsWith(".scala"), false).map(_.getPath).toSeq
+
+  for (file <- invalidFiles) {
+    test(s"stainless $file") {
+      val report = runMainWithArgs(Array(file))
+      assert(report.get.stats.invalid > 0)
+    }
   }
 }
-
