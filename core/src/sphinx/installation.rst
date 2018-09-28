@@ -20,7 +20,7 @@ written and tested improvements to the information below.
 
 sbt
 ---
-Setting up a sbt build file to use stainless it's a simple 4-steps procedure:
+Setting up a sbt build file to use stainless is a simple 4-steps procedure:
 
 1. Start by installing an external solver (see Section
    ":ref:`smt-solvers`").
@@ -67,7 +67,7 @@ Get the sources of Stainless by cloning the official Stainless repository:
   // ...
   $ cd stainless
   $ sbt clean universal:stage
-  // takes about 1 minute
+  // takes a few minutes
 
 The compilation will automatically generate the following two bash scripts:
 
@@ -167,7 +167,7 @@ they are human readable in their source form.
 Using Stainless in Eclipse
 --------------------------
 
-**Untested!**
+**Warning: this section may not be up to date.**
 
 You first need to tell sbt to globally include the Eclipse plugin in its known plugins.
 To do so type 
