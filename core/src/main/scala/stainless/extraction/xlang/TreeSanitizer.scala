@@ -11,16 +11,16 @@ trait TreeSanitizer {
   import trees._
 
   /** Throw a [[MissformedStainlessCode]] exception when detecting an illegal pattern. */
-  def check(symbols: Symbols): Unit = {
-    val preconditions = new CheckPreconditions()(symbols)
+  def check(symbols: Symbols)(implicit ctx: inox.Context): Unit = {
+    val preconditions = new CheckPreconditions()(symbols, ctx)
     symbols.functions.values foreach preconditions.traverse
 
-    val ignored = new CheckIgnoredFields()(symbols)
+    val ignored = new CheckIgnoredFields()(symbols, ctx)
     symbols.functions.values foreach ignored.traverse
   }
 
   /* This detects both multiple `require` and `require` after `decreases`. */
-  private class CheckPreconditions(implicit symbols: Symbols) extends TreeTraverser {
+  private class CheckPreconditions(implicit symbols: Symbols, ctx: inox.Context) extends TreeTraverser {
     override def traverse(fd: FunDef): Unit = {
       traverse(fd.id)
       fd.tparams.foreach(traverse)
@@ -72,30 +72,50 @@ trait TreeSanitizer {
   }
 
   /* This detects accesses to @ignored fields */
-  private class CheckIgnoredFields(implicit symbols: Symbols) extends TreeTraverser {
+  private class CheckIgnoredFields(implicit symbols: Symbols, ctx: inox.Context) extends TreeTraverser {
+    private implicit val printerOpts = PrinterOptions.fromSymbols(symbols, ctx)
+
+    private def isFieldAccessor(id: Identifier): Boolean =
+      symbols.getFunction(id).flags exists { case IsAccessor(_) => true case _ => false }
+
     override def traverse(e: Expr): Unit = e match {
-      case e @ ClassSelector(obj, selector) =>
+      case ClassSelector(obj, selector) =>
         val ct = obj.getType.asInstanceOf[ClassType]
         ct.getField(selector) match {
           case None =>
-            throw MissformedStainlessCode(e, s"Cannot find field `$selector` of class $ct.")
+            throw MissformedStainlessCode(e, s"Cannot find field `${selector.asString}` of class ${ct.asString}.")
           case Some(field) if field.flags contains Ignore =>
-            throw MissformedStainlessCode(e, s"Cannot access ignored field `$selector` from non-extern context.")
+            throw MissformedStainlessCode(e, s"Cannot access ignored field `${selector.asString}` from non-extern context.")
           case _ =>
             super.traverse(e)
         }
 
-      case e @ ClassConstructor(ct, args) =>
+      case MethodInvocation(rec, id, tps, args) if isFieldAccessor(id) =>
+        symbols.getFunction(id).flags collectFirst { case IsAccessor(Some(id)) => id } match {
+          case Some(id) =>
+            val ct = rec.getType.asInstanceOf[ClassType]
+            ct.getField(id) match {
+              case Some(field) if field.flags contains Ignore =>
+                throw MissformedStainlessCode(e, s"Cannot access ignored field `${id.asString}` from non-extern context.")
+              case None if symbols.functions.contains(id) && symbols.functions(id).flags.contains(Ignore) =>
+                throw MissformedStainlessCode(e, s"Cannot access ignored field `${id.asString}` from non-extern context.")
+              case _ =>
+                super.traverse(e)
+            }
+          case None =>
+            super.traverse(e)
+        }
+
+      case ClassConstructor(ct, args) =>
         ct.lookupClass match {
           case None =>
-            throw MissformedStainlessCode(e, s"Cannot find class for type `$ct`.")
+            throw MissformedStainlessCode(e, s"Cannot find class for type `${ct.asString}`.")
 
           case Some(tcd) if tcd.fields.exists(_.flags contains Ignore) =>
-            val ignoredFields = tcd.fields.filter(_.flags contains Ignore).map(_.id).mkString(", ")
-            throw MissformedStainlessCode(
-              e,
+            val ignoredFields = tcd.fields.filter(_.flags contains Ignore).map(_.id.asString).mkString(", ")
+            throw MissformedStainlessCode(e,
               s"Cannot build an instance of a class with ignored fields in non-extern context " +
-              s"($ct has ignored fields: $ignoredFields)."
+              s"(${ct.asString} has ignored fields: $ignoredFields)."
             )
 
           case _ => super.traverse(e)
