@@ -61,7 +61,7 @@ package object frontend {
 
   private def hasOptSolidityCompiler(implicit ctx: inox.Context) = {
     ctx.options.options.exists { 
-      case inox.OptionValue(o, true) if o.name == smartcontract.optSolidityCompiler.name => true
+      case inox.OptionValue(o, true) if o.name == soliditycompiler.optSolidityCompiler.name => true
       case _ => false
     }
   }

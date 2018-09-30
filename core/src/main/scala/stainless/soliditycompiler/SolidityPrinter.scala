@@ -1,5 +1,5 @@
 package stainless 
-package smartcontract
+package soliditycompiler
 
 import java.io._
 

@@ -1,6 +1,6 @@
 /* Copyright 2009-2018 EPFL, Lausanne */
 package stainless
-package smartcontract
+package soliditycompiler
 
 import extraction.xlang.{trees => xt}
 import scala.concurrent.Future
@@ -10,8 +10,6 @@ import scala.reflect.runtime.{universe => u}
 
 import extraction._
 import SolidityImportBuilder._
-
-object optSolidityCompiler extends inox.FlagOptionDef("solidity", false)
 
 object SolidityCompiler {
   def apply(filename: String)(implicit symbols: xt.Symbols, ctx: inox.Context) = {
@@ -362,8 +360,6 @@ object SolidityCompiler {
     }
 
     def transformMethod(fd: FunDef) = {
-      SolidityChecker.checkFunction(fd)
-
       val name = if(fd.id.name == "fallback") ""
              else fd.id.name
 
@@ -437,7 +433,6 @@ object SolidityCompiler {
 
     def transformContract(cd: ClassDef) = {
       ctx.reporter.info("Compiling Contract : " + cd.id.name + " in file " + filename)
-      SolidityChecker.checkClass(cd)
 
       val parents = cd.parents.map(_.toString)
       val fields = transformFields(cd)

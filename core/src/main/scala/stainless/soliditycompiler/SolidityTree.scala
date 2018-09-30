@@ -1,5 +1,5 @@
 package stainless
-package smartcontract
+package soliditycompiler
 
 trait SolidityDef
 
