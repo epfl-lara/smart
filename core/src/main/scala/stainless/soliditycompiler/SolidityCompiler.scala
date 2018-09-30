@@ -29,7 +29,7 @@ object SolidityCompiler {
     val enums = enumsClasses.groupBy(_.parents)
       .map{ case (a,b) => val values = b.map(_.id.toString).toSeq
                           SEnumDefinition(a.head.toString, values)
-          }
+      }
       .toSeq
 
     val idsToFunctions = symbols.functions
@@ -179,6 +179,25 @@ object SolidityCompiler {
           case _ => 
             ctx.reporter.fatalError(rcv.getPos, "Unknown operator: " + id.name)
         }
+        
+      // Converting calls to accessors to a class selector
+      case MethodInvocation(rcv, id, _, Seq()) if 
+          symbols.functions.contains(id) && 
+          symbols.functions(id).flags.exists{case IsAccessor(_) => true case _ => false} =>
+        val srcv = transformExpr(rcv)
+                          
+        SClassSelector(srcv, id.name)
+        
+      // Converting calls to setters to an assignment
+      case MethodInvocation(rcv, id, _, Seq(v)) if 
+          symbols.functions.contains(id) && 
+          symbols.functions(id).flags.exists{case IsAccessor(_) => true case _ => false} =>
+        val srcv = transformExpr(rcv)
+        val sv = transformExpr(v)
+
+        assert(id.name.endsWith("_="), "Internal error in Solidity Compiler, setters' names must end with '_='")
+                          
+        SAssignment(SClassSelector(srcv, id.name.dropRight(2)), sv)
         
       case MethodInvocation(rcv, id, _, args) if symbols.functions.contains(id) =>
         val srcv = transformExpr(rcv)
@@ -389,15 +408,19 @@ object SolidityCompiler {
       }
     }
 
-    def functionShouldBeDiscarded(id: Identifier) = {
+    def functionShouldBeDiscarded(fd: FunDef) = {
+      val id = fd.id
       val name = id.name
       if(name.startsWith("copy")) {
         ctx.reporter.warning("Ignoring a method named `copy*` (you can safely ignore this warning if you have no such method).")
         true
+      } else if (name == "constructor") {
+        true
       } else {
-        name == "constructor"
+        fd.flags.exists { case IsAccessor(_) => true case _ => false }
       }
     }
+  
 
     def transformConstructor(cd: ClassDef) = {
       val constructors = cd.methods(symbols).filter { _.name == "constructor" }
@@ -422,8 +445,8 @@ object SolidityCompiler {
     def transformInterface(cd: ClassDef) = {
       ctx.reporter.info("Compiling Interface : " + cd.id.name + " in file " + filename)
       val methods = cd.methods(symbols)
-                      .filterNot(functionShouldBeDiscarded)
                       .map(idsToFunctions)
+                      .filterNot(functionShouldBeDiscarded)
                       .filter(fd => !fd.flags.contains(xt.IsInvariant) && 
                                     !isIdentifier("stainless.smartcontracts.ContractInterface.addr", fd.id))
                       .map(transformAbstractMethods)
@@ -436,7 +459,7 @@ object SolidityCompiler {
 
       val parents = cd.parents.map(_.toString)
       val fields = transformFields(cd)
-      val methods = cd.methods(symbols).filterNot(functionShouldBeDiscarded).map(idsToFunctions)
+      val methods = cd.methods(symbols).map(idsToFunctions).filterNot(functionShouldBeDiscarded)
       
       val newMethods = methods.filter(fd => !fd.flags.contains(xt.IsInvariant) && 
                                             !fd.flags.contains(xt.Ghost) && 
