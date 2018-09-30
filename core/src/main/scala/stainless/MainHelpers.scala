@@ -43,7 +43,7 @@ trait MainHelpers extends inox.MainHelpers {
     optCompact -> Description(General, "Print only invalid elements of summaries"),
     frontend.optPersistentCache -> Description(General, "Enable caching of program extraction & analysis"),
     utils.Caches.optCacheDir -> Description(General, "Specify the directory in which cache files should be stored"),
-    soliditycompiler.optSolidityCompiler -> Description(Solidity, "From Stainless to Solidity")
+    solidity.optSolidityOutput -> Description(Solidity, "From Stainless to Solidity")
   ) ++ MainHelpers.components.map { component =>
     val option = inox.FlagOptionDef(component.name, default = false)
     option -> Description(Pipelines, component.description)

@@ -59,16 +59,16 @@ package object frontend {
     }
   }
 
-  private def hasOptSolidityCompiler(implicit ctx: inox.Context) = {
+  private def hasOptSolidityOutput(implicit ctx: inox.Context) = {
     ctx.options.options.exists { 
-      case inox.OptionValue(o, true) if o.name == soliditycompiler.optSolidityCompiler.name => true
+      case inox.OptionValue(o, true) if o.name == solidity.optSolidityOutput.name => true
       case _ => false
     }
   }
 
   /** Get one callback for all active components. */
   def getStainlessCallBack(implicit ctx: inox.Context): CallBack = {
-    if(hasOptSolidityCompiler) {
+    if(hasOptSolidityOutput) {
       new SolidityCallBack
     } else {
       val activeComponents = getActiveComponents(ctx)

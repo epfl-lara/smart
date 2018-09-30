@@ -34,7 +34,7 @@ class SmartContractCompilationSuite extends SmartContractSuite {
 
   for (file <- invalidFiles) {
     test(s"stainless --solidity $file") {
-      // FIXME: make sure the assertion comes from SolidityCompiler
+      // FIXME: make sure the assertion comes from SolidityOutput
       assertThrows[Exception] {
         runMainWithArgs(Array("--solidity", file))
       }

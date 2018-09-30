@@ -1,5 +1,5 @@
 package stainless 
-package soliditycompiler
+package solidity
 
 import java.io._
 
@@ -378,7 +378,7 @@ object SolidityPrinter {
       case deff:SLibrary => ppLibrary(deff)
     }
 
-    val writer = new PrintWriter(new File(filename.replace(".scala", ".sol")))
+    val writer = new PrintWriter(new File(filename))
     ppHeader()(writer)
     ppImports()(writer)
     defs.foreach(ppDef(_)(writer))

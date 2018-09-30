@@ -1,5 +1,5 @@
 package stainless
-package soliditycompiler
+package solidity
 
 trait SolidityDef
 

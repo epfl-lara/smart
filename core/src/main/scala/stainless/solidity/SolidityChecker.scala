@@ -1,5 +1,5 @@
 package stainless
-package smartcontract
+package solidity
 
 import extraction.xlang.{trees => xt}
 

@@ -33,7 +33,7 @@ class SolidityCallBack(implicit val context: inox.Context)
     symbols.ensureWellFormed
     
     files.foreach{ file =>
-      soliditycompiler.SolidityCompiler(file)(symbols, context) 
+      solidity.SolidityOutput(file)(symbols, context) 
     }
 
     context.reporter.info("Compilation Done")

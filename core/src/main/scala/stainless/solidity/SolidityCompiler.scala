@@ -1,6 +1,6 @@
 /* Copyright 2009-2018 EPFL, Lausanne */
 package stainless
-package soliditycompiler
+package solidity
 
 import extraction.xlang.{trees => xt}
 import scala.concurrent.Future
@@ -11,11 +11,12 @@ import scala.reflect.runtime.{universe => u}
 import extraction._
 import SolidityImportBuilder._
 
-object SolidityCompiler {
+object SolidityOutput {
   def apply(filename: String)(implicit symbols: xt.Symbols, ctx: inox.Context) = {
     import xt._
     import exprOps._
 
+    val solFilename = filename.replace("\\.scala", ".sol")
     val classes = symbols.classes.values.filter { cd => cd.getPos.file.getCanonicalPath == filename }
     val functions = symbols.functions.values.filter { fd => fd.getPos.file.getCanonicalPath == filename }
 
@@ -444,7 +445,7 @@ object SolidityCompiler {
     }
 
     def transformInterface(cd: ClassDef) = {
-      ctx.reporter.info("Compiling Interface : " + cd.id.name + " in file " + filename)
+      ctx.reporter.info("Compiling Interface : " + cd.id.name + " in file " + solFilename)
       val methods = cd.methods(symbols)
                       .map(idsToFunctions)
                       .filterNot(functionShouldBeDiscarded)
@@ -457,7 +458,7 @@ object SolidityCompiler {
 
     def transformContract(cd: ClassDef) = {
       SolidityChecker.checkClass(cd)
-      ctx.reporter.info("Compiling Contract : " + cd.id.name + " in file " + filename)
+      ctx.reporter.info("Compiling Contract : " + cd.id.name + " in file " + solFilename)
 
       val parents = cd.parents.map(_.toString)
       val fields = transformFields(cd)
@@ -504,7 +505,7 @@ object SolidityCompiler {
 
     val allDefs = interfaces ++ contracts ++ library
     if(!allDefs.isEmpty)
-      SolidityPrinter.writeFile(ctx, filename, transformedImports, allDefs)
+      SolidityPrinter.writeFile(ctx, solFilename, transformedImports, allDefs)
     else {
       ctx.reporter.warning("The file " + filename + " has been discarded since it does not contain smart contract code")
     }

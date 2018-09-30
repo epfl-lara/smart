@@ -1,5 +1,5 @@
 package stainless
-package soliditycompiler
+package solidity
 
 import extraction.xlang.{trees => xt}
 
