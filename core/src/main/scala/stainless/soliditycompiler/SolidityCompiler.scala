@@ -379,6 +379,7 @@ object SolidityCompiler {
     }
 
     def transformMethod(fd: FunDef) = {
+      SolidityChecker.checkFunction(fd)
       val name = if(fd.id.name == "fallback") ""
              else fd.id.name
 
@@ -455,6 +456,7 @@ object SolidityCompiler {
     }
 
     def transformContract(cd: ClassDef) = {
+      SolidityChecker.checkClass(cd)
       ctx.reporter.info("Compiling Contract : " + cd.id.name + " in file " + filename)
 
       val parents = cd.parents.map(_.toString)
