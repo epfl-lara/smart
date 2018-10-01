@@ -77,21 +77,8 @@ trait EffectsChecker { self: EffectsAnalyzer =>
             case fi: FunctionInvocation if isMutableSynthetic(fi.id) =>
               throw ImperativeEliminationException(fi, s"Cannot call '${fi.id}' on a class with mutable fields")
 
-            // case fi @ FunctionInvocation(id, tps, args) if fi.tfd.params.exists(_.flags contains Ghost) =>
-            //   fi.tfd.params.zip(args)
-            //     .filter { case (vd, _) => vd.flags contains Ghost }
-            //     .foreach { case (vd, arg) =>
-            //       if (!effects(arg).forall(validGhostEffects))
-            //         throw ImperativeEliminationException(arg,
-            //           s"Argument to ghost parameter `${vd.id}` of method `${fi.id}` must only have effects on ghost fields")
-            //     }
-
-            //   super.traverse(fi)
-
             case adt @ ADT(id, tps, args) =>
-              val cons = adt.getConstructor
-
-              (cons.sort.definition.tparams zip tps).foreach { case (tdef, instanceType) =>
+              (adt.getConstructor.sort.definition.tparams zip tps).foreach { case (tdef, instanceType) =>
                 if (isMutableType(instanceType) && !(tdef.flags contains IsMutable))
                   throw ImperativeEliminationException(e,
                     "Cannot instantiate a non-mutable type parameter with a mutable type")
@@ -181,38 +168,6 @@ trait EffectsChecker { self: EffectsAnalyzer =>
 
       if ((fd.flags contains IsPure) && !effs.isEmpty)
         throw ImperativeEliminationException(fd, s"Function marked @pure cannot have side-effects")
-
-      // if (isGhost(fd) && effs.exists(eff => !validGhostEffects(eff)))
-      //   throw ImperativeEliminationException(fd, s"Ghost function cannot have effect on non-ghost state")
-    }
-
-    def isPure(fd: FunAbstraction): Boolean = fd.flags.contains(IsPure)
-    def isGhost(fd: FunAbstraction): Boolean = fd.flags.contains(Ghost)
-
-    def validGhostEffects(eff: Effect) = eff match {
-      case Effect(rec, target) => isGhostTarget(rec, target.path)
-    }
-
-    def isGhostVariable(e: Expr) = e match {
-      case v: Variable => v.flags.contains(Ghost)
-      case _ => false
-    }
-
-    def isGhostTarget(rec: Expr, path: Seq[Accessor]): Boolean = {
-      def go(tpe: Type, path: Seq[Accessor]): Boolean = path match {
-        case FieldAccessor(selector) +: rest =>
-          val adtTpe @ ADTType(_, _) = tpe
-          val field = adtTpe.getField(selector).get
-          field.flags.contains(Ghost) || go(field.tpe, rest)
-
-        case ArrayAccessor(index) +: rest =>
-          val ArrayType(elTpe) = tpe
-          go(elTpe, rest)
-
-        case Seq() => false
-      }
-
-      isGhostVariable(rec)|| go(rec.getType(symbols), path)
     }
 
     /* A fresh expression is an expression that is newly created
