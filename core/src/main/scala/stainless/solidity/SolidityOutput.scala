@@ -21,12 +21,22 @@ object SolidityOutput {
       cd.flags.contains(IsCaseObject)
     }
 
-    val solFilename = filename.replace("\\.scala", ".sol")
+    // Solidity file name
+    // either we replace the .scala extension at the end if it is there, or 
+    // we add .sol at the end of the file name
+    val solFilename = 
+      if (filename.endsWith(".scala"))
+        filename.dropRight(6) + ".sol"
+      else 
+        filename + ".sol"
+
     val classes = symbols.classes.values.filter { cd => cd.getPos.file.getCanonicalPath == filename }
     val functions = symbols.functions.values.filter { fd => fd.getPos.file.getCanonicalPath == filename }
 
     val enumParents = classes.filter { cd =>
-      cd.children.forall(isCaseObject) && cd.parents.size == 1
+      cd.children.forall((ccd: ClassDef) => isCaseObject(ccd) && ccd.parents.size == 1) && 
+      cd.children.size > 0
+      cd.parents.size == 0
     }
 
     val enumChildren = enumParents.flatMap(cd => cd.children)
