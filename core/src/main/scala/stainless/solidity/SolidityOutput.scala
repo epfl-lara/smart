@@ -12,26 +12,30 @@ import extraction._
 import SolidityImportBuilder._
 
 object SolidityOutput {
+
   def apply(filename: String)(implicit symbols: xt.Symbols, ctx: inox.Context) = {
     import xt._
     import exprOps._
+
+    def isCaseObject(cd: ClassDef) = {
+      cd.flags.contains(IsCaseObject)
+    }
 
     val solFilename = filename.replace("\\.scala", ".sol")
     val classes = symbols.classes.values.filter { cd => cd.getPos.file.getCanonicalPath == filename }
     val functions = symbols.functions.values.filter { fd => fd.getPos.file.getCanonicalPath == filename }
 
-    val enumsClasses = classes.filter { cd =>
-      cd.flags.contains(IsCaseObject)
-    }.filter(_.parents.size == 1)
+    val enumParents = classes.filter { cd =>
+      cd.children.forall(isCaseObject) && cd.parents.size == 1
+    }
 
-    val enumsTypeMap = enumsClasses.map( cd => cd.typed(symbols).toType -> cd.parents.head)
-                                   .toMap
+    val enumChildren = enumParents.flatMap(cd => cd.children)
 
-    val enums = enumsClasses.groupBy(_.parents)
-      .map{ case (a,b) => val values = b.map(_.id.toString).toSeq
-                          SEnumDefinition(a.head.toString, values)
-      }
-      .toSeq
+    val enumTypeMap = enumChildren.map(cd => cd.typed(symbols).toType -> cd.parents.head).toMap
+
+    val enums = enumParents.map(cd =>
+      SEnumDefinition(cd.id.toString, cd.children.map(_.id.toString))
+    ).toSeq
 
     val idsToFunctions = symbols.functions
 
@@ -99,7 +103,7 @@ object SolidityOutput {
           SArrayType(transformType(tp))
         case ClassType(id, Seq()) if isIdentifier("stainless.smartcontracts.Address", id) =>
           SAddressType()
-        case ct:ClassType if enumsTypeMap.isDefinedAt(ct) => SEnumType(enumsTypeMap(ct).toString)
+        case ct:ClassType if enumTypeMap.isDefinedAt(ct) => SEnumType(enumTypeMap(ct).toString)
         case ClassType(id, Seq()) => SContractType(id.toString)
 
         case _ =>  ctx.reporter.fatalError("Unsupported type " + tpe + " at position " + tpe.getPos + " " + tpe.getPos.file)
@@ -302,8 +306,8 @@ object SolidityOutput {
         val Seq(x) = args
         SAddress(transformExpr(x))
 
-      case ClassConstructor(tpe, args) if(enumsTypeMap.isDefinedAt(tpe)) =>
-        val id = enumsTypeMap(tpe)
+      case ClassConstructor(tpe, args) if(enumTypeMap.isDefinedAt(tpe)) =>
+        val id = enumTypeMap(tpe)
         SEnumValue(id.toString, tpe.toString)
       
       case ClassConstructor(tpe, args) =>
