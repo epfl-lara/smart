@@ -181,4 +181,26 @@ trait ExprOps extends inox.ast.ExprOps {
     }
     specs.foldLeft(newBody)(withSpec)
   }
+
+  def freshenTypeParams(tps: Seq[TypeParameter]): Seq[TypeParameter] = tps.map(_.freshen)
+
+  /** Freshen the type parameters and parameters of the given [[FunDef]]. */
+  def freshenSignature(fd: FunDef): FunDef = {
+    val typeArgs = freshenTypeParams(fd.typeArgs)
+    val tpSubst = (fd.typeArgs zip typeArgs).toMap
+
+    val (paramSubst, params) = fd.params
+      .map(vd => vd.copy(tpe = typeOps.instantiateType(vd.tpe, tpSubst)))
+      .foldLeft((Map[ValDef, Expr](), Seq[ValDef]())) { case ((paramSubst, params), vd) =>
+        val ntpe = typeOps.replaceFromSymbols(paramSubst, vd.tpe)
+        val nvd = ValDef(vd.id.freshen, ntpe, vd.flags).copiedFrom(vd)
+        (paramSubst + (vd -> nvd.toVariable), params :+ nvd)
+      }
+
+    new FunDef(fd.id, typeArgs.map(TypeParameterDef(_)), params,
+      typeOps.replaceFromSymbols(paramSubst, typeOps.instantiateType(fd.returnType, tpSubst)),
+      replaceFromSymbols(paramSubst, typeOps.instantiateType(fd.fullBody, tpSubst)),
+      fd.flags
+    ).copiedFrom(fd)
+  }
 }

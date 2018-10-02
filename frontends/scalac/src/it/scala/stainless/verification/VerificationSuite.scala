@@ -77,6 +77,7 @@ class CodeGenVerificationSuite extends VerificationSuite {
     // Flaky on smt-z3 for some reason
     case "verification/valid/MergeSort2" => Ignore
     case "verification/valid/IntSetInv" => Ignore
+
     case _ => super.filter(ctx, name)
   }
 }
@@ -95,6 +96,7 @@ class SMTCVC4VerificationSuite extends VerificationSuite {
     case "verification/valid/Overrides" => Ignore
     case "verification/valid/TestPartialFunction" => Ignore
     case "verification/valid/TestPartialFunction3" => Ignore
+    case "verification/valid/BigIntMonoidLaws" => Ignore
 
     // These tests are too slow on CVC4 and make the regression unstable
     case "verification/valid/ConcRope" => Ignore
