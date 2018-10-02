@@ -14,16 +14,16 @@ class SmartContractSolidityOutputSuite extends SmartContractSuite {
     }
   }
 
-  val invalidFiles = resourceFiles("smartcontracts/failCompilation", _.endsWith(".scala"), false).map(_.getPath).toSeq
+  // val invalidFiles = resourceFiles("smartcontracts/failCompilation", _.endsWith(".scala"), false).map(_.getPath).toSeq
 
-  for (file <- invalidFiles) {
-    test(s"stainless --solidity $file") {
-      // FIXME: make sure the assertion comes from SolidityOutput
-      assertThrows[Exception] {
-        runMainWithArgs(Array("--solidity", file))
-      }
-    }
-  }
+  // for (file <- invalidFiles) {
+  //   test(s"stainless --solidity $file") {
+  //     // FIXME: make sure the assertion comes from SolidityOutput
+  //     assertThrows[Exception] {
+  //       runMainWithArgs(Array("--solidity", file))
+  //     }
+  //   }
+  // }
 }
 
 class SmartContractSolcSuite extends SmartContractSuite {

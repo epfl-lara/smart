@@ -408,7 +408,6 @@ object SolidityOutput {
     }
 
     def transformMethod(fd: FunDef) = {
-      SolidityChecker.checkFunction(fd)
       val name = if(fd.id.name == "fallback") ""
              else fd.id.name
 
@@ -488,7 +487,6 @@ object SolidityOutput {
     }
 
     def transformContract(cd: ClassDef) = {
-      SolidityChecker.checkClass(cd)
       ctx.reporter.info("Compiling Contract : " + cd.id.name + " in file " + solFilename)
 
       val parents = cd.parents.map(_.toString)
@@ -534,7 +532,7 @@ object SolidityOutput {
       functions.filter { fd =>
         fd.flags.exists(isLibraryAnnotation)
       }.filterNot(functionShouldBeDiscarded)
-      toSeq
+      .toSeq
     )
 
     val allDefs = interfaces ++ contracts ++ library
