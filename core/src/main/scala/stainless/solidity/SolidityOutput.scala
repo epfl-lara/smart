@@ -28,14 +28,7 @@ object SolidityOutput {
       }
     }
 
-    // Solidity file name
-    // either we replace the .scala extension at the end if it is there, or 
-    // we add .sol at the end of the file name
-    val solFilename = 
-      if (filename.endsWith(".scala"))
-        filename.dropRight(6) + ".sol"
-      else 
-        filename + ".sol"
+    val solFilename = scalaToSolName(filename)
 
     val classes = symbols.classes.values.filter { cd => cd.getPos.file.getCanonicalPath == filename }
     val functions = symbols.functions.values.filter { fd => fd.getPos.file.getCanonicalPath == filename }
