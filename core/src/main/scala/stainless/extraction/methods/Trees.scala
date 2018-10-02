@@ -65,6 +65,76 @@ trait Trees extends throwing.Trees { self =>
     extends super.AbstractSymbols
        with DependencyGraph
        with TypeOps { self0: Symbols =>
+
+    override protected def ensureWellFormedClass(cd: ClassDef) = {
+      super.ensureWellFormedClass(cd)
+
+      def isAbstract(fd: FunDef): Boolean =
+        (fd.flags contains IsAbstract) ||
+        (!(fd.flags contains Extern) && (exprOps.withoutSpecs(fd.fullBody).isEmpty))
+
+      // Check that abstract methods are overriden
+      if (!(cd.flags contains IsAbstract)) {
+        val remainingAbstract = (cd +: cd.ancestors.map(_.cd)).reverse.foldLeft(Set.empty[Symbol]) {
+          case (abstractSymbols, cd) =>
+            abstractSymbols --
+            cd.methods.map(_.symbol) ++
+            cd.methods.filter(id => isAbstract(getFunction(id))).map(_.symbol)
+        }
+
+        if (remainingAbstract.nonEmpty) {
+          throw NotWellFormedException(cd,
+            Some("Abstract methods " + remainingAbstract.map(_.name).mkString(", ") + " were not overriden"))
+        }
+      }
+
+      // Check that method overrides are well-typed
+      val ancestors = cd.ancestors(this).map(cd => cd.id -> cd).toMap
+      cd.methods.foreach { id =>
+        firstSuper(id).foreach { sid =>
+          val cid = getFunction(sid).flags
+            .collectFirst { case IsMethodOf(cid) => cid }
+            .getOrElse(throw NotWellFormedException(getFunction(sid)))
+
+          if (!(ancestors contains cid)) throw NotWellFormedException(getFunction(sid))
+          val acd = ancestors(cid)
+
+          val fd = getFunction(id)
+          val sfd = getFunction(sid)
+
+          if (isAbstract(fd) && !isAbstract(sfd))
+            throw NotWellFormedException(fd, Some("Cannot override concrete function with abstract function"))
+
+          if (fd.tparams.size != sfd.tparams.size) throw NotWellFormedException(fd)
+
+          val tpSubst = (fd.typeArgs zip sfd.typeArgs).toMap
+          (fd.typeArgs zip sfd.typeArgs).foreach { case (tp, stp) =>
+            val TypeBounds(lo, hi) = tp.bounds
+            val TypeBounds(slo, shi) = stp.bounds
+
+            if (!isSubtypeOf(
+              typeOps.instantiateType(lo, tpSubst),
+              typeOps.instantiateType(slo, acd.tpSubst))) throw NotWellFormedException(fd)
+
+            if (!isSubtypeOf(
+              typeOps.instantiateType(shi, acd.tpSubst),
+              typeOps.instantiateType(hi, tpSubst))) throw NotWellFormedException(fd)
+          }
+
+          if (fd.params.size != sfd.params.size) throw NotWellFormedException(fd)
+
+          (fd.params zip sfd.params).foreach { case (vd, svd) =>
+            if (!isSubtypeOf(
+              typeOps.instantiateType(svd.getType, acd.tpSubst),
+              typeOps.instantiateType(vd.getType, tpSubst))) throw NotWellFormedException(fd)
+          }
+
+          if (!isSubtypeOf(
+            typeOps.instantiateType(fd.getType, tpSubst),
+            typeOps.instantiateType(sfd.getType, acd.tpSubst))) throw NotWellFormedException(fd)
+        }
+      }
+    }
   }
 
 
