@@ -42,12 +42,16 @@ object MinimumTokenInvariant {
   })
 
   @ghost
-  def contractInvariant(contract: MinimumToken): Boolean = {
-    distinctAddresses(contract.participants) && 
-    sumBalances(contract.participants, contract.balanceOf) == contract.total &&
+  def contractInvariant(
+    balanceOf: Mapping[Address,Uint256],
+    total: Uint256,
+    participants: List[Address]
+  ): Boolean = {
+    distinctAddresses(participants) && 
+    sumBalances(participants, balanceOf) == total &&
     forall((x: Address) => 
-      (contract.balanceOf(x) != Uint256.ZERO) ==> 
-      contract.participants.contains(x)
+      (balanceOf(x) != Uint256.ZERO) ==> 
+      participants.contains(x)
     )
   }
 
@@ -103,7 +107,7 @@ object MinimumTokenInvariant {
     @ghost total: Uint256
   ) = {
     require(
-      contractInvariant(MinimumToken(b0, total, participants)) &&
+      contractInvariant(b0, total, participants) &&
       b1 == b0.updated(from, b0(from) - amount) &&
       balanceOf == b1.updated(to, b1(to) + amount) &&
       participants.contains(from) &&

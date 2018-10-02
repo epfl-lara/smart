@@ -11,16 +11,15 @@ import scala.annotation.meta.field
 
 import MinimumTokenInvariant._
 
-case class MinimumToken (
-  var balanceOf: Mapping[Address,Uint256],
-  var total: Uint256,
+trait MinimumToken extends Contract {
+  var balanceOf: Mapping[Address,Uint256]
+  var total: Uint256
 
   @ghost
   var participants: List[Address]
-) extends Contract {
 
   def transferFrom(from: Address, to: Address, amount: Uint256): Unit = {
-    require(contractInvariant(this))
+    require(contractInvariant(balanceOf, total, participants))
 
     // input validation at runtime
     dynRequire(to != Address(0))
@@ -51,7 +50,7 @@ case class MinimumToken (
     }
 
   } ensuring { _ =>
-    contractInvariant(this)
+    contractInvariant(balanceOf, total, participants)
   }
   
   @ghost
