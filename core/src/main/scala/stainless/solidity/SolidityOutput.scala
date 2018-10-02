@@ -432,6 +432,8 @@ object SolidityOutput {
         true
       } else if (name == "constructor") {
         true
+      } else if (name == "$init") {
+        true
       } else {
         fd.flags.exists { case IsAccessor(_) => true case _ => false }
       }
