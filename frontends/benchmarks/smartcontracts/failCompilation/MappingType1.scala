@@ -1,11 +1,9 @@
 import stainless.smartcontracts._
 
-object MappingType1 {
-    case class MappingType1(
-        var m: Mapping[Address, Uint256]
-    ) extends Contract {
-        def foo() = {
-            m
-        }
-    }
+trait MappingType1 extends Contract {
+  var m: Mapping[Address, Uint256]
+
+  def foo() = {
+    m
+  }
 }
