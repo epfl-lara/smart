@@ -1,6 +1,5 @@
 import stainless.smartcontracts._
 import stainless.collection._
-import stainless.proof._
 import stainless.lang._
 import stainless.annotation._
 

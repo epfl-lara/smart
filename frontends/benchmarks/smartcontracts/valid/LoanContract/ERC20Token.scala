@@ -1,28 +1,32 @@
 import stainless.smartcontracts._
 
 import stainless.collection._
-import stainless.proof._
 import stainless.lang._
 import stainless.annotation._
 
 import ERC20Specs._
 
-case class ERC20Token(var s: BigInt) extends ContractInterface {
-    @library
-    def transfer(to: Address, amount: Uint256): Boolean = {
-        require(amount >= Uint256.ZERO)
-        val oldd = snapshot(this)
-        s = s + 1
+trait ERC20Token extends ContractInterface {
+  // dummy state
+  var s: BigInt
+  
+  // FIXME: use symbol `???` instead of choose
+  @library
+  def transfer(to: Address, amount: Uint256): Boolean = {
+    require(amount >= Uint256.ZERO)
+    val oldAddr = this.addr
+    val oldBalanceOf = this.balanceOf(_)
 
-        val b = choose((b: Boolean) => transferSpec(b, to, Msg.sender, amount, this, oldd))
-        b
-    } ensuring(res => transferSpec(res, to, Msg.sender, amount, this, old(this)))
+    s = s + 1
 
-    @library
-    def balanceOf(from: Address): Uint256 = {
-        choose((b: Uint256) => b >= Uint256.ZERO)
-    } ensuring {
-        res => old(this).addr == this.addr
-    }
+    val b = choose((b: Boolean) => transferSpec(b, to, Msg.sender, amount, addr, balanceOf, oldAddr, oldBalanceOf))
+    b
+  } ensuring(res => transferSpec(res, to, Msg.sender, amount, addr, balanceOf, old(this).addr, old(this).balanceOf))
+
+  @library
+  def balanceOf(from: Address): Uint256 = {
+    choose((b: Uint256) => b >= Uint256.ZERO)
+  } ensuring {
+    res => old(this).addr == this.addr
+  }
 }
-

@@ -1,25 +1,37 @@
 import stainless.smartcontracts._
 
 import stainless.collection._
-import stainless.proof._
 import stainless.lang._
 import stainless.annotation._
 
 object ERC20Specs {
-    def transferUpdate(a: Address, to: Address, sender: Address, amount: Uint256, thiss: ERC20Token, oldThiss: ERC20Token) = {
-        ((a == to) ==> (thiss.balanceOf(a) == oldThiss.balanceOf(a) + amount)) &&
-        ((a == sender) ==> (thiss.balanceOf(a) == oldThiss.balanceOf(a) - amount)) &&
-        (a != to && a != sender) ==> (thiss.balanceOf(a) == oldThiss.balanceOf(a))
-    }
+  def transferUpdate(
+    a: Address, 
+    to: Address, 
+    sender: Address, 
+    amount: Uint256, 
+    addr: Address,
+    balanceOf: Address => Uint256,
+    oldAddr: Address,
+    oldBalanceOf: Address => Uint256
+  ) = {
+    ((a == to) ==> (balanceOf(a) == oldBalanceOf(a) + amount)) &&
+    ((a == sender) ==> (balanceOf(a) == oldBalanceOf(a) - amount)) &&
+    (a != to && a != sender) ==> (balanceOf(a) == oldBalanceOf(a))
+  }
 
-    def transferSpec(b: Boolean, to: Address, sender: Address, amount: Uint256, thiss: ERC20Token, oldThiss: ERC20Token) = {
-        (!b ==> (thiss == oldThiss)) &&
-        (b ==> forall((a: Address) => transferUpdate(a, to, sender,amount,thiss,oldThiss))) &&
-            (thiss.addr == oldThiss.addr)
-    }
-
-    def snapshot(token: ERC20Token): ERC20Token = {
-        val ERC20Token(s) = token
-        ERC20Token(s)
-    }
+  def transferSpec(
+    b: Boolean, 
+    to: Address, 
+    sender: Address, 
+    amount: Uint256, 
+    addr: Address,
+    balanceOf: Address => Uint256,
+    oldAddr: Address,
+    oldBalanceOf: Address => Uint256
+  ) = {
+    (!b ==> (balanceOf == oldBalanceOf)) &&
+    (b ==> forall((a: Address) => transferUpdate(a, to, sender, amount, addr, balanceOf, oldAddr, oldBalanceOf))) &&
+      (addr == oldAddr)
+  }
 }
