@@ -530,9 +530,12 @@ object SolidityOutput {
       cd.parents.exists{ case p => isIdentifier("stainless.smartcontracts.Contract", p.id) }
     }.map(transformContract).toSeq
 
-    val library = transformLibrary(functions.filter { fd =>
-      fd.flags.exists(isLibraryAnnotation)
-    }.toSeq)
+    val library = transformLibrary(
+      functions.filter { fd =>
+        fd.flags.exists(isLibraryAnnotation)
+      }.filterNot(functionShouldBeDiscarded)
+      toSeq
+    )
 
     val allDefs = interfaces ++ contracts ++ library
     if(!allDefs.isEmpty)
