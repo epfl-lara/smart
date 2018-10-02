@@ -1,21 +1,21 @@
 import stainless.smartcontracts._
 import stainless.annotation._
 
-object MessageTransfer {
-  case class A() extends Contract {
-    @solidityPure
-    def f() = {
-      require(Msg.sender == Address(10))
-      
-    }
+trait C1 extends Contract {
+  @solidityPure
+  def f() = {
+    require(Msg.sender == Address(10))
+    
   }
+}
 
-  case class B(a: A) extends Contract {
-    @view
-    def g() = {
-      require(addr == Address(10))
+trait C2 extends Contract {
+  val a: C1
 
-      a.f()
-    }
+  @view
+  def g() = {
+    require(addr == Address(10))
+
+    a.f()
   }
 }

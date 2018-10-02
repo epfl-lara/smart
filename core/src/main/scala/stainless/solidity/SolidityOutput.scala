@@ -21,6 +21,13 @@ object SolidityOutput {
       cd.flags.contains(IsCaseObject)
     }
 
+    def isAccessor(fd: FunDef) = {
+      fd.flags.exists {
+        case IsAccessor(_) => true
+        case _ => false
+      }
+    }
+
     // Solidity file name
     // either we replace the .scala extension at the end if it is there, or 
     // we add .sol at the end of the file name
@@ -121,9 +128,16 @@ object SolidityOutput {
     }
 
     def transformFields(cd: ClassDef) = {
-      cd.fields.map {
-        case ValDef(id, tpe, flags) =>
-          SParamDef(!flags.contains(IsVar), id.name, transformType(tpe))
+      val accessors: Seq[FunDef] = cd.methods.map(idsToFunctions).filter(isAccessor)
+      val setters: Seq[FunDef] = accessors.filter(fd => fd.id.name.endsWith("_=") && fd.params.size == 1)
+      val getters: Seq[FunDef] = accessors.filter(fd => fd.params.size == 0)
+
+      // every getter in the contract gets to be a field of the Solidity contract
+      getters.map { (fd: FunDef) => 
+        val name = fd.id.name
+        // a field is variable (non-constant) if there exists a setter for it
+        val isVar = setters.exists { fd2 => fd2.id.name == name + "_=" }
+        SParamDef(isVar, name, transformType(fd.returnType))
       }
     }
 
@@ -433,6 +447,7 @@ object SolidityOutput {
       } else if (name == "constructor") {
         true
       } else if (name == "$init") {
+        ctx.reporter.warning("Ignoring a method named `$init` (you can safely ignore this warning if you have no such method).")
         true
       } else {
         fd.flags.exists { case IsAccessor(_) => true case _ => false }
