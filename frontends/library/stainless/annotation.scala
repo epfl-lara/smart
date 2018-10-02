@@ -42,33 +42,26 @@ class inlineOnce   extends Annotation
 @ignore
 class partialEval extends Annotation
 
-/** Solidity annotation
-**  A function declared payable can receive ether
-**/
+/** Smart contract annotation
+  * A function declared payable can receive ether */
 @ignore
 class payable extends Annotation
 
-/** Solidity annotation
-**  A function declared payable can receive ether
-**/
+/** Annotation for the compiler to Solidity, translated to "pure" in Solidity.
+  * A function with the solidityPure annotation should not read or write from 
+  * the smart contract state. This is not checked by Stainless.  */
 @ignore
 class solidityPure extends Annotation
 
-/** Solidity annotation
-**  TODO
-**/
+/** Annotation for the compiler to Solidity, translated to "view" in Solidity.
+  * A function with the view annotation should not write from the smart
+  * contract state (but can read it). This is not checked by Stainless. */
 @ignore
 class view extends Annotation
 
-/** Solidity annotation
-**  TODO
-**/
-@ignore
-class indexed extends Annotation
-
-/** Solidity annotation
-**  TODO
-**/
+/** Annotation for the compiler to Solidity.
+  * An object annotated with @solidityLibrary("LibName") will be compiled to 
+  * a library called `LibName` in Solidity */
 @ignore
 class solidityLibrary(name: String) extends Annotation
 

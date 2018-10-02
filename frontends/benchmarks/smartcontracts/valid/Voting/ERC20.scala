@@ -17,19 +17,3 @@ object ERC20 {
     def transferFrom(from: Address, to: Address, tokens: Uint256): Boolean
   }
 }
-
-/*
-case class Transfer(
-  @indexed
-  from: Address,
-  @indexed
-  to: Address,
-  tokens: Uint256) extends Event
-
-case class Approval(
-  @indexed
-  tokenOwner: Address,
-  @indexed
-  spender: Address,
-  tokens: Uint256) extends Event
-*/
