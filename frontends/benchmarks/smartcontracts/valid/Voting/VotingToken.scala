@@ -13,33 +13,28 @@ import SafeMath._
 import Util._
 import VotingTokenLemmas._
 import VotingTokenInvariant._
-import ERC20._
 
-case class VotingToken(
-  val rewardToken: ERC20,
-  var opened: Boolean,
-  var closed: Boolean,
-  var votingAddresses: List[Address],
-  val numberOrAlternatives: Uint256,
+trait VotingToken extends Contract {
+  val rewardToken: ERC20
+  var opened: Boolean
+  var closed: Boolean
+  var votingAddresses: List[Address]
+  val numberOrAlternatives: Uint256
 
   // Owned contract
-  var owner: Address,
+  var owner: Address
 
   // Standard Token
-  val name: String,
-  val symbol: String,
-  val decimals: Uint8,
-  var totalSupply: Uint256,
+  val name: String
+  val symbol: String
+  val decimals: Uint8
+  var totalSupply: Uint256
 
-  var balances: Mapping[Address, Uint256],
-  var allowed: Mapping[Address, 
-                  Mapping[Address, Uint256]],
+  var balances: Mapping[Address, Uint256]
+  var allowed: Mapping[Address, Mapping[Address, Uint256]]
 
-  // @(ghost @field)
   @ghost
   var participants: List[Address]
-
-) extends Contract {  
 
   @solidityPure
   def MAX_NUMBER_OF_ALTERNATIVES = Uint256("255")
