@@ -1,14 +1,13 @@
 import stainless.smartcontracts._
 import stainless.annotation._
 
-object DuplicateIdentifier2 {
-    case class DuplicateIdentifier2 (
-        val i: Uint256
-    ) extends Contract {
-        @solidityPure
-        def foo() = {
-            val i:Boolean = true
-            i
-        }
-    }
+trait DuplicateIdentifier2 extends Contract {
+  val i: Uint256
+
+  @solidityPure
+  def foo() = {
+    val i: Boolean = true
+    i
+  }
+
 }

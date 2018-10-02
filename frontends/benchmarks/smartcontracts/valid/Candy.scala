@@ -2,11 +2,10 @@ import stainless.smartcontracts._
 import stainless.lang.StaticChecks._
 import stainless.annotation._
 
-case class Candy(
-  var initialCandies: Uint256,
-  var remainingCandies: Uint256,
+trait Candy extends Contract {
+  var initialCandies: Uint256
+  var remainingCandies: Uint256
   var eatenCandies: Uint256
-) extends Contract {
 
   def constructor(_candies: Uint256) = {
     initialCandies = _candies
