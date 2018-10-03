@@ -4,7 +4,7 @@ package solidity
 import java.io._
 
 object SolidityPrinter {
-  def writeFile(ctx: inox.Context, filename: String, imports: Seq[SolidityImport], defs:Seq[SolidityDef]) = {
+  def writeFile(ctx: inox.Context, filename: String, imports: Set[SolidityImport], defs: Seq[SolidityDef]) = {
     def ppHeader()(implicit out: Writer) = {
       out.write("pragma solidity ^0.4.24;\n\n")
     }

@@ -9,7 +9,6 @@ import inox.utils.Position
 import scala.reflect.runtime.{universe => u}
 
 import extraction._
-import SolidityImportBuilder._
 
 object SolidityOutput {
 
@@ -48,13 +47,6 @@ object SolidityOutput {
     ).toSeq
 
     val idsToFunctions = symbols.functions
-
-    def isAnnotation(name: String, flag: Flag) = flag match {
-      case Annotation(`name`, _) => true
-      case _ => false
-    }
-
-    def isLibraryAnnotation(flag: Flag) = isAnnotation("solidityLibrary", flag)
 
     def isIdentifier(name: String, id: Identifier) = id match {
       case ast.SymbolIdentifier(`name`) => true
@@ -506,29 +498,80 @@ object SolidityOutput {
       }
     }
 
-    ctx.reporter.info("Compiling file : " + filename)
-    val transformedImports = buildImports(filename).map(i => SolidityImport(i))
+    def isAnnotation(name: String, flag: Flag) = flag match {
+      case Annotation(`name`, _) => true
+      case _ => false
+    }
+
+    def isLibraryAnnotation(flag: Flag) = isAnnotation("solidityLibrary", flag)
+
+    def hasSmartContractCode(filename: String): Boolean = {
+
+      val classes = symbols.classes.values.filter { cd => cd.getPos.file.getCanonicalPath == filename }
+      val functions = symbols.functions.values.filter { fd => fd.getPos.file.getCanonicalPath == filename }
+
+      val interfaces = classes.filter { cd =>
+        cd.parents.exists{ case p => isIdentifier("stainless.smartcontracts.ContractInterface", p.id) }
+      }
+      
+      val contracts = classes.filter { cd =>
+        cd.parents.exists{ case p => isIdentifier("stainless.smartcontracts.Contract", p.id) }
+      }
+
+      val libraries =
+        functions.filter { fd =>
+          fd.flags.exists(isLibraryAnnotation)
+        }
+
+      !interfaces.isEmpty ||
+      !contracts.isEmpty ||
+      !libraries.isEmpty
+    }
+
+    def fileDependencies(filename: String): Set[String] = {
+      val idToFile: Map[Identifier, String] =
+        symbols.classes.values.map(cd => cd.id -> cd.getPos.file.getCanonicalPath).toMap ++
+        symbols.functions.values.map(fd => fd.id -> fd.getPos.file.getCanonicalPath).toMap 
+
+      val idsInFile = idToFile.collect {
+        case (id, name) if name == filename => id
+      }
+
+      val idDependencies = idsInFile.flatMap(symbols.dependencies)
+      val allFileDependencies = idDependencies.toSet.map(idToFile)
+
+      allFileDependencies
+        .filter(!_.startsWith(System.getProperty("java.io.tmpdir")))
+        .filter(_ != filename)
+        .filter(hasSmartContractCode)
+        .map(scalaToSolName)
+    }            
+
+    val interfaces = classes.filter { cd =>                                                            
+      cd.parents.exists{ case p => isIdentifier("stainless.smartcontracts.ContractInterface", p.id) }  
+    }.map(transformInterface).toSeq                                                                    
+
+    val contracts = classes.filter { cd =>                                                             
+      cd.parents.exists{ case p => isIdentifier("stainless.smartcontracts.Contract", p.id) }           
+    }.map(transformContract).toSeq                                                                     
+                                                                                                      
+    val library = transformLibrary(                                                                    
+      functions.filter { fd =>                                                                         
+        fd.flags.exists(isLibraryAnnotation)                                                           
+      }.filterNot(functionShouldBeDiscarded)                                                           
+      .toSeq                                                                                           
+    )                                                                                                  
+                                                                                                      
+    val allDefs = interfaces ++ contracts ++ library           
+
+    ctx.reporter.info("Compiling file: " + filename)
+
+    val transformedImports = fileDependencies(filename).map(SolidityImport(_))
     if(!transformedImports.isEmpty) {
       ctx.reporter.info("The following imports have been found :")
       transformedImports.foreach( i => ctx.reporter.info(i.path))
     }
-
-    val interfaces = classes.filter { cd =>
-      cd.parents.exists{ case p => isIdentifier("stainless.smartcontracts.ContractInterface", p.id) }
-    }.map(transformInterface).toSeq
     
-    val contracts = classes.filter { cd =>
-      cd.parents.exists{ case p => isIdentifier("stainless.smartcontracts.Contract", p.id) }
-    }.map(transformContract).toSeq
-
-    val library = transformLibrary(
-      functions.filter { fd =>
-        fd.flags.exists(isLibraryAnnotation)
-      }.filterNot(functionShouldBeDiscarded)
-      .toSeq
-    )
-
-    val allDefs = interfaces ++ contracts ++ library
     if(!allDefs.isEmpty)
       SolidityPrinter.writeFile(ctx, solFilename, transformedImports, allDefs)
     else {
