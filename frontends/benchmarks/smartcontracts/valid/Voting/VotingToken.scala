@@ -74,7 +74,7 @@ trait VotingToken extends Contract {
 
     assert((
       sumBalances(participants, balances)                                                       ==| balancesUpdatedLemma(participants, b1, _to, add(b1(_to), _value)) |:
-      sumBalances(participants, b1) - b1(_to) + add(b1(_to), _value)                            ==| subSwap(sumBalances(participants,b1), b1(_to), add(b1(_to), _value), _value) |:
+      sumBalances(participants, b1) - b1(_to) + add(b1(_to), _value)                            ==| subSwap(sumBalances(participants,b1), b1(_to), _value) |:
       sumBalances(participants, b1) + _value                                                    ==| 
         (balancesUpdatedLemma(participants, b0, Msg.sender, sub(b0(Msg.sender), _value)) && 
         sumBalances(participants, b1) == sumBalances(participants, b0) - b0(Msg.sender) + sub(b0(Msg.sender), _value)) 
@@ -85,6 +85,8 @@ trait VotingToken extends Contract {
       sumBalances(participants, b0)                                                             ==| trivial |:
       totalSupply
     ).qed)
+
+    assert(sumBalances(participants, balances) == totalSupply)
 
     _rewardVote(Msg.sender, _to, _value)
 
@@ -121,7 +123,7 @@ trait VotingToken extends Contract {
 
     assert((
       sumBalances(participants, balances)                                             ==| balancesUpdatedLemma(participants, b1, _to, add(b1(_to), _value)) |:
-      sumBalances(participants, b1) - b1(_to) + add(b1(_to), _value)                  ==| subSwap(sumBalances(participants,b1), b1(_to), add(b1(_to), _value), _value) |:
+      sumBalances(participants, b1) - b1(_to) + add(b1(_to), _value)                  ==| subSwap(sumBalances(participants,b1), b1(_to), _value) |:
       sumBalances(participants, b1) + _value                                          ==|
         (balancesUpdatedLemma(participants, b0, _from, sub(b0(_from), _value)) && 
         sumBalances(participants, b1) == sumBalances(participants, b0) - b0(_from) + sub(b0(_from), _value))
@@ -176,7 +178,7 @@ trait VotingToken extends Contract {
 
     assert((
       sumBalances(participants, balances)                   ==| balancesUpdatedLemma(participants, b0, _to, newBalance) |:
-      sumBalances(participants, b0) - b0(_to) + newBalance  ==| subSwap(sumBalances(participants, b0), b0(_to), newBalance, _amount) |:
+      sumBalances(participants, b0) - b0(_to) + newBalance  ==| subSwap(sumBalances(participants, b0), b0(_to), _amount) |:
       sumBalances(participants, b0) + _amount               ==| trivial |:
       oldSupply + _amount                                   ==| trivial |:
       totalSupply)
