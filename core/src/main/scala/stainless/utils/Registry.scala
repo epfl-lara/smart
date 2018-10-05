@@ -315,18 +315,9 @@ trait Registry {
     val readyFDs = functions filterNot { deferredFDs contains _ }
 
     knownOpenClasses ++= classes map { cd => cd.id -> cd }
-    deferredMethods ++= functions
+    deferredMethods ++= functions*/
 
-    classes foreach { cd =>
-      if (
-        (cd.flags contains xt.IsAbstract) &&
-        !(cd.flags contains xt.IsSealed) &&
-        !(cd.flags exists (_.name == "library"))
-      ) reporter.warning(cd.getPos, s"Consider sealing ${cd.id}.")
-    }
-
-    process(readyCDs, readyFDs)*/
-    
+    process(readyCDs, readyFDs)
   }
 
   private def checkpointImpl(): xt.Symbols = {
