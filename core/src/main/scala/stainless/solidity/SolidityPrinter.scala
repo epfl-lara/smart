@@ -381,11 +381,12 @@ object SolidityPrinter {
     val f = new File(filename)
     if (f.exists)
       ctx.reporter.fatalError(s"Cannot write to file $filename as file already exists.")
-    
-    val writer = new PrintWriter(f)
-    ppHeader()(writer)
-    ppImports()(writer)
-    defs.foreach(ppDef(_)(writer))
-    writer.close
+    else {
+      val writer = new PrintWriter(f)
+      ppHeader()(writer)
+      ppImports()(writer)
+      defs.foreach(ppDef(_)(writer))
+      writer.close
+    }
   }
 }

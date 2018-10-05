@@ -2,13 +2,16 @@
 package stainless
 package solidity
 
-import extraction.xlang.{trees => xt}
 import scala.concurrent.Future
 import scala.language.existentials
-import inox.utils.Position
 import scala.reflect.runtime.{universe => u}
 
+import inox.utils.Position
+
 import extraction._
+import extraction.xlang.{trees => xt}
+
+import java.io.File
 
 object SolidityOutput {
 
@@ -528,21 +531,29 @@ object SolidityOutput {
       !libraries.isEmpty
     }
 
+    def isSmartContractLibrary(f: File): Boolean = {
+      f.getName == "package.scala" &&
+      f.getParentFile.getName == "smartcontracts" &&
+      f.getParentFile.getParentFile.getName == "stainless"
+    }
+
     def fileDependencies(filename: String): Set[String] = {
-      val idToFile: Map[Identifier, String] =
-        symbols.classes.values.map(cd => cd.id -> cd.getPos.file.getCanonicalPath).toMap ++
-        symbols.functions.values.map(fd => fd.id -> fd.getPos.file.getCanonicalPath).toMap 
+      val idToFile: Map[Identifier, File] =
+        symbols.classes.values.map(cd => cd.id -> cd.getPos.file).toMap ++
+        symbols.functions.values.map(fd => fd.id -> fd.getPos.file).toMap 
 
       val idsInFile = idToFile.collect {
-        case (id, name) if name == filename => id
+        case (id, file) if file.getCanonicalPath == filename => id
       }
 
       val idDependencies = idsInFile.flatMap(symbols.dependencies)
       val allFileDependencies = idDependencies.toSet.map(idToFile)
 
       allFileDependencies
-        .filter(!_.startsWith(System.getProperty("java.io.tmpdir")))
-        .filter(_ != filename)
+        .filterNot(isSmartContractLibrary)
+        .map(_.getCanonicalPath)
+        .filterNot(_.startsWith(System.getProperty("java.io.tmpdir")))
+        .filterNot(_ == filename)
         .filter(hasSmartContractCode)
         .map(scalaToSolName)
     }            
