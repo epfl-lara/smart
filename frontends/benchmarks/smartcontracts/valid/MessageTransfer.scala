@@ -12,7 +12,7 @@ trait C1 extends Contract {
 trait C2 extends Contract {
   val a: C1
 
-  @view
+  @solidityView
   def g() = {
     require(addr == Address(10))
 

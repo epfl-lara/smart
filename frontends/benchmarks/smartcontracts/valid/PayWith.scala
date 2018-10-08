@@ -2,7 +2,7 @@ import stainless.smartcontracts._
 import stainless.annotation._
 
 trait Target extends Contract {
-  @payable
+  @solidityPayable
   def receiveMoney() = { }
 }
 

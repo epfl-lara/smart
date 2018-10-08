@@ -183,6 +183,8 @@ object SolidityPrinter {
 
       case SThis() => writeWithIndent("this")
 
+      case SSuper() => writeWithIndent("super")
+
       case SClassConstructor(tpe, args) =>
         out.write("new " + typeToString(tpe) + "(")
         writeWithSeparator(args, ", ")
@@ -276,7 +278,7 @@ object SolidityPrinter {
 
       case STerminal() =>
 
-      case _ => ctx.reporter.error("Solidity printer is not implemented for: " + code)
+      case _ => ctx.reporter.fatalError("Solidity printer is not implemented for: " + code)
     }
 
     def ppMethod(method: SFunDef)(implicit out: Writer, indentLvl: Int) = method match {
@@ -319,29 +321,46 @@ object SolidityPrinter {
       }
 
       val SContractDefinition(name, parents, cons, events, enums, fields, methods) = deff
-      writeWithIndent("contract " + name + " {\n")(out, 0)
-      writeWithIndent("// Fields\n")(out,1)
-      fields.foreach{
-        case SParamDef(false, name, tpe) => writeWithIndent(typeToString(tpe) + " " + name + ";\n")(out, 1)
-        case SParamDef(true, name, tpe) => writeWithIndent(typeToString(tpe) + " " + name + ";\n")(out, 1)
+      writeWithIndent("contract " + name)(out, 0)
+      if (!parents.isEmpty) 
+        writeWithIndent(" is " + parents.mkString(", "))(out, 0)
+      
+      writeWithIndent(" {\n")(out,0)
+      
+      if (!fields.isEmpty) {
+        writeWithIndent("// Fields\n")(out,1)
+        fields.foreach{
+          case SParamDef(false, name, tpe) => writeWithIndent(typeToString(tpe) + " " + name + ";\n")(out, 1)
+          case SParamDef(true, name, tpe) => writeWithIndent(typeToString(tpe) + " " + name + ";\n")(out, 1)
+        }
+        out.write("\n")
       }
-      out.write("\n")
+      
       /*writeWithIndent("// Events\n")(out,1)
       events.foreach{e => ppEventDef(e)(out, 1)}
       out.write("\n")*/
-      writeWithIndent("// Enumerations\n")(out,1)
-      enums.foreach{e => ppEnumDef(e)(out, 1)}
-      out.write("\n")
+
+      if (!enums.isEmpty) {
+        writeWithIndent("// Enumerations\n")(out,1)
+        enums.foreach{e => ppEnumDef(e)(out, 1)}
+        out.write("\n")
+      }
+
       writeWithIndent("// Constructor\n")(out,1)
       ppConstructor(cons)(1)
 
       val (privateFunctions, publicFunctions) = 
         methods.partition(m => m.flags.contains(SPrivate()))
 
-      writeWithIndent("// Public functions\n")(out,1)
-      publicFunctions.foreach(m => ppMethod(m)(out, 1))
-      writeWithIndent("// Private functions\n")(out,1)
-      privateFunctions.foreach(m => ppMethod(m)(out, 1))
+      if (!publicFunctions.isEmpty) {
+        writeWithIndent("// Public functions\n")(out,1)
+        publicFunctions.foreach(m => ppMethod(m)(out, 1))
+      }
+
+      if (!privateFunctions.isEmpty) {
+        writeWithIndent("// Private functions\n")(out,1)
+        privateFunctions.foreach(m => ppMethod(m)(out, 1))
+      }
 
       out.write("\n}\n\n")
     }
@@ -367,7 +386,7 @@ object SolidityPrinter {
 
     def ppLibrary(deff: SLibrary)(implicit out: Writer) = {
       val SLibrary(name, functions) = deff
-      out.write("library " + name + "{\n")
+      out.write("library " + name + " {\n")
       functions.foreach{m => ppMethod(m)(out, 1)}
       out.write("\n}")
     }

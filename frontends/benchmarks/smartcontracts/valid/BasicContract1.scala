@@ -4,7 +4,7 @@ import stainless.annotation._
 trait BasicContract1 extends Contract {
   val other: Address
 
-  @view
+  @solidityView
   def foo = {
     other
   }

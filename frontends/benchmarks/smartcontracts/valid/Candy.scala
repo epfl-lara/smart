@@ -25,7 +25,7 @@ trait Candy extends Contract {
     assert(invariant)
   }
 
-  @view
+  @solidityView
   private def invariant: Boolean = {
     eatenCandies <= initialCandies &&
     remainingCandies <= initialCandies &&

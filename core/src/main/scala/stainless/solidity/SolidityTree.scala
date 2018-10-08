@@ -41,6 +41,7 @@ case class SVariable(name: String) extends SolidityExpr
 case class SMethodInvocation(rcv: SolidityExpr, method: String, args: Seq[SolidityExpr], ether: Option[SolidityExpr]) extends SolidityExpr
 case class SFunInvocation(fun: String, args: Seq[SolidityExpr]) extends SolidityExpr
 case class SThis() extends SolidityExpr
+case class SSuper() extends SolidityExpr
 case class SEvent(tpe: SEventType, args: Seq[SolidityExpr]) extends SolidityExpr
 case class SClassConstructor(tpe: SolidityType, args: Seq[SolidityExpr]) extends SolidityExpr
 case class SClassSelector(expr: SolidityExpr, id: String) extends SolidityExpr

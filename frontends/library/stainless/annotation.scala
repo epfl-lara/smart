@@ -45,7 +45,7 @@ class partialEval extends Annotation
 /** Smart contract annotation
   * A function declared payable can receive ether */
 @ignore
-class payable extends Annotation
+class solidityPayable extends Annotation
 
 /** Annotation for the compiler to Solidity, translated to "pure" in Solidity.
   * A function with the solidityPure annotation should not read or write from 
@@ -57,7 +57,7 @@ class solidityPure extends Annotation
   * A function with the view annotation should not write from the smart
   * contract state (but can read it). This is not checked by Stainless. */
 @ignore
-class view extends Annotation
+class solidityView extends Annotation
 
 /** Annotation for the compiler to Solidity.
   * An object annotated with @solidityLibrary("LibName") will be compiled to 

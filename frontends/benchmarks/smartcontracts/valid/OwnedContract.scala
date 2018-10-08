@@ -6,7 +6,7 @@ trait OwnedContract extends Contract {
   require(owner != addr)
   var owner: Address
 
-  @payable
+  @solidityPayable
   def sendBalance() = {
     if(Msg.sender == owner) {
       val balance = address(this).balance

@@ -61,7 +61,7 @@ trait LoanContract extends Contract {
     invariant(this)
   }
 
-  @payable
+  @solidityPayable
   def lend(): Unit = {
     require (invariant(this))
 
@@ -83,7 +83,7 @@ trait LoanContract extends Contract {
     invariant(this)
   }
 
-  @payable
+  @solidityPayable
   def payback(): Unit = {
     require (invariant(this))
     dynRequire(address(this).balance >= Msg.value)

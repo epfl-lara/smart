@@ -66,7 +66,7 @@ case class Candy(
     assert(invariant)
   }
 
-  @view
+  @solidityView
   private def invariant: Boolean = {
     eatenCandies <= initialCandies &&
     remainingCandies <= initialCandies &&

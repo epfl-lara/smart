@@ -17,7 +17,7 @@ trait CallWithEther1 extends Contract {
     address(this).balance == Uint256.ZERO
   }
 
-  @payable
+  @solidityPayable
   def bar() = {
     
   }

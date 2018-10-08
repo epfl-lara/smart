@@ -149,6 +149,31 @@ trait Trees extends throwing.Trees { self =>
     def invariant(implicit s: Symbols): Option[FunDef] = {
       methods map s.functions find (_.flags contains IsInvariant)
     }
+
+    def isCaseObject: Boolean = cd.flags.contains(IsCaseObject)
+  }
+
+  object SolidityLibrary {
+    def unapply(f: Flag): Option[String] = f match {
+      case Annotation("solidityLibrary", Seq(StringLiteral(name))) => Some(name)
+      case _ => None
+    }
+  }
+
+  implicit class FunDefWrapper(fd: FunDef) {
+    def isAccessor: Boolean = fd.flags.exists {
+      case IsAccessor(_) => true
+      case _ => false
+    }
+
+    def solidityLibraryName: Option[String] = fd.flags.collectFirst {
+      case SolidityLibrary(name) => name
+    }
+
+    def isSolidityLibrary: Boolean = fd.flags.exists {
+      case SolidityLibrary(_) => true
+      case _ => false
+    }
   }
 
   override def getDeconstructor(that: inox.ast.Trees): inox.ast.TreeDeconstructor { val s: self.type; val t: that.type } = that match {

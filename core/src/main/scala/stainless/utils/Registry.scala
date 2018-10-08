@@ -315,9 +315,9 @@ trait Registry {
     val readyFDs = functions filterNot { deferredFDs contains _ }
 
     knownOpenClasses ++= classes map { cd => cd.id -> cd }
-    deferredMethods ++= functions*/
+    deferredMethods ++= functions
 
-    process(readyCDs, readyFDs)
+    process(readyCDs, readyFDs)*/
   }
 
   private def checkpointImpl(): xt.Symbols = {

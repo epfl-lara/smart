@@ -3,11 +3,11 @@ import stainless.lang._
 import stainless.equations._
 import stainless.collection._
 
-import VotingTokenInvariant._
+import StandardTokenInvariant._
 
 import scala.language.postfixOps
 
-object VotingTokenLemmas {
+object StandardTokenLemmas {
 
   def balancesUnchangedLemma(
     participants: List[Address],
