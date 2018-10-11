@@ -33,11 +33,31 @@ trait VotingToken extends StandardToken {
     _rewardToken: ERC20,
     _votingAddresses: List[Address]
   ): Unit = {
-    super[StandardToken].constructor(_name, _symbol, _decimals, Uint256.ZERO)
+    // initial values given by Solidity (this part needs to be injected automatically)
+    unsafeIgnoreCode {
+      totalSupply = Uint256.ZERO
+      balances = Mapping.constant(Uint256.ZERO)
+    }
+
+    // ghost initialization of participants
+    ghost {
+      participants = List()
+    }
+
+    // super[StandardToken].constructor(_name, _symbol, _decimals, Uint256.ZERO)
+    // begin code corresponding to super constructor (we don't support `super.constructor yet`)
+    name = _name
+    symbol = _symbol
+    decimals = _decimals
+    // totalSupply = 0
+    // balances(Msg.sender) = 0
+    // end
 
     dynRequire(length(_votingAddresses) == numberOfAlternatives)
     rewardToken = _rewardToken
     votingAddresses = _votingAddresses
+
+    assert(votingTokenInvariant(this))
   }
 
   def transfer(_to: Address, _value: Uint256) = {

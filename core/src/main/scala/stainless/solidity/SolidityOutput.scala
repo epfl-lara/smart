@@ -268,6 +268,9 @@ trait SolidityOutput {
     case FunctionInvocation(id, _, _) if isIdentifier("stainless.lang.ghost", id) =>
       STerminal()
 
+    case FunctionInvocation(id, _, _) if isIdentifier("stainless.smartcontracts.unsafeIgnoreCode", id) =>
+      STerminal()
+
     case FunctionInvocation(id, _, args) =>
       assert(symbols.functions.contains(id), "Symbols do not contain the function: " + id)
       val f = symbols.functions(id)
@@ -407,6 +410,7 @@ trait SolidityOutput {
   def functionShouldBeDiscarded(fd: FunDef) = {
     val id = fd.id
     val name = id.name
+
     if(name.startsWith("copy")) {
       ctx.reporter.warning("Ignoring a method named `copy*` (you can safely ignore this warning if you have no such method).")
       true
@@ -416,7 +420,7 @@ trait SolidityOutput {
       ctx.reporter.warning("Ignoring a method named `$init` (you can safely ignore this warning if you have no such method).")
       true
     } else {
-      fd.flags.exists { case IsAccessor(_) => true case _ => false }
+      fd.isAccessor || fd.isField
     }
   }
 

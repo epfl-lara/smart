@@ -285,10 +285,14 @@ object SolidityPrinter {
       case SFunDef(name, params, rteType, body, modifiers) =>
         writeWithIndent("function " + name + " (")
         writeParamsWithComma(params)(out, 0)
-        if (modifiers.contains(SPrivate()))
+
+        // if (modifiers.contains(SPrivate()))
           out.write(") ")
-        else
-          out.write(") public ")
+        // else
+        //   out.write(") public ")
+        // FIXME: we shouldn't print `public' if it wasn't written in the source
+        // Instead, we should extract a public annotation in Scala
+
         // the private keyword is printed here
         printFunModifiers(modifiers)
         if(!isUnitType(rteType)) {

@@ -32,11 +32,19 @@ trait StandardToken extends Contract {
   def allowance(_owner: Address, _spender: Address) = allowed(_owner)(_spender)
 
   def constructor(_name: String, _symbol: String, _decimals: Uint8, _totalSupply: Uint256): Unit = {
+    // initial values given by Solidity (this part needs to be injected automatically)
+    unsafeIgnoreCode {
+      totalSupply = Uint256.ZERO
+      balances = Mapping.constant(Uint256.ZERO)
+    }
+
     name = _name
     symbol = _symbol
     decimals = _decimals
     totalSupply = _totalSupply
     balances(Msg.sender) = _totalSupply
+
+    assert(standardTokenInvariant(this))
   }
 
   @ghost

@@ -41,7 +41,7 @@ trait EffectsChecker { self: EffectsAnalyzer =>
         // check return value
         if (isMutableType(bd.getType) && !isExpressionFresh(bd)) {
           throw ImperativeEliminationException(bd,
-            "Cannot return a shared reference to a mutable object: " + bd)
+            "Cannot return a shared reference to a mutable object: " + bd + "\n\n" + fd)
         }
 
         object traverser extends TreeTraverser {

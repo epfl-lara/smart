@@ -6,6 +6,10 @@ import stainless.lang._
 import stainless.annotation._
 
 package object smartcontracts {
+
+	@library @inline
+	def unsafeIgnoreCode[T](code: T) = code
+
 	@library @inline
 	def unsafe_+(x: Uint256, y: Uint256) = {
 		x + y
