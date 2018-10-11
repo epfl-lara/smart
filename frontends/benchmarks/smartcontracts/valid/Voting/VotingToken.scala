@@ -20,7 +20,7 @@ trait VotingToken extends StandardToken {
   var opened: Boolean
   var closed: Boolean
   var votingAddresses: List[Address]
-  val numberOrAlternatives = Uint256("6")
+  val numberOfAlternatives = Uint256("6")
 
   // Owned contract
   var owner: Address
@@ -35,7 +35,7 @@ trait VotingToken extends StandardToken {
   ): Unit = {
     super[StandardToken].constructor(_name, _symbol, _decimals, Uint256.ZERO)
 
-    dynRequire(length(_votingAddresses) == numberOrAlternatives)
+    dynRequire(length(_votingAddresses) == numberOfAlternatives)
     rewardToken = _rewardToken
     votingAddresses = _votingAddresses
   }
