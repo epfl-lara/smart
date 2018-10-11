@@ -16,19 +16,29 @@ import StandardTokenInvariant._
 import VotingTokenInvariant._
 
 trait VotingToken extends StandardToken {
-  val rewardToken: ERC20
+  var rewardToken: ERC20
   var opened: Boolean
   var closed: Boolean
   var votingAddresses: List[Address]
-  val numberOrAlternatives: Uint256
+  val numberOrAlternatives = Uint256("6")
 
   // Owned contract
   var owner: Address
 
-  @solidityPure
-  def MAX_NUMBER_OF_ALTERNATIVES = Uint256("255")
-  @solidityPure
-  def REWARD_RATIO = Uint256("100")
+
+  def constructor(
+    _name: String,
+    _symbol: String,
+    _decimals: Uint8,
+    _rewardToken: ERC20,
+    _votingAddresses: List[Address]
+  ): Unit = {
+    super[StandardToken].constructor(_name, _symbol, _decimals, Uint256.ZERO)
+
+    dynRequire(length(_votingAddresses) == numberOrAlternatives)
+    rewardToken = _rewardToken
+    votingAddresses = _votingAddresses
+  }
 
   def transfer(_to: Address, _value: Uint256) = {
     require(votingTokenInvariant(this))
@@ -139,14 +149,15 @@ trait VotingToken extends StandardToken {
     old(this).owner == this.owner
   }
 
-  private def _rewardVote(_from: Address, _to: Address, _value: Uint256) = {
+  private def _rewardVote(_from: Address, _to: Address, _value: Uint256): Unit = {
     require(votingTokenInvariant(this))
     
     if(_isVotingAddress(_to)) {
-      dynAssert(opened && !closed)
-      val rewardTokens:Uint256 = div(_value, REWARD_RATIO)
-      rewardToken.transfer(_from, rewardTokens)
-    } else false
+      dynRequire(opened && !closed)
+      val rewardTokens:Uint256 = div(_value, Uint256("100"))
+      dynRequire(rewardToken.transfer(_from, rewardTokens))
+    }
+
   } ensuring { _ =>
     votingTokenInvariant(this) &&
     old(this).owner == this.owner

@@ -32,12 +32,12 @@ package object smartcontracts {
 	} ensuring(cond)
 
 	@library
-	def dynRequire(cond: Boolean) = {
+	def dynRequire(cond: Boolean): Unit = {
 		cond
 	} ensuring(cond)
 
 	@library
-	def dynAssert(cond: Boolean) = {
+	def dynAssert(cond: Boolean): Unit = {
 		cond
 	} ensuring(cond)
 

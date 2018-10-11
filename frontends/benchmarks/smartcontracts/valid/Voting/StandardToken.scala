@@ -15,10 +15,9 @@ import StandardTokenLemmas._
 import StandardTokenInvariant._
 
 trait StandardToken extends Contract {
-  // Standard Token
-  val name: String
-  val symbol: String
-  val decimals: Uint8
+  var name: String
+  var symbol: String
+  var decimals: Uint8
   var totalSupply: Uint256
 
   var balances: Mapping[Address, Uint256]
@@ -31,6 +30,14 @@ trait StandardToken extends Contract {
   def balanceOf(_owner: Address) = balances(_owner)
   @solidityView
   def allowance(_owner: Address, _spender: Address) = allowed(_owner)(_spender)
+
+  def constructor(_name: String, _symbol: String, _decimals: Uint8, _totalSupply: Uint256): Unit = {
+    name = _name
+    symbol = _symbol
+    decimals = _decimals
+    totalSupply = _totalSupply
+    balances(Msg.sender) = _totalSupply
+  }
 
   @ghost
   def addParticipant(p: Address) = {
