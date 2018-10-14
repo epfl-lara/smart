@@ -14,9 +14,8 @@ object CheckResult {
 trait EffectsChecker { self: EffectsAnalyzer =>
   import s._
 
-  protected def checkEffects(fd: FunDef)(symbols: Symbols, effects: EffectsAnalysis): CheckResult = {
-    import symbols._
-    import effects._
+  protected def checkEffects(fd: FunDef)(analysis: EffectsAnalysis): CheckResult = {
+    import analysis._
 
     def isMutableSynthetic(id: Identifier): Boolean = {
       val fd = symbols.functions(id)
@@ -44,7 +43,7 @@ trait EffectsChecker { self: EffectsAnalyzer =>
             "Cannot return a shared reference to a mutable object: " + bd + "\n\n" + fd)
         }
 
-        object traverser extends TreeTraverser {
+        object traverser extends SelfTreeTraverser {
           override def traverse(e: Expr): Unit = e match {
             case l @ Let(vd, e, b) =>
               if (!isExpressionFresh(e) && isMutableType(vd.tpe)) try {
@@ -220,11 +219,9 @@ trait EffectsChecker { self: EffectsAnalyzer =>
     }
   }
 
-  def checkSort(sort: ADTSort)(symbols: Symbols, effects: EffectsAnalysis): Unit = {
-    import symbols._
-
-    for (fd <- sort.invariant) {
-      val invEffects = effects(fd)
+  def checkSort(sort: ADTSort)(analysis: EffectsAnalysis): Unit = {
+    for (fd <- sort.invariant(analysis.symbols)) {
+      val invEffects = analysis.effects(fd)
       if (invEffects.nonEmpty)
         throw ImperativeEliminationException(fd, "Invariant has effects on: " + invEffects.head)
     }

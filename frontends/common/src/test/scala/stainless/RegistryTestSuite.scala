@@ -37,7 +37,7 @@ class RegistryTestSuite extends FunSuite {
 
   private val DEBUG = false
   private val testSuiteContext =
-    if (DEBUG) stainless.TestContext.debug(utils.DebugSectionRegistry)
+    if (DEBUG) stainless.TestContext.debug(Set(utils.DebugSectionRegistry))
     else stainless.TestContext.empty
 
   /** Expectation on classes and functions identifier name (ignoring ids). */
@@ -159,7 +159,7 @@ class RegistryTestSuite extends FunSuite {
     type Report = MockReport
     type Analysis = MockAnalysis
 
-    val lowering = inox.ast.SymbolTransformer(new ast.TreeTransformer {
+    val lowering = inox.transformers.SymbolTransformer(new transformers.TreeTransformer {
       override val s: extraction.trees.type = extraction.trees
       override val t: extraction.trees.type = extraction.trees
     })

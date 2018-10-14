@@ -25,6 +25,25 @@ import scala.language.existentials
   */
 package object extraction {
 
+  val phases: Seq[(String, String)] = Seq(
+    "PartialFunctions"          -> "Lift partial function preconditions",
+    "Laws"                      -> "Rewrite laws as abstract functions with contracts",
+    "SuperCalls"                -> "Resolve super-function calls",
+    "MethodLifting"             -> "Lift methods into dispatching functions",
+    "FieldAccessors"            -> "Inline field accessors of concrete classes",
+    "AdtSpecialization"         -> "Specialize classes into ADTs (when possible)",
+    "RefinementLifting"         -> "Lift simple refinements to contracts",
+    "TypeEncoding"              -> "Encode non-ADT types",
+    "AntiAliasing"              -> "Rewrite field and array mutations",
+    "ImperativeCodeElimination" -> "Eliminate while loops and assignments",
+    "ImperativeCleanup"         -> "Cleanup after imperative transformations",
+    "FunctionClosure"           -> "Lift inner functions",
+    "FunctionInlining"          -> "Transitively inline marked functions",
+    "PartialEvaluation"         -> "Partially evaluate marked function calls"
+  )
+
+  val phaseNames: Set[String] = phases.map(_._1).toSet
+
   /** Unifies all stainless tree definitions */
   trait Trees extends ast.Trees with termination.Trees { self =>
     override def getDeconstructor(that: inox.ast.Trees): inox.ast.TreeDeconstructor { val s: self.type; val t: that.type } = that match {
@@ -109,16 +128,16 @@ package object extraction {
 
         private[this] val targetProgram = inox.Program(stainless.trees)(completeSymbols(symbols)(stainless.trees))
 
-        private object encoder extends inox.ast.ProgramTransformer {
+        private object encoder extends inox.transformers.ProgramTransformer {
           override val sourceProgram: self.program.type = self.program
           override val targetProgram = self.targetProgram
 
-          override object encoder extends ast.TreeTransformer {
+          override object encoder extends transformers.TreeTransformer {
             val s: trees.type = trees
             val t: stainless.trees.type = stainless.trees
           }
 
-          override object decoder extends ast.TreeTransformer {
+          override object decoder extends transformers.TreeTransformer {
             val s: stainless.trees.type = stainless.trees
             val t: trees.type = trees
           }

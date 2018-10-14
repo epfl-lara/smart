@@ -4,6 +4,7 @@ package stainless
 package ast
 
 import inox.utils.Position
+import inox.transformers.{TransformerOp, TransformerWithExprOp, TransformerWithTypeOp}
 
 import scala.collection.mutable.{Map => MutableMap}
 
@@ -12,17 +13,31 @@ trait SymbolOps extends inox.ast.SymbolOps { self: TypeOps =>
   import trees.exprOps._
   import symbols._
 
-  override protected def createSimplifier(popts: inox.solvers.PurityOptions): SimplifierWithPC = new {
+  override protected def simplifierWithPC(popts: inox.solvers.PurityOptions): SimplifierWithPC = new {
     val opts: inox.solvers.PurityOptions = popts
   } with transformers.SimplifierWithPC with SimplifierWithPC with inox.transformers.SimplifierWithPath {
-    override def pp = implicitly[PathProvider[Env]]
+    override val pp = implicitly[PathProvider[Env]]
   }
 
-  override protected def createTransformer[P <: PathLike[P]](path: P, f: (Expr, P, TransformerOp[P]) => Expr)
-                                                            (implicit ppP: PathProvider[P]): TransformerWithPC[P] =
-    new TransformerWithPC[P](path, f) with transformers.TransformerWithPC with TransformerWithFun {
-      val pp = ppP
-    }
+  protected class TransformerWithPC[P <: PathLike[P]](
+    initEnv: P,
+    exprOp: (Expr, P, TransformerOp[Expr, P, Expr]) => Expr,
+    typeOp: (Type, P, TransformerOp[Type, P, Type]) => Type
+  )(implicit val pp: PathProvider[P]) extends super.TransformerWithPC[P](initEnv, exprOp, typeOp) {
+    self0: TransformerWithExprOp with TransformerWithTypeOp =>
+      val symbols = self.symbols
+  }
+
+  override protected def transformerWithPC[P <: PathLike[P]](
+    path: P,
+    exprOp: (Expr, P, TransformerOp[Expr, P, Expr]) => Expr,
+    typeOp: (Type, P, TransformerOp[Type, P, Type]) => Type
+  )(implicit pp: PathProvider[P]): TransformerWithPC[P] = {
+    new TransformerWithPC[P](path, exprOp, typeOp)
+      with transformers.TransformerWithPC
+      with TransformerWithExprOp
+      with TransformerWithTypeOp
+  }
 
   override def isImpureExpr(expr: Expr): Boolean = expr match {
     case (_: Require) | (_: Ensuring) | (_: Assert) => true

@@ -14,9 +14,14 @@ object optDebugObjects extends inox.OptionDef[Seq[String]] {
 }
 
 object optDebugPhases extends inox.OptionDef[Seq[String]] {
+  import inox.OptionParsers._
+
   val name = "debug-phases"
   val default = Seq[String]()
-  val parser = inox.OptionParsers.seqParser(inox.OptionParsers.stringParser)
+  val parser: OptionParser[Seq[String]] = { s =>
+    seqParser(stringParser)(s).filter(_.forall(phaseNames contains _))
+  }
+
   val usageRhs = "p1,p2,..."
 }
 
@@ -52,18 +57,27 @@ trait DebugPipeline extends ExtractionPipeline with PositionChecker { self =>
 
     val symbolsToPrint = if (debugTrees) symbols.debugString(objects)(printerOpts) else ""
     if (!symbolsToPrint.isEmpty) {
-      context.reporter.debug("\n\n\n\nSymbols before " + name + "\n")
+      context.reporter.debug(s"\n\n\n\nSymbols before $name\n")
       context.reporter.debug(symbolsToPrint)
     }
 
     // extraction happens here
     val res = context.timers.extraction.get(name).run(underlying.extract(symbols))
 
+    if (debugTrees) res.ensureWellFormed
+
     val resToPrint = if (debugTrees) res.debugString(objects)(tPrinterOpts) else ""
     if (!symbolsToPrint.isEmpty || !resToPrint.isEmpty) {
-      context.reporter.debug("\n\nSymbols after " + name +  "\n")
-      context.reporter.debug(resToPrint)
-      context.reporter.debug("\n\n")
+      if (resToPrint != symbolsToPrint) {
+        context.reporter.debug(s"\n\nSymbols after $name\n")
+        context.reporter.debug(resToPrint)
+        context.reporter.debug("\n\n")
+        // ensure well-formedness after each extraction step
+        context.reporter.debug(s"Ensuring well-formedness after phase $name")
+        res.ensureWellFormed
+      } else {
+        context.reporter.debug(s"Not printing symbols after $name as they did not change\n\n")
+      }
     }
 
     if (debugPos) {

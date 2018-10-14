@@ -6,7 +6,7 @@ package oo
 
 import scala.collection.mutable.{Map => MutableMap}
 
-trait Trees extends imperative.Trees with Definitions with TreeOps { self =>
+trait Trees extends imperative.Trees with Definitions { self =>
 
   /* ========================================
    *              EXPRESSIONS
@@ -44,7 +44,7 @@ trait Trees extends imperative.Trees with Definitions with TreeOps { self =>
   /** $encodingof `expr.asInstanceOf[tpe]` */
   case class AsInstanceOf(expr: Expr, tpe: Type) extends Expr with CachingTyped {
     override protected def computeType(implicit s: Symbols): Type = {
-      if (s.typesCompatible(expr.getType, tpe)) tpe else Untyped
+      if (s.typesCompatible(expr.getType, tpe)) tpe.getType else Untyped
     }
   }
 
@@ -99,7 +99,7 @@ trait Trees extends imperative.Trees with Definitions with TreeOps { self =>
   /** $encodingof `_ :> lo <: hi` */
   case class TypeBounds(lo: Type, hi: Type) extends Type
 
-  private def widenTypeParameter(tpe: Typed)(implicit s: Symbols): Type = tpe.getType match {
+  protected def widenTypeParameter(tpe: Typed)(implicit s: Symbols): Type = tpe.getType match {
     case tp: TypeParameter => widenTypeParameter(tp.upperBound)
     case tpe => tpe
   }
@@ -138,6 +138,15 @@ trait Trees extends imperative.Trees with Definitions with TreeOps { self =>
 
     case _ => super.getDeconstructor(that)
   }
+
+
+  /* ========================================
+   *            TREE TRANSFORMERS
+   * ======================================== */
+
+  trait SelfTreeTransformer extends TreeTransformer with super.SelfTreeTransformer
+
+  trait SelfTreeTraverser extends TreeTraverser with super.SelfTreeTraverser
 }
 
 trait Printer extends imperative.Printer {
@@ -306,32 +315,42 @@ trait TreeDeconstructor extends imperative.TreeDeconstructor {
   }
 }
 
-trait TreeOps extends ast.TreeOps { self: Trees =>
-
-  trait TreeTraverser extends super.TreeTraverser {
-    def traverse(cd: ClassDef): Unit = {
-      cd.tparams.foreach(traverse)
-      cd.parents.foreach(traverse)
-      cd.fields.foreach(traverse)
-      cd.flags.foreach(traverse)
-    }
-  }
-}
-
-trait TreeTransformer extends ast.TreeTransformer {
+trait DefinitionTransformer extends inox.transformers.DefinitionTransformer with transformers.Transformer {
   val s: Trees
   val t: Trees
 
-  def transform(cd: s.ClassDef): t.ClassDef = new t.ClassDef(
-    cd.id,
-    cd.tparams.map(tdef => transform(tdef)),
-    cd.parents.map(ct => transform(ct).asInstanceOf[t.ClassType]),
-    cd.fields.map(vd => transform(vd)),
-    cd.flags.map(f => transform(f))
-  ).copiedFrom(cd)
+  def transform(cd: s.ClassDef): t.ClassDef = {
+    val env = initEnv
+
+    new t.ClassDef(
+      transform(cd.id, env),
+      cd.tparams.map(transform(_, env)),
+      cd.parents.map(ct => transform(ct, env).asInstanceOf[t.ClassType]),
+      cd.fields.map(transform(_, env)),
+      cd.flags.map(transform(_, env))
+    ).copiedFrom(cd)
+  }
 }
 
-trait SimpleSymbolTransformer extends inox.ast.SimpleSymbolTransformer {
+trait TreeTransformer extends transformers.TreeTransformer with DefinitionTransformer
+
+trait DefinitionTraverser extends inox.transformers.DefinitionTraverser with transformers.Traverser {
+  val trees: Trees
+
+  def traverse(cd: trees.ClassDef): Unit = {
+    val env = initEnv
+
+    traverse(cd.id, env)
+    cd.tparams.foreach(traverse(_, env))
+    cd.parents.foreach(traverse(_, env))
+    cd.fields.foreach(traverse(_, env))
+    cd.flags.foreach(traverse(_, env))
+  }
+}
+
+trait TreeTraverser extends transformers.TreeTraverser with DefinitionTraverser
+
+trait SimpleSymbolTransformer extends inox.transformers.SimpleSymbolTransformer {
   val s: Trees
   val t: Trees
 
@@ -342,7 +361,10 @@ trait SimpleSymbolTransformer extends inox.ast.SimpleSymbolTransformer {
 }
 
 object SymbolTransformer {
-  def apply(trans: inox.ast.TreeTransformer { val s: Trees; val t: Trees }): inox.ast.SymbolTransformer {
+  def apply(trans: inox.transformers.DefinitionTransformer {
+    val s: Trees
+    val t: Trees
+  }): inox.transformers.SymbolTransformer {
     val s: trans.s.type
     val t: trans.t.type
   } = new SimpleSymbolTransformer {
@@ -351,12 +373,16 @@ object SymbolTransformer {
 
     protected def transformFunction(fd: s.FunDef): t.FunDef = trans.transform(fd)
     protected def transformSort(sort: s.ADTSort): t.ADTSort = trans.transform(sort)
-    protected def transformClass(cd: s.ClassDef): t.ClassDef = new t.ClassDef(
-      cd.id,
-      cd.tparams.map(tdef => trans.transform(tdef)),
-      cd.parents.map(ct => trans.transform(ct).asInstanceOf[t.ClassType]),
-      cd.fields.map(vd => trans.transform(vd)),
-      cd.flags.map(f => trans.transform(f))
-    ).copiedFrom(cd)
+    protected def transformClass(cd: s.ClassDef): t.ClassDef = {
+      val env = trans.initEnv
+
+      new t.ClassDef(
+        trans.transform(cd.id, env),
+        cd.tparams.map(tdef => trans.transform(tdef, env)),
+        cd.parents.map(ct => trans.transform(ct, env).asInstanceOf[t.ClassType]),
+        cd.fields.map(vd => trans.transform(vd, env)),
+        cd.flags.map(f => trans.transform(f, env))
+      ).copiedFrom(cd)
+    }
   }
 }

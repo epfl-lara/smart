@@ -30,6 +30,7 @@ package object xlang {
 
       override protected type TransformerContext = identity.type
       override protected def getContext(symbols: s.Symbols) = identity
+
       protected final object identity extends oo.TreeTransformer {
         override val s: self.s.type = self.s
         override val t: self.t.type = self.t
