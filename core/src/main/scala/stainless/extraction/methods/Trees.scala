@@ -164,10 +164,14 @@ trait Trees extends throwing.Trees { self =>
   }
 
   implicit class FunDefWrapper(fd: FunDef) {
-    def isAccessor: Boolean = fd.flags.exists {
-      case IsAccessor(_) => true
-      case _ => false
-    }
+    def isAccessor: Boolean =
+      fd.flags exists { case IsAccessor(_) => true case _ => false }
+
+    def isField: Boolean =
+      fd.flags exists { case IsField(_) => true case _ => false }
+
+    def isSetter: Boolean = isAccessor && fd.id.name.endsWith("_=") && fd.params.size == 1
+    def isGetter: Boolean = isAccessor && fd.params.size == 0
 
     def solidityLibraryName: Option[String] = fd.flags.collectFirst {
       case SolidityLibrary(name) => name
@@ -177,16 +181,6 @@ trait Trees extends throwing.Trees { self =>
       case SolidityLibrary(_) => true
       case _ => false
     }
-  }
-
-  implicit class FunDefWrapper(fd: FunDef) {
-    def isAccessor: Boolean =
-      fd.flags exists { case IsAccessor(_) => true case _ => false }
-    def isField: Boolean =
-      fd.flags exists { case IsField(_) => true case _ => false }
-
-    def isSetter: Boolean = isAccessor && fd.id.name.endsWith("_=") && fd.params.size == 1
-    def isGetter: Boolean = isAccessor && fd.params.size == 0
 
     def isFinal: Boolean = fd.flags contains Final
     def isAbstract: Boolean = fd.flags contains IsAbstract
