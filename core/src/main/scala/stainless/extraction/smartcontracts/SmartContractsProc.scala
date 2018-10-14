@@ -5,7 +5,7 @@ package extraction
 package smartcontracts
 import scala.collection.mutable.{Map => MutableMap, Set => MutableSet}
 
-trait SmartContractsProc extends inox.ast.SymbolTransformer { self =>
+trait SmartContractsProc extends inox.transformers.SymbolTransformer { self =>
   val s: trees.type
   val t: methods.trees.type
   import trees._

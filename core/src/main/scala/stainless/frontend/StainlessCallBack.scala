@@ -210,7 +210,8 @@ class StainlessCallBack(components: Seq[Component])(override implicit val contex
   }
 
 
-  private def processSymbols(syms: xt.Symbols): Unit = {
+  private def processSymbols(rawSyms: xt.Symbols): Unit = {
+    val syms = extraction.utils.DebugPipeline("Preprocessing", Preprocessing(xt)).extract(rawSyms)
     val ignoreFlags = Set("library", "synthetic")
     def shouldProcess(id: Identifier, syms: xt.Symbols): Boolean = {
       !syms.getFunction(id).flags.exists(f => ignoreFlags contains f.name) && this.synchronized {
