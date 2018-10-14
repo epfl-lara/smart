@@ -22,7 +22,7 @@ trait SmartContractsProc extends inox.transformers.SymbolTransformer { self =>
   case object EnvImplicit extends ImplicitParams
 
   // Annotation used to represent the keyword payable in solidity
-  val payableAnnotation = Annotation("payable", Seq())
+  val payableAnnotation = Annotation("solidityPayable", Seq())
   
   def transform(symbols: s.Symbols): t.Symbols = {
     import exprOps._
