@@ -27,6 +27,7 @@ package object extraction {
 
   val phases: Seq[(String, String)] = Seq(
     "PartialFunctions"          -> "Lift partial function preconditions",
+    "SmartContractsProc"        -> "Give semantics to Msg.sender and other smart contracts operations",
     "Laws"                      -> "Rewrite laws as abstract functions with contracts",
     "SuperCalls"                -> "Resolve super-function calls",
     "Sealing"                   -> "Seal every class and add mutable flags",

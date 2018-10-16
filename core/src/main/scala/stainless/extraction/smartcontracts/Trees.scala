@@ -6,7 +6,10 @@ package smartcontracts
 
 trait Trees extends methods.Trees { self =>
 
+  case object Payable extends Flag("solidityPayable", Seq.empty)
+
   override def extractFlag(name: String, args: Seq[Expr]): Flag = (name, args) match {
+    case ("solidityPayable", Seq()) => Payable
     case _ => super.extractFlag(name, args)
   }
 
@@ -17,6 +20,10 @@ trait Trees extends methods.Trees { self =>
     }.asInstanceOf[TreeDeconstructor { val s: self.type; val t: that.type }]
 
     case _ => super.getDeconstructor(that)
+  }
+
+  implicit class SmartContractsFunDefWrapper(fd: FunDef) {
+    def isPayable: Boolean = fd.flags.contains(Payable)
   }
 }
 
@@ -29,6 +36,7 @@ trait TreeDeconstructor extends methods.TreeDeconstructor {
   protected val t: Trees
 
   override def deconstruct(f: s.Flag): DeconstructedFlag = f match {
+    case s.Payable => (Seq(), Seq(), Seq(), (_, _, _) => t.Payable)
     case _ => super.deconstruct(f)
   }
 }

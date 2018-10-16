@@ -6,8 +6,10 @@ package extraction
 import scala.language.existentials
 
 package object smartcontracts {
-  
-  object trees extends Trees with oo.ClassSymbols {
+  // Annotation used to represent the keyword payable in solidity
+  val payableAnnotation = trees.Annotation("solidityPayable", List())
+
+  object trees extends smartcontracts.Trees with oo.ClassSymbols {
     case class Symbols(
       functions: Map[Identifier, FunDef],
       sorts: Map[Identifier, ADTSort],
@@ -24,10 +26,8 @@ package object smartcontracts {
     def apply(tree: inox.ast.Trees#Tree, msg: String) = new SmartcontractException(tree, msg)
   }
 
-  def extractor(implicit ctx: inox.Context) = ExtractionPipeline(new SmartContractsProc {
-    val s: trees.type = trees
-    val t: methods.trees.type = methods.trees
-  })
+  def extractor(implicit ctx: inox.Context) =
+    utils.DebugPipeline("SmartContractsProc", SmartContractsProc(trees, methods.trees))
 
   def isSmartContractDep(fd: xlang.trees.FunDef): Boolean = {
     fd.getPos.fullString.contains("stainless/smartcontracts/package.scala") ||

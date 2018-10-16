@@ -5,28 +5,37 @@ package extraction
 package smartcontracts
 import scala.collection.mutable.{Map => MutableMap, Set => MutableSet}
 
-trait SmartContractsProc extends inox.transformers.SymbolTransformer { self =>
-  val s: trees.type
-  val t: methods.trees.type
-  import trees._
+trait SmartContractsProc extends oo.SimplePhase
+  with oo.SimplyCachedClasses
+  with SimplyCachedSorts
+  { self =>
+  val s: Trees
+  val t: methods.Trees
+  import s._
 
-  object transformer extends oo.TreeTransformer {
-      val s: self.s.type = self.s
-      val t: self.t.type = self.t
-  }
 
-  // Use to indicate that a certain function needs either an implicit message
-  // or environment parameter or both
-  trait ImplicitParams
-  case object MsgImplicit extends ImplicitParams
-  case object EnvImplicit extends ImplicitParams
+  /* ====================================
+   *       Context and caches setup
+   * ==================================== */
 
-  // Annotation used to represent the keyword payable in solidity
-  val payableAnnotation = Annotation("solidityPayable", Seq())
-  
-  def transform(symbols: s.Symbols): t.Symbols = {
-    import exprOps._
-    import symbols._
+  override protected final val funCache = new ExtractionCache[s.FunDef, FunctionResult]((fd, context) =>
+    getDependencyKey(fd.id)(context.symbols)
+  )
+
+  override protected def getContext(symbols: s.Symbols) = new TransformerContext()(symbols)
+  protected class TransformerContext(implicit val symbols: s.Symbols) extends oo.TreeTransformer {
+    val s: self.s.type = self.s
+    val t: self.t.type = self.t
+
+    import s.exprOps._
+
+    // Use to indicate that a certain function needs either an implicit message
+    // or environment parameter or both
+    trait ImplicitParams
+    case object MsgImplicit extends ImplicitParams
+    case object EnvImplicit extends ImplicitParams
+
+    def isSmartContractFlag(f: s.Flag) = f == s.Payable
 
     // Store a mapping of method id to their corresponding class
     val methodIdToClass = (for {
@@ -49,7 +58,7 @@ trait SmartContractsProc extends inox.transformers.SymbolTransformer { self =>
     // If the code does not reference these classes, these lookups might fail
     val tpeContract = symbols.lookup[ClassDef]("stainless.smartcontracts.Contract")
     val tpeContractInterface = symbols.lookup[ClassDef]("stainless.smartcontracts.ContractInterface")
-    
+
     // --------------- Msg ----------------- //
     val msgClass = symbols.lookup[ClassDef]("stainless.smartcontracts.Msg")
     val tpeMsg = msgClass.typed.toType
@@ -69,17 +78,9 @@ trait SmartContractsProc extends inox.transformers.SymbolTransformer { self =>
       if(methodIdToClass.isDefinedAt(id.globalId)) {
         val classDef = methodIdToClass(id.globalId)
         val types = classDef.ancestors :+ classDef.typed
-      
+
         types.contains(tpeContract.typed)
       } else false
-    }
-
-    def isInvariantMethod(fd: s.FunDef) = {
-      fd.flags.contains(s.IsInvariant)
-    }
-
-    def isPayableFunction(fd: s.FunDef) = {
-      fd.flags.contains(payableAnnotation)
     }
 
     // Build recursively the dependancies to the implicit parameter Msg and Env for each functions.
@@ -112,15 +113,15 @@ trait SmartContractsProc extends inox.transformers.SymbolTransformer { self =>
           case _ => Set()
         }(fd.fullBody)
 
-        val funEffects = funCalls.flatMap{case f => 
+        val funEffects = funCalls.flatMap{case f =>
           if(f.id != fd.id)
-            effectRec(functions(f.id), map)
+            effectRec(symbols.getFunction(f.id), map)
           else
             map(f.id)
         }
         val methodEffects = methodCalls.flatMap{case m =>
           if(m.id != fd.id)
-            effectRec(functions(m.id), map)
+            effectRec(symbols.getFunction(m.id), map)
           else
             map(m.id)
         }
@@ -134,8 +135,6 @@ trait SmartContractsProc extends inox.transformers.SymbolTransformer { self =>
     }
 
     val functionsPurityMap = getEffectsFunctionsMap
-
-
 
     def transformAssume(body: s.Expr): s.Expr = {
       def isAssume(expr: Expr) = expr match {
@@ -154,13 +153,12 @@ trait SmartContractsProc extends inox.transformers.SymbolTransformer { self =>
         case l +: ls => l +: process(ls)
       }
 
-
       val Deconstructor(es, builder) = body
       val newEs = es.map(transformAssume)
 
       builder(process(newEs)).copiedFrom(body)
     }
-    
+
     def bodyPreProcessing(body: s.Expr, msg:Variable, env: Variable) = {
       val msgSender = ClassSelector(msg, msgFieldsMap("sender"))
       val msgValue = ClassSelector(msg, msgFieldsMap("value"))
@@ -178,14 +176,14 @@ trait SmartContractsProc extends inox.transformers.SymbolTransformer { self =>
           Some(MethodInvocation(env, methods("Environment.balanceOf"), Seq(), fi.args).setPos(fi))
 
         case v@FunctionInvocation(id, _, Seq(method: MethodInvocation, amount)) if isIdentifier("stainless.smartcontracts.pay", id) =>
-          if(!isPayableFunction(functions(method.id)))
+          if(!symbols.getFunction(method.id).isPayable)
             throw SmartcontractException(method, "The function must be annotated as payable")
 
           if(!isContractMethod(method.id))
             throw SmartcontractException(method, "The function must be a method of a contract class")
 
           val sendCall = MethodInvocation(
-                          MethodInvocation(method.receiver, methods("ContractInterface.addr"), Seq(), Seq()).setPos(v), 
+                          MethodInvocation(method.receiver, methods("ContractInterface.addr"), Seq(), Seq()).setPos(v),
                           methods("Address.transfer"), Seq(), Seq(amount)).setPos(v)
           Some(Block(Seq(sendCall), method).setPos(v))
 
@@ -199,24 +197,15 @@ trait SmartContractsProc extends inox.transformers.SymbolTransformer { self =>
     }
 
     def buildNewArgs(id: Identifier, msg: Expr, env: Expr) = {
-      val newArgs = functionsPurityMap(id).flatMap {
-              case MsgImplicit => Seq(msg)
-              case EnvImplicit => Seq(env)
-              case _ => Seq()
-            }
-      newArgs
+      functionsPurityMap(id).flatMap {
+        case MsgImplicit => Seq(msg)
+        case EnvImplicit => Seq(env)
+        case _ => Seq()
+      }
     }
 
-    def isThisExpr(e: Expr) = e match {
-      case This(_) => true
-      case _ => false
-    }
-
-    def bodyPostProcessing(fd: s.FunDef, body: s.Expr, msg: Expr, env: Expr) = {  
+    def bodyPostProcessing(fd: s.FunDef, body: s.Expr, msg: Expr, env: Expr) = {
       val newBody = postMap {
-        /*case v@ MethodInvocation(rcv, _, _, _) if isThisExpr(rcv) =>
-          val newArgs = v.args ++ buildNewArgs(v.id, msg, env)
-          Some(v.copy(args = newArgs).setPos(v))*/
 
         case v: MethodInvocation if isContractMethod(fd.id) =>
           val thisRef = This(tpeContract.typed.toType)
@@ -240,39 +229,56 @@ trait SmartContractsProc extends inox.transformers.SymbolTransformer { self =>
       newBody
     }
 
-    def isAbstractMethod(fd: s.FunDef): Boolean = {
-      fd.flags.contains(IsAbstract)
-    }
+  }
 
-    def transformFunction(fd: s.FunDef): t.FunDef = {
-      val msgValDef = ValDef.fresh("msg", tpeMsg)
-      val envValDef = ValDef.fresh("env", tpeEnv)
 
-      val newParams = if(isInvariantMethod(fd)) fd.params
-                      else { 
-                        functionsPurityMap(fd.id).flatMap {
-                          case MsgImplicit => Seq(msgValDef)
-                          case EnvImplicit => Seq(envValDef)
-                          case _ => Seq()
-                        }
-                      }
-      val body1 = transformAssume(fd.fullBody)
-      val body2 = bodyPreProcessing(body1, msgValDef.toVariable, envValDef.toVariable)
-      val finalBody = bodyPostProcessing(fd, body2, msgValDef.toVariable, envValDef.toVariable)
+  /* ====================================
+   *            EXTRACTION
+   * ==================================== */
 
-      val newFd = fd.copy(params = fd.params ++ newParams,
-                          fullBody = finalBody).setPos(fd)
 
-      transformer.transform(newFd)
-    }
+  override protected def extractFunction(context: TransformerContext, fd: s.FunDef): t.FunDef = {
+    val msgValDef = ValDef.fresh("msg", context.tpeMsg)
+    val envValDef = ValDef.fresh("env", context.tpeEnv)
 
-    // Need to remove abstract functions because of the new arguments we add to functions (Msg, Env)
-    // We have to discuss it in more details to see the impact of this solution
-    //val notAbstractFunctions = symbols.functions.values.filter(!isAbstractMethod(_))
-    val transformedFunctions = symbols.functions.values.map(transformFunction).toSeq
+    val newParams =
+      if (fd.isInvariant) fd.params
+      else
+        context.functionsPurityMap(fd.id).flatMap {
+          case context.MsgImplicit => Seq(msgValDef)
+          case context.EnvImplicit => Seq(envValDef)
+          case _ => Seq()
+        }
 
-    t.NoSymbols.withFunctions(transformedFunctions)
-               .withSorts(symbols.sorts.values.map(transformer.transform).toSeq)
-               .withClasses(symbols.classes.values.map(transformer.transform).toSeq)
+    val body1 = context.transformAssume(fd.fullBody)
+    val body2 = context.bodyPreProcessing(body1, msgValDef.toVariable, envValDef.toVariable)
+    val finalBody = context.bodyPostProcessing(fd, body2, msgValDef.toVariable, envValDef.toVariable)
+
+    val newFd = fd.copy(
+      params = fd.params ++ newParams,
+      flags = fd.flags.filterNot(context.isSmartContractFlag),
+      fullBody = finalBody
+    ).setPos(fd)
+
+    super.extractFunction(context, newFd)
+  }
+
+  override protected def extractClass(context: TransformerContext, cd: s.ClassDef): t.ClassDef = {
+    super.extractClass(context, cd.copy(flags = cd.flags.filterNot(context.isSmartContractFlag)))
+  }
+
+  override protected def extractSort(context: TransformerContext, sort: s.ADTSort): t.ADTSort = {
+    super.extractSort(context, sort.copy(flags = sort.flags.filterNot(context.isSmartContractFlag)))
+  }
+}
+
+object SmartContractsProc {
+  def apply(ts: Trees, tt: methods.Trees)(implicit ctx: inox.Context): ExtractionPipeline {
+    val s: ts.type
+    val t: tt.type
+  } = new SmartContractsProc {
+    override val s: ts.type = ts
+    override val t: tt.type = tt
+    override val context = ctx
   }
 }

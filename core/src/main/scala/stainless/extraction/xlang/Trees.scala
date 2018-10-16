@@ -99,7 +99,7 @@ trait Printer extends methods.Printer {
 }
 
 
-trait TreeDeconstructor extends methods.TreeDeconstructor {
+trait TreeDeconstructor extends smartcontracts.TreeDeconstructor {
 
   protected val s: Trees
   protected val t: Trees

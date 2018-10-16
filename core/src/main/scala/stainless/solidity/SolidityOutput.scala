@@ -37,7 +37,7 @@ trait SolidityOutput {
   }
   val enumChildren = enumParents.flatMap(cd => cd.children)
   val enumTypeMap = enumChildren.map(cd => cd.typed(symbols).toType -> cd.parents.head).toMap
-  
+
   val enums = enumParents.map(cd =>
     SEnumDefinition(cd.id.toString, cd.children.map(_.id.toString))
   ).toSeq
@@ -61,7 +61,7 @@ trait SolidityOutput {
         // FIXME: this warning doesn't show up for some reason
         ctx.reporter.warning("The @pure annotation is ignored by the compiler to Solidity. Use @solidityPure instead.")
         process(xs)
-      case Annotation("solidityPayable", _) :: xs  => SPayable() +: process(xs)
+      case Payable :: xs  => SPayable() +: process(xs)
       case Annotation("solidityPure", _) :: xs  => SPure() +: process(xs)
       case Annotation("solidityView", _) :: xs  => SView() +: process(xs)
       case x :: xs => process(xs)
@@ -226,7 +226,7 @@ trait SolidityOutput {
     // Desugar pay function
     case fi@FunctionInvocation(id, _, args) if isIdentifier("stainless.smartcontracts.pay",id) =>
       val Seq(m:MethodInvocation, amount: Expr) = args
-      if(!symbols.functions(m.id).flags.contains(Annotation("payable", Seq()))) {
+      if(!symbols.functions(m.id).isPayable) {
         ctx.reporter.fatalError(fi.getPos, "The method pay can only be used on a payable function.")
       }
 
@@ -460,11 +460,11 @@ trait SolidityOutput {
   def transformContract(cd: ClassDef) = {
     ctx.reporter.info("Compiling Contract : " + cd.id.name + " in file " + solFilename)
 
-    val parents = cd.parents.filterNot(cd => 
-      isIdentifier(contractID, cd.id) || 
+    val parents = cd.parents.filterNot(cd =>
+      isIdentifier(contractID, cd.id) ||
       isIdentifier(contractInterfaceID, cd.id)
     ).map(_.toString)
-    
+
     val fields = transformFields(cd)
     val methods = cd.methods(symbols).map(symbols.functions).filterNot(functionShouldBeDiscarded)
 
