@@ -1,7 +1,7 @@
 package stainless
 package frontend
 
-import extraction.xlang.{ Preprocessing, trees => xt }
+import extraction.xlang.{ trees => xt }
 import scala.concurrent.Future
 import java.nio.file
 
@@ -9,7 +9,7 @@ import scala.collection.mutable.{ Map => MutableMap, Set => MutableSet, ListBuff
 
 import scala.language.existentials
 
-class SolidityCallBack(implicit val context: inox.Context) 
+class SolidityCallBack(implicit val context: inox.Context)
   extends CallBack { self =>
   val trees = xt
   val files = MutableSet[String]()
@@ -30,12 +30,11 @@ class SolidityCallBack(implicit val context: inox.Context)
   // we have all the dependancies stored in the registry
   final override def endExtractions(): Unit = {
     context.reporter.info("Begin Compilation")
-    val rawSymbols = xt.NoSymbols.withClasses(allClasses).withFunctions(allFunctions)
-    val symbols = extraction.utils.DebugPipeline("Preprocessing", Preprocessing(xt)).extract(rawSymbols)
+    val symbols = xt.NoSymbols.withClasses(allClasses).withFunctions(allFunctions)
     symbols.ensureWellFormed
-    
+
     files.foreach{ file =>
-      solidity.SolidityOutput(file)(symbols, context) 
+      solidity.SolidityOutput(file)(symbols, context)
     }
 
     context.reporter.info("Compilation Done")
