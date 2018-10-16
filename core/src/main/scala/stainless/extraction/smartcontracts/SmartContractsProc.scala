@@ -136,20 +136,23 @@ trait SmartContractsProc extends oo.SimplePhase
 
     val functionsPurityMap = getEffectsFunctionsMap
 
-    def transformAssume(body: s.Expr): s.Expr = {
-      def isAssume(expr: Expr) = expr match {
-        case fi: FunctionInvocation if isIdentifier("stainless.smartcontracts.assume", fi.id) => true
-        case _ => false
+    object Assume {
+      def unapply(e: s.Expr): Option[s.Expr] = e match {
+        case FunctionInvocation(id, _, Seq(arg)) if isIdentifier("stainless.smartcontracts.dynAssert", id) => Some(arg)
+        case FunctionInvocation(id, _, Seq(arg)) if isIdentifier("stainless.smartcontracts.dynRequire", id) => Some(arg)
+        case _ => None
       }
+    }
+
+    def transformAssume(body: s.Expr): s.Expr = {
 
       def process(exprs: Seq[Expr]): Seq[Expr] = exprs match {
         case Nil => Nil
-        // In the case where assume is the last expression of the block we return a boolean to cope with the fact
-        // that assert return unit.
-        case l +: Nil if isAssume(l) => Seq(Assert(l, None, BooleanLiteral(true)).setPos(l))
-        case l +: ls if isAssume(l) => val rest = process(ls)
-                                       val last = rest.last
-                                       Seq(Assert(l, None, Block(rest.dropRight(1), last)).setPos(l))
+        case (a@Assume(cond)) +: Nil => Seq(s.Assume(cond, s.UnitLiteral()).setPos(a))
+        case (a@Assume(cond)) +: ls =>
+          val rest = process(ls)
+          val last = rest.last
+          Seq(s.Assume(cond, Block(rest.dropRight(1), last)).setPos(a))
         case l +: ls => l +: process(ls)
       }
 

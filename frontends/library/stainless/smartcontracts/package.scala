@@ -31,11 +31,6 @@ package object smartcontracts {
 	}
 
 	@library
-	def assume(cond: Boolean) = {
-		cond
-	} ensuring(cond)
-
-	@library
 	def dynRequire(cond: Boolean): Unit = {
 		cond
 	} ensuring(cond)
