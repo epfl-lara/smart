@@ -131,6 +131,7 @@ trait Trees extends innerfuns.Trees with Definitions { self =>
 
   override def extractFlag(name: String, args: Seq[Expr]): Flag = (name, args) match {
     case ("pure", Seq()) => IsPure
+    case ("mutable", Seq()) => IsMutable
     case _ => super.extractFlag(name, args)
   }
 

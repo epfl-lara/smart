@@ -32,13 +32,15 @@ trait DebugPipeline extends ExtractionPipeline with PositionChecker { self =>
   override val t: underlying.t.type = underlying.t
   override val context = underlying.context
 
-  private[this] val phases = context.options.findOption(optDebugPhases)
-  private[this] val objects = context.options.findOption(optDebugObjects).getOrElse(Seq()).toSet
+  private[this] val phases = context.options.findOption(optDebugPhases).map(_.toSet)
+  private[this] val objects = context.options.findOption(optDebugObjects)
+  private[this] def filterObjects(name: String): Boolean = {
+    objects.isEmpty || objects.exists(_.exists(r => name matches r))
+  }
 
   // We print debug output for this phase only if the user didn't specify
-  // any phase with --debug-phases, or gave the name of (or a string
-  // contained in) this phase
-  private[this] val debug = phases.isEmpty || phases.exists(_ contains name)
+  // any phase with --debug-phases, or gave the name of this phase
+  private[this] val debug = phases.isEmpty || phases.exists(_.contains(name))
 
   // Moreover, we only print when the corresponding debug sections are active
   private[this] val debugTrees: Boolean = debug && context.reporter.debugSections.contains(DebugSectionTrees)
@@ -55,7 +57,7 @@ trait DebugPipeline extends ExtractionPipeline with PositionChecker { self =>
   override def extract(symbols: s.Symbols): t.Symbols = {
     implicit val debugSection = DebugSectionTrees
 
-    val symbolsToPrint = if (debugTrees) symbols.debugString(objects)(printerOpts) else ""
+    val symbolsToPrint = if (debugTrees) symbols.debugString(filterObjects)(printerOpts) else ""
     if (!symbolsToPrint.isEmpty) {
       context.reporter.debug(s"\n\n\n\nSymbols before $name\n")
       context.reporter.debug(symbolsToPrint)
@@ -66,18 +68,21 @@ trait DebugPipeline extends ExtractionPipeline with PositionChecker { self =>
 
     if (debugTrees) res.ensureWellFormed
 
-    val resToPrint = if (debugTrees) res.debugString(objects)(tPrinterOpts) else ""
+    val resToPrint = if (debugTrees) res.debugString(filterObjects)(tPrinterOpts) else ""
     if (!symbolsToPrint.isEmpty || !resToPrint.isEmpty) {
       if (resToPrint != symbolsToPrint) {
         context.reporter.debug(s"\n\nSymbols after $name\n")
         context.reporter.debug(resToPrint)
         context.reporter.debug("\n\n")
-        // ensure well-formedness after each extraction step
-        context.reporter.debug(s"Ensuring well-formedness after phase $name")
-        res.ensureWellFormed
       } else {
         context.reporter.debug(s"Not printing symbols after $name as they did not change\n\n")
       }
+    }
+
+    if (debugTrees) {
+      // ensure well-formedness after each extraction step
+      context.reporter.debug(s"Ensuring well-formedness after phase $name")
+      res.ensureWellFormed
     }
 
     if (debugPos) {

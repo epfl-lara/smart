@@ -55,7 +55,7 @@ trait DependencyGraph extends oo.DependencyGraph with CallGraph {
     var res = g
     for (fd <- symbols.functions.values) {
       for (oid <- overrides(fd)) {
-        symbols.functions(oid).flags.collectFirst {
+        symbols.getFunction(oid).flags.collectFirst {
           case IsMethodOf(cid) =>
             // we look at transitive edges in `res` rather than in `g` in 
             // order to take into account newly added edges
@@ -111,6 +111,10 @@ trait DependencyGraph extends oo.DependencyGraph with CallGraph {
 
       if (!(cd.flags contains IsAbstract)) {
         laws(cd) foreach { law => g += SimpleEdge(law, cd.id) }
+      }
+
+      for (fid <- cd.methods(symbols) if symbols.getFunction(fid).isAccessor) {
+        g += SimpleEdge(cd.id, fid)
       }
     }
 

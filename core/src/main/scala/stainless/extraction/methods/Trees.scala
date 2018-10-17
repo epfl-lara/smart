@@ -142,6 +142,8 @@ trait Trees extends throwing.Trees { self =>
   case class IsMethodOf(id: Identifier) extends Flag("method", Seq(id))
 
   implicit class ClassDefWrapper(cd: ClassDef) {
+    def isSealed: Boolean = cd.flags contains IsSealed
+
     def methods(implicit s: Symbols): Seq[SymbolIdentifier] = {
       s.functions.values.filter(_.flags contains IsMethodOf(cd.id)).map(_.id.asInstanceOf[SymbolIdentifier]).toSeq
     }
@@ -174,6 +176,22 @@ trait Trees extends throwing.Trees { self =>
       case SolidityLibrary(_) => true
       case _ => false
     }
+  }
+
+  implicit class FunDefWrapper(fd: FunDef) {
+    def isAccessor: Boolean =
+      fd.flags exists { case IsAccessor(_) => true case _ => false }
+
+    def isField: Boolean =
+      fd.flags exists { case IsField(_) => true case _ => false }
+
+    def isSetter: Boolean =
+      (isAccessor || isField) && fd.id.name.endsWith("_=") && fd.params.size == 1
+
+    def isGetter: Boolean = (isAccessor || isField) && fd.params.size == 0
+
+    def isAbstract: Boolean = fd.flags contains IsAbstract
+    def isInvariant: Boolean = fd.flags contains IsInvariant
   }
 
   override def getDeconstructor(that: inox.ast.Trees): inox.ast.TreeDeconstructor { val s: self.type; val t: that.type } = that match {

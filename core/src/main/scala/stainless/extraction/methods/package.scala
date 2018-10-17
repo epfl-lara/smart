@@ -17,9 +17,17 @@ package object methods {
     object printer extends Printer { val trees: methods.trees.type = methods.trees }
   }
 
+  class MethodsException(tree: inox.ast.Trees#Tree, msg: String)
+    extends MissformedStainlessCode(tree, msg)
+
+  object MethodsException {
+    def apply(tree: inox.ast.Trees#Tree, msg: String) = new MethodsException(tree, msg)
+  }
+
   def extractor(implicit ctx: inox.Context) =
     utils.DebugPipeline("Laws", Laws(trees)) andThen
     utils.DebugPipeline("SuperCalls", SuperCalls(trees)) andThen
+    utils.DebugPipeline("MutabilityAnalysis", MutabilityAnalysis(trees)) andThen
     utils.DebugPipeline("MethodLifting", MethodLifting(trees, trees)) andThen
     utils.DebugPipeline("FieldAccessors", FieldAccessors(trees, throwing.trees))
 }
