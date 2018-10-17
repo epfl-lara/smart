@@ -141,21 +141,21 @@ package object smartcontracts {
 		}
 	}
 
-	@library
+	@library @mutable
 	trait ContractInterface {
 		@library
-		def addr: Address = ???
+		val addr: Address = ???
 
 		@library
 		def selfdestruct(recipient: Address):Unit = {
 			val balance = address(this).balance
 			recipient.transfer(balance)
 		}
-	} 
+	}
 
-	@library
+	@library @mutable
 	trait Contract extends ContractInterface
-	
+
 	@ignore
 	sealed case class Uint8() {
 		@library @ignore def +(that: Uint8) = ???
@@ -177,7 +177,7 @@ package object smartcontracts {
 			???
 		}
 	}
-	
+
 	@ignore
 	sealed case class Uint256() {
 		@library @ignore def +(that: Uint256): Uint256 = ???
