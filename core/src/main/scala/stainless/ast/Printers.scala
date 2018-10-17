@@ -96,6 +96,8 @@ trait Printer extends inox.ast.Printer {
     case ArrayLength(array) =>
       p"$array.length"
 
+    case bv@BVLiteral(_, _, _) => p"${bv.toBigInt}"
+
     case _ => super.ppBody(tree)
   }
 
