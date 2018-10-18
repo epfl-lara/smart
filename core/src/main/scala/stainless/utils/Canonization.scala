@@ -37,9 +37,9 @@ trait Canonization { self =>
       val nid = ids.getOrElseUpdate(id, freshId())
 
       if ((symbols.functions contains id) && !visited) {
-        transformedFunctions += transform(symbols.functions(id))
+        transformedFunctions += transform(symbols.getFunction(id))
       } else if ((symbols.sorts contains id) && !visited) {
-        transformedSorts += transform(symbols.sorts(id))
+        transformedSorts += transform(symbols.getSort(id))
       }
 
       nid

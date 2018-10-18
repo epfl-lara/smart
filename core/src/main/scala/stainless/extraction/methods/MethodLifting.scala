@@ -10,9 +10,6 @@ trait MethodLifting extends oo.ExtractionContext with oo.ExtractionCaches { self
   val t: oo.Trees
   import s._
 
-  private[this] def isAccessor(fd: FunDef): Boolean =
-    fd.flags exists { case IsAccessor(_) => true case _ => false }
-
   override protected final type TransformerContext = Symbols
   override protected final def getContext(symbols: s.Symbols) = symbols
 
@@ -60,13 +57,6 @@ trait MethodLifting extends oo.ExtractionContext with oo.ExtractionCaches { self
   private[this] object identity extends oo.TreeTransformer {
     val s: self.s.type = self.s
     val t: self.t.type = self.t
-  }
-
-  private[this] object IsLaw {
-    def unapply(f: s.Flag): Option[s.Expr] = f match {
-      case s.Annotation("law", Seq(expr: s.Expr)) => Some(expr)
-      case _ => None
-    }
   }
 
   private class BaseTransformer(symbols: s.Symbols) extends oo.TreeTransformer {

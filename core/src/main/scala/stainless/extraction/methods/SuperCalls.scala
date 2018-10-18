@@ -148,10 +148,10 @@ trait SuperCalls
     import context.symbols
     import s._
 
-    if (context.supers contains fd.id) {
+    if (context.mustDuplicate(fd)) {
       val sid = superID(fd.id.unsafeToSymbolIdentifier)
       val superFd = exprOps.freshenSignature(
-        new s.FunDef(sid, fd.tparams, fd.params, fd.returnType, fd.fullBody, fd.flags).setPos(fd)
+        new s.FunDef(sid, fd.tparams, fd.params, fd.returnType, fd.fullBody, (fd.flags :+ Final).distinct).setPos(fd)
       )
 
       val cd = symbols.getClass(fd.flags.collectFirst { case s.IsMethodOf(cid) => cid }.get)
@@ -161,7 +161,7 @@ trait SuperCalls
           s.This(s.ClassType(cd.id, cd.typeArgs).setPos(fd)).setPos(fd),
           sid, fd.tparams.map(_.tp), fd.params.map(_.toVariable)
         ).copiedFrom(fd)
-      ))
+      )).copiedFrom(fd)
 
       (context.transform(newFd), Some(context.transform(superFd)))
     } else {
