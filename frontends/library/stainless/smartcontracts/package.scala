@@ -143,7 +143,7 @@ package object smartcontracts {
 
   @library @mutable
   trait ContractInterface {
-    @library
+    @library @pure
     val addr: Address = ???
 
     @library
