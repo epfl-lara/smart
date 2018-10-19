@@ -142,7 +142,8 @@ trait EffectsAnalyzer extends CachingPhase {
     }
 
     def asString(implicit printerOpts: PrinterOptions): String =
-      s"EffectsAnalysis(effects: ${result.effects.map(e => e._1.id -> e._2)}, locals: ${result.locals})"
+      s"""|EffectsAnalysis(effects:\n${result.effects.map(e => "  " + e._1.id.asString -> e._2.map(_.asString)).mkString("\n")},
+          |\n\nlocals:\n${result.locals.map(p => "  " + p._1.asString + "," + p._2.asString).mkString("\n")}\n)""".stripMargin
 
     override def toString: String = asString
   }
