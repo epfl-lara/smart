@@ -37,11 +37,12 @@ trait EffectsChecker { self: EffectsAnalyzer =>
 
       exprOps.withoutSpecs(fd.fullBody).foreach { bd =>
 
-        // check return value
-        if (isMutableType(bd.getType) && !isExpressionFresh(bd)) {
-          throw ImperativeEliminationException(bd,
-            "Cannot return a shared reference to a mutable object: " + bd.asString)
-        }
+        // FIXME: reenable after improve effects analysis
+        // // check return value
+        // if (isMutableType(bd.getType) && !isExpressionFresh(bd)) {
+        //   throw ImperativeEliminationException(bd,
+        //     "Cannot return a shared reference to a mutable object: " + bd.asString)
+        // }
 
         object traverser extends SelfTreeTraverser {
           override def traverse(e: Expr): Unit = e match {
