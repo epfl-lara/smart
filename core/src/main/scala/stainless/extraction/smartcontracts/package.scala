@@ -26,6 +26,11 @@ package object smartcontracts {
     def apply(tree: inox.ast.Trees#Tree, msg: String) = new SmartcontractException(tree, msg)
   }
 
+  def isIdentifier(name: String, id: Identifier) = id match {
+    case ast.SymbolIdentifier(`name`) => true
+    case _ => false
+  }
+
   def extractor(implicit ctx: inox.Context) = {
     val lowering = ExtractionPipeline(new CheckingTransformer {
       override val s: trees.type = trees

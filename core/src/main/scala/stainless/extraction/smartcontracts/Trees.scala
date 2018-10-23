@@ -24,6 +24,16 @@ trait Trees extends methods.Trees { self =>
 
   implicit class SmartContractsFunDefWrapper(fd: FunDef) {
     def isPayable: Boolean = fd.flags.contains(Payable)
+    def isInSmartContract(implicit symbols: self.Symbols): Boolean = {
+      fd.flags.exists {
+        case IsMethodOf(cid) =>
+          val cd = symbols.getClass(cid)
+          val ancestorsIds = cd.ancestors.map(_.id) :+ cid
+
+          ancestorsIds.exists { id => isIdentifier("stainless.smartcontracts.ContractInterface", id) }
+        case _ => false
+      }
+    }
   }
 }
 

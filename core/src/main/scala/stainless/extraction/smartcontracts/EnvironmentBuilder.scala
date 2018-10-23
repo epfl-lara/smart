@@ -13,13 +13,12 @@ trait EnvironmentBuilder extends oo.SimplePhase
   val t: s.type
   import s._
 
-
   /* ====================================
    *       Context and caches setup
    * ==================================== */
 
   override protected final val funCache = new ExtractionCache[s.FunDef, FunctionResult]((fd, context) =>
-    FunctionKey(fd) + ValueKey(context.requireParameters(fd.id))
+    FunctionKey(fd) + ValueKey(context.requiredParameters(fd.id))
   )
 
   override protected def getContext(symbols: s.Symbols) = new TransformerContext()(symbols)
@@ -29,45 +28,15 @@ trait EnvironmentBuilder extends oo.SimplePhase
 
     import s.exprOps._
 
+    val cdMsg = symbols.lookup[ClassDef]("stainless.smartcontracts.Msg")
+    val cdEnv = symbols.lookup[ClassDef]("stainless.smartcontracts.Env")
+
     // Used to indicate that a function needs an implicit message or an environment parameter
     sealed abstract class ImplicitParams
     case object MsgImplicit extends ImplicitParams
     case object EnvImplicit extends ImplicitParams
 
-    // Store a mapping of method id to their corresponding class
-    val methodIdToClass = (for {
-      cd <- symbols.classes.values.toSeq
-      method <- cd.methods
-    } yield (method.globalId, cd)).toMap
-
-    // Here we gather all the types and functions needed to do the substitution
-    // If the code does not reference these classes, these lookups might fail
-    val tpeContract = symbols.lookup[ClassDef]("stainless.smartcontracts.Contract")
-    val tpeContractInterface = symbols.lookup[ClassDef]("stainless.smartcontracts.ContractInterface")
-
-    // --------------- Msg ----------------- //
-    val msgClass = symbols.lookup[ClassDef]("stainless.smartcontracts.Msg")
-    val tpeMsg = msgClass.typed.toType
-    val msgFieldsMap = msgClass.fields.map { case v@ValDef(id, _, _) => (id.name, id)}.toMap
-
-    // --------------- Env ----------------- //
-    val tpeEnv = symbols.lookup[ClassDef]("stainless.smartcontracts.Environment").typed.toType
-
     val uzero = BVLiteral(false, 0, 256)
-
-    def isIdentifier(name: String, id: Identifier) = id match {
-      case ast.SymbolIdentifier(`name`) => true
-      case _ => false
-    }
-
-    def isContractMethod(id: Identifier) = {
-      if(methodIdToClass.isDefinedAt(id.globalId)) {
-        val classDef = methodIdToClass(id.globalId)
-        val types = classDef.ancestors :+ classDef.typed
-
-        types.contains(tpeContract.typed)
-      } else false
-    }
 
     val directParameters: Map[Identifier, Set[ImplicitParams]] = {
       symbols.functions.map { case (fid, fd) =>
@@ -83,15 +52,18 @@ trait EnvironmentBuilder extends oo.SimplePhase
       }
     }
 
-    val requireParameters: Map[Identifier, Set[ImplicitParams]] = {
+    val requiredParameters: Map[Identifier, Set[ImplicitParams]] = {
       symbols.functions.map { case (fid, fd) =>
         fid -> symbols.dependencies(fid).flatMap(directParameters)
       }
     }
 
-    def bodyPreProcessing(body: s.Expr, msg:Variable, env: Variable) = {
-      val msgSender = ClassSelector(msg, msgFieldsMap("sender"))
-      val msgValue = ClassSelector(msg, msgFieldsMap("value"))
+
+    def bodyPreProcessing(body: s.Expr, msg: Variable, env: Variable) = {
+      val senderField = cdMsg.fields.collectFirst { case vd if vd.id.name == "sender" => vd.id }.get
+      val valueField = cdMsg.fields.collectFirst { case vd if vd.id.name == "value" => vd.id }.get
+      val msgSender = ClassSelector(msg, senderField)
+      val msgValue = ClassSelector(msg, valueField)
 
       val newBody = postMap {
         // Msg.sender -> msg.sender
@@ -104,7 +76,7 @@ trait EnvironmentBuilder extends oo.SimplePhase
           Some(MethodInvocation(env, updateBalance, Seq(), fi.args).setPos(fi))
 
         case fi: FunctionInvocation if isIdentifier("stainless.smartcontracts.Environment.balanceOf", fi.id) =>
-          val updateBalance = symbols.lookup[FunDef]("stainless.smartcontracts.Environment.updateBalance").id
+          val updateBalance = symbols.lookup[FunDef]("stainless.smartcontracts.Environment.balanceOf").id
           Some(MethodInvocation(env, updateBalance, Seq(), fi.args).setPos(fi))
 
         case e => None
@@ -123,21 +95,24 @@ trait EnvironmentBuilder extends oo.SimplePhase
     def bodyPostProcessing(fd: FunDef, body: s.Expr, msg: Expr, env: Expr) = {
       val newBody = postMap {
 
-        case v: MethodInvocation if isContractMethod(fd.id) =>
-          val thisRef = This(tpeContract.typed.toType)
+        case v: MethodInvocation if fd.isInSmartContract =>
+          val cd = fd.flags.collectFirst {
+            case IsMethodOf(cid) => symbols.getClass(cid)
+          }.get
+          val thisRef = This(cd.typed.toType)
           val addrMethod = symbols.lookup[FunDef]("stainless.smartcontracts.ContractInterface.addr").id
           val addr = MethodInvocation(thisRef, addrMethod, Seq(), Seq()).setPos(v)
-          val newMsg = ClassConstructor(tpeMsg, Seq(addr, uzero))
+          val newMsg = ClassConstructor(cdMsg.typed.toType, Seq(addr, uzero))
 
-          val newArgs = v.args ++ paramsMapper(newMsg, env, requireParameters(v.id))
+          val newArgs = v.args ++ paramsMapper(newMsg, env, requiredParameters(v.id))
           Some(v.copy(args = newArgs).setPos(v))
 
         case v: MethodInvocation =>
-          val newArgs = v.args ++ paramsMapper(msg, env, requireParameters(v.id))
+          val newArgs = v.args ++ paramsMapper(msg, env, requiredParameters(v.id))
           Some(v.copy(args = newArgs).setPos(v))
 
         case v: FunctionInvocation =>
-          val newArgs = v.args ++ paramsMapper(msg, env, requireParameters(v.id))
+          val newArgs = v.args ++ paramsMapper(msg, env, requiredParameters(v.id))
           Some(v.copy(args = newArgs).setPos(v))
 
         case _ => None
@@ -146,29 +121,23 @@ trait EnvironmentBuilder extends oo.SimplePhase
       newBody
     }
 
-  }
+    override def transform(fd: FunDef): FunDef = {
+      val msgValDef = ValDef.fresh("msg", cdMsg.typed.toType)
+      val envValDef = ValDef.fresh("env", cdEnv.typed.toType)
 
+      val newParams =
+        if (fd.isInvariant) fd.params
+        else paramsMapper(msgValDef, envValDef, requiredParameters(fd.id))
 
-  /* ====================================
-   *            EXTRACTION
-   * ==================================== */
+      val body1 = bodyPreProcessing(fd.fullBody, msgValDef.toVariable, envValDef.toVariable)
+      val body2 = bodyPostProcessing(fd, body1, msgValDef.toVariable, envValDef.toVariable)
 
+      fd.copy(
+        params = fd.params ++ newParams,
+        fullBody = body2
+      ).setPos(fd)
 
-  override protected def extractFunction(context: TransformerContext, fd: s.FunDef): t.FunDef = {
-    val msgValDef = ValDef.fresh("msg", context.tpeMsg)
-    val envValDef = ValDef.fresh("env", context.tpeEnv)
-
-    val newParams =
-      if (fd.isInvariant) fd.params
-      else context.paramsMapper(msgValDef, envValDef, context.requireParameters(fd.id))
-
-    val body1 = context.bodyPreProcessing(fd.fullBody, msgValDef.toVariable, envValDef.toVariable)
-    val body2 = context.bodyPostProcessing(fd, body1, msgValDef.toVariable, envValDef.toVariable)
-
-    fd.copy(
-      params = fd.params ++ newParams,
-      fullBody = body2
-    ).setPos(fd)
+    }
   }
 }
 

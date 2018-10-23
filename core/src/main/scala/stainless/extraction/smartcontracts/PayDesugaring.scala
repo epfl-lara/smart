@@ -22,30 +22,12 @@ trait PayDesugaring extends oo.SimplePhase
     val s: self.s.type = self.s
     val t: self.s.type = self.s
 
-    import s.exprOps._
-
-    def isIdentifier(name: String, id: Identifier) = id match {
-      case ast.SymbolIdentifier(`name`) => true
-      case _ => false
-    }
-
-    def isContractMethod(id: Identifier) = {
-      symbols.getFunction(id).flags.exists {
-        case IsMethodOf(cid) =>
-          val classDef = symbols.getClass(cid)
-          val types = classDef.ancestors :+ classDef.typed
-
-          types.exists { cd => isIdentifier("stainless.smartcontracts.ContractInterface", cd.id) }
-        case _ => false
-      }
-    }
-
     override def transform(e: Expr): Expr = e match {
       case FunctionInvocation(id, _, Seq(method: MethodInvocation, amount)) if isIdentifier("stainless.smartcontracts.pay", id) =>
         if(!symbols.getFunction(method.id).isPayable)
           throw SmartcontractException(method, "The function must be annotated as payable")
 
-        if(!isContractMethod(method.id))
+        if(!symbols.getFunction(method.id).isInSmartContract)
           throw SmartcontractException(method, "The function must be a method of a contract class or interface")
 
         val getAddr = symbols.lookup[FunDef]("stainless.smartcontracts.ContractInterface.addr").id
@@ -62,7 +44,7 @@ trait PayDesugaring extends oo.SimplePhase
     }
 
     override def transform(fd: FunDef): FunDef =
-      if (isContractMethod(fd.id))
+      if (fd.isInSmartContract)
         super.transform(fd.copy(flags = fd.flags.filterNot(_ == Payable)).copiedFrom(fd))
       else
         fd
