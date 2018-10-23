@@ -37,14 +37,4 @@ package object smartcontracts {
     lowering
   }
 
-  def isSmartContractDep(fd: xlang.trees.FunDef): Boolean = {
-    fd.getPos.fullString.contains("stainless/smartcontracts/package.scala") ||
-    fd.getPos.fullString.contains("stainless_smartcontracts_package")
-  }
-
-  def isSmartContractDep(cd: xlang.trees.ClassDef): Boolean = {
-    cd.getPos.fullString.contains("stainless/smartcontracts/package.scala") ||
-    cd.getPos.fullString.contains("stainless_smartcontracts_package")
-  }
-
 }
