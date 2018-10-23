@@ -26,8 +26,16 @@ package object smartcontracts {
     def apply(tree: inox.ast.Trees#Tree, msg: String) = new SmartcontractException(tree, msg)
   }
 
-  def extractor(implicit ctx: inox.Context) =
-    utils.DebugPipeline("SmartContractsProc", SmartContractsProc(trees, methods.trees))
+  def extractor(implicit ctx: inox.Context) = {
+    val lowering = ExtractionPipeline(new CheckingTransformer {
+      override val s: trees.type = trees
+      override val t: methods.trees.type = methods.trees
+    })
+
+    utils.DebugPipeline("EnvironmentBuilder", EnvironmentBuilder(trees)) andThen
+    utils.DebugPipeline("PayDesugaring", PayDesugaring(trees)) andThen
+    lowering
+  }
 
   def isSmartContractDep(fd: xlang.trees.FunDef): Boolean = {
     fd.getPos.fullString.contains("stainless/smartcontracts/package.scala") ||
