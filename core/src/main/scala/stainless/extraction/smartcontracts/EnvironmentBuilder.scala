@@ -29,8 +29,7 @@ trait EnvironmentBuilder extends oo.SimplePhase
 
     import s.exprOps._
 
-    // Use to indicate that a certain function needs either an implicit message
-    // or environment parameter or both
+    // Used to indicate that a function needs an implicit message or an environment parameter
     sealed abstract class ImplicitParams
     case object MsgImplicit extends ImplicitParams
     case object EnvImplicit extends ImplicitParams
