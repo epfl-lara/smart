@@ -35,6 +35,13 @@ trait Trees extends methods.Trees { self =>
       }
     }
   }
+
+  type Symbols >: Null <: AbstractSymbols
+
+  trait AbstractSymbols
+    extends super.AbstractSymbols
+       with DependencyGraph { self0: Symbols =>
+  }
 }
 
 trait Printer extends methods.Printer {
