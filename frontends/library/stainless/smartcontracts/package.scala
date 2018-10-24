@@ -47,9 +47,6 @@ package object smartcontracts {
   def pay[A](f: A, amount: Uint256): A = f
 
   @library
-  def address(contract: ContractInterface):Address = contract.addr
-
-  @library
   def length[T](l: List[T]): Uint256 = l match {
     case Nil() => Uint256.ZERO
     case Cons(x,xs) => length(xs) + Uint256.ONE
@@ -93,20 +90,6 @@ package object smartcontracts {
     def duplicate[A,B](that: Mapping[A,B]) = Mapping(that.underlying)
   }
 
-  @library
-  case class Environment(
-    var balance: Mapping[Address, Uint256] = Mapping.constant(Uint256.ZERO)
-  ) {
-    @library
-    def updateBalance(from: Address, to: Address, amount: Uint256) = {
-      balance(from) = balance(from) - amount
-      balance(to) = balance(to) + amount
-    }
-
-    @library
-    def balanceOf(addr: Address) = balance(addr)
-  }
-
   object Environment {
     @extern
     def balanceOf(addr: Address): Uint256 = ???
@@ -114,12 +97,6 @@ package object smartcontracts {
     @extern
     def updateBalance(from: Address, to: Address, amnt: Uint256): Unit = ???
   }
-
-  @library
-  case class Msg(
-    val sender: Address,
-    val value: Uint256
-  )
 
   object Msg {
     @extern @library
@@ -143,13 +120,11 @@ package object smartcontracts {
 
   @library @mutable
   trait ContractInterface {
-    @library @pure
-    val addr: Address = ???
+    val addr: Address
 
     @library
     def selfdestruct(recipient: Address):Unit = {
-      val balance = address(this).balance
-      recipient.transfer(balance)
+      recipient.transfer(addr.balance)
     }
   }
 

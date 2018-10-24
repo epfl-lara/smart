@@ -12,7 +12,6 @@ trait DependencyGraph extends methods.DependencyGraph {
   override protected def computeDependencyGraph: DiGraph[Identifier, SimpleEdge[Identifier]] = {
     var g = super.computeDependencyGraph
 
-    // FIXME: add dependencies to require types here
     g
   }
 }

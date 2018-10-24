@@ -4,7 +4,7 @@ package stainless
 package extraction
 package smartcontracts
 
-trait Trees extends methods.Trees { self =>
+trait Trees extends methods.Trees {self =>
 
   case object Payable extends Flag("solidityPayable", Seq.empty)
 

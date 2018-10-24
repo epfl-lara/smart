@@ -29,5 +29,11 @@ trait ClassSymbols { self: Trees =>
       this.sorts,
       this.classes ++ classes.map(cd => cd.id -> cd)
     )
+
+    def removeDefinitions(defs: Set[Identifier]): Symbols = Symbols(
+      this.functions.filterNot { case (id, _) => defs.contains(id) },
+      this.sorts.filterNot { case (id, _) => defs.contains(id) },
+      this.classes.filterNot { case (id, _) => defs.contains(id) }
+    )
   }
 }

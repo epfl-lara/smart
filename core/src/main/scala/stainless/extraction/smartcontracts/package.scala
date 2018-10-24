@@ -37,8 +37,7 @@ package object smartcontracts {
       override val t: methods.trees.type = methods.trees
     })
 
-    utils.DebugPipeline("EnvironmentBuilder", EnvironmentBuilder(trees)) andThen
-    utils.DebugPipeline("PayDesugaring", PayDesugaring(trees)) andThen
+    utils.DebugPipeline("EnvironmentBuilder", EnvironmentBuilder()) andThen
     lowering
   }
 

@@ -163,7 +163,8 @@ trait Definitions extends imperative.Trees { self: Trees =>
     override def hashCode: Int = super.hashCode + 31 * classes.hashCode
 
     def withClasses(classes: Seq[ClassDef]): Symbols
-
+    def removeDefinitions(defs: Set[Identifier]): Symbols
+    
     protected class Lookup extends super.Lookup {
       override def get[T <: Definition : ClassTag](name: String): Option[T] = ({
         if (classTag[ClassDef].runtimeClass.isAssignableFrom(classTag[T].runtimeClass)) find(name, classes)
