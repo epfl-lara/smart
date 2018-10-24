@@ -76,6 +76,9 @@ trait EnvironmentBuilder extends oo.SimplePhase
         case mi@MethodInvocation(address, id, Seq(), Seq()) if isIdentifier("stainless.smartcontracts.Address.balance", id) =>
           Some(MethodInvocation(address, balanceFd.id, Seq(), Seq(env)).setPos(mi))
 
+        case mi@MethodInvocation(address, id, Seq(), Seq(amount)) if isIdentifier("stainless.smartcontracts.Address.transfer", id) =>
+          Some(MethodInvocation(address, transferFd.id, Seq(), Seq(transform(amount), env, msg)).setPos(mi))
+
         case fi: FunctionInvocation if isIdentifier("stainless.smartcontracts.Environment.updateBalance", fi.id) =>
           val updateBalance = symbols.lookup[FunDef]("stainless.smartcontracts.Environment.updateBalance").id
           Some(MethodInvocation(env, updateBalance, Seq(), fi.args).setPos(fi))
@@ -182,7 +185,13 @@ trait EnvironmentBuilder extends oo.SimplePhase
     // we inject the synthetic classes and functions, and then transform
     val enhancedSymbols = symbols.withClasses(newClasses).withFunctions(newFunctions)
     val transformedSymbols = super.extractSymbols(context, enhancedSymbols)
-    transformedSymbols.removeDefinitions(toRemove)
+    val oldIds = (symbols.functions.values.map(_.id) ++ symbols.classes.values.map(_.id)).toSet
+    val allDependencies = oldIds.flatMap(id => transformedSymbols.dependencies(id) + id)
+    NoSymbols.withFunctions(
+      transformedSymbols.functions.values.toSeq.filter { fd => allDependencies(fd.id) && !toRemove(fd.id) }
+    ).withClasses(
+      transformedSymbols.classes.values.toSeq.filter { cd => allDependencies(cd.id) && !toRemove(cd.id) }
+    )
   }
 }
 
