@@ -9,12 +9,11 @@ trait OwnedContract extends Contract {
   def sendBalance() = {
     require (owner != addr)
     if(Msg.sender == owner) {
-      val balance = address(this).balance
-      owner.transfer(balance)
+      owner.transfer(addr.balance)
     }
   } ensuring { _ =>
     owner != addr &&
-    (Msg.sender == owner ==> (address(this).balance == Uint256.ZERO)) &&
-    (Msg.sender != owner ==> (address(this).balance == address(old(this)).balance))
+    (Msg.sender == owner ==> (addr.balance == Uint256.ZERO)) &&
+    (Msg.sender != owner ==> (addr.balance == old(this).addr.balance))
   }
 }

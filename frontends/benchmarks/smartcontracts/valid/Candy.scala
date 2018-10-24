@@ -15,7 +15,7 @@ trait Candy extends Contract {
     assert(invariant)
   }
 
-  def eatCandy(candies: Uint256) = {      
+  def eatCandy(candies: Uint256) = {
     require(invariant)
     dynRequire(candies <= remainingCandies)
 

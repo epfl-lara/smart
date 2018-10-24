@@ -5,7 +5,7 @@ trait C1 extends Contract {
   @solidityPure
   def f() = {
     require(Msg.sender == Address(10))
-    
+
   }
 }
 

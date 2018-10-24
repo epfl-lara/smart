@@ -5,9 +5,9 @@ trait DynRequire1 extends Contract {
   @solidityView
   def foo() = {
     // Solidity require
-    dynRequire(address(this).balance == Uint256("42"))
+    dynRequire(addr.balance == Uint256("42"))
 
     // Stainless assertion
-    assert(address(this).balance == Uint256("42"))
+    assert(addr.balance == Uint256("42"))
   }
 }
