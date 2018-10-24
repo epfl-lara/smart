@@ -64,7 +64,7 @@ trait EnvironmentBuilder extends oo.SimplePhase
     }
 
 
-    def bodyPreProcessing(body: s.Expr, msg: Variable, env: Variable) = {
+    def bodyPreProcessing(body: s.Expr, msg: Variable, env: Variable, contractType: Option[ClassType]) = {
       val msgSender = ClassSelector(msg, senderField.id)
       val msgValue = ClassSelector(msg, valueField.id)
       val newBody = postMap {
@@ -77,7 +77,13 @@ trait EnvironmentBuilder extends oo.SimplePhase
           Some(MethodInvocation(address, balanceFd.id, Seq(), Seq(env)).setPos(mi))
 
         case mi@MethodInvocation(address, id, Seq(), Seq(amount)) if isIdentifier("stainless.smartcontracts.Address.transfer", id) =>
-          Some(MethodInvocation(address, transferFd.id, Seq(), Seq(transform(amount), env, msg)).setPos(mi))
+          if (contractType.isEmpty) {
+            throw SmartcontractException(symbols.getFunction(id), "Function transfer can only be used within a contract.")
+          }
+          val addrMethod = symbols.lookup[FunDef]("stainless.smartcontracts.ContractInterface.addr").id
+          val addr = MethodInvocation(This(contractType.get), addrMethod, Seq(), Seq()).setPos(mi)
+          val newMsg = ClassConstructor(msgType, Seq(addr, uzero))
+          Some(MethodInvocation(address, transferFd.id, Seq(), Seq(transform(amount), env, newMsg)).setPos(mi))
 
         case fi: FunctionInvocation if isIdentifier("stainless.smartcontracts.Environment.updateBalance", fi.id) =>
           val updateBalance = symbols.lookup[FunDef]("stainless.smartcontracts.Environment.updateBalance").id
@@ -94,9 +100,11 @@ trait EnvironmentBuilder extends oo.SimplePhase
           if(!symbols.getFunction(method.id).isInSmartContract)
             throw SmartcontractException(method, "The function must be a method of a contract class or interface")
 
-          val getAddr = symbols.lookup[FunDef]("stainless.smartcontracts.ContractInterface.addr").id
-          val receiverAddress = t.MethodInvocation(transform(method.receiver), getAddr, Seq(), Seq()).setPos(fi)
-          val sendCall = t.MethodInvocation(receiverAddress, transferFd.id, Seq(), Seq(transform(amount), env, msg)).setPos(fi)
+          val addrMethod = symbols.lookup[FunDef]("stainless.smartcontracts.ContractInterface.addr").id
+          val addr = MethodInvocation(This(contractType.get), addrMethod, Seq(), Seq()).setPos(fi)
+          val newMsg = ClassConstructor(msgType, Seq(addr, uzero))
+          val receiverAddress = t.MethodInvocation(transform(method.receiver), addrMethod, Seq(), Seq()).setPos(fi)
+          val sendCall = t.MethodInvocation(receiverAddress, transferFd.id, Seq(), Seq(transform(amount), env, newMsg)).setPos(fi)
 
           Some(t.Block(Seq(sendCall), transform(method)).setPos(fi))
 
@@ -116,7 +124,7 @@ trait EnvironmentBuilder extends oo.SimplePhase
       }
     }
 
-    def bodyPostProcessing(fd: FunDef, body: s.Expr, msg: Expr, env: Expr, msgType: ClassType) = {
+    def bodyPostProcessing(fd: FunDef, body: s.Expr, msg: Expr, env: Expr) = {
       val newBody = postMap {
 
         case v: MethodInvocation if fd.isInSmartContract =>
@@ -162,8 +170,12 @@ trait EnvironmentBuilder extends oo.SimplePhase
           if (fd.isInvariant) fd.params
           else paramsMapper(msgValDef, envValDef, requiredParameters(fd.id))
 
-        val body1 = bodyPreProcessing(nfd.fullBody, msgValDef.toVariable, envValDef.toVariable)
-        val body2 = bodyPostProcessing(nfd, body1, msgValDef.toVariable, envValDef.toVariable, msgType)
+        val contractType: Option[ClassType] = fd.flags.collectFirst {
+          case IsMethodOf(cid) => symbols.getClass(cid).typed.toType
+        }
+
+        val body1 = bodyPreProcessing(nfd.fullBody, msgValDef.toVariable, envValDef.toVariable, contractType)
+        val body2 = bodyPostProcessing(nfd, body1, msgValDef.toVariable, envValDef.toVariable)
 
         nfd.copy(
           params = nfd.params ++ newParams,
