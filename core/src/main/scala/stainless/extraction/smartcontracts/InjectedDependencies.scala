@@ -3,6 +3,7 @@ package extraction
 package smartcontracts
 
 object InjectedDependencies {
+
   /* ================================================
    *   Construction of Smart Contract Dependencies
    * ================================================ */
