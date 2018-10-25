@@ -187,7 +187,7 @@ trait EnvironmentBuilder extends oo.SimplePhase
   }
 
   /* ====================================
-   *          Extraction
+   *             Extraction
    * ==================================== */
 
   override def extractSymbols(context: TransformerContext, symbols: Symbols): Symbols = {
