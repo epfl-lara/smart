@@ -59,6 +59,8 @@ trait Definitions extends imperative.Trees { self: Trees =>
   }
 
   case class TypedClassDef(cd: ClassDef, tps: Seq[Type])(implicit val symbols: Symbols) extends Tree {
+    copiedFrom(cd)
+
     @inline def id: Identifier = cd.id
 
     @inline def tpSubst: Map[TypeParameter, Type] = _tpSubst.get
@@ -93,7 +95,7 @@ trait Definitions extends imperative.Trees { self: Trees =>
       else cd.fields.map(vd => vd.copy(tpe = typeOps.instantiateType(vd.tpe, tpSubst)))
     })
 
-    @inline def toType = ClassType(id, tps)
+    @inline def toType = ClassType(id, tps).copiedFrom(this)
   }
 
   case class ClassLookupException(id: Identifier) extends LookupException(id, "class")

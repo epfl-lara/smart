@@ -114,11 +114,7 @@ trait Sealing extends oo.CachingPhase
       def fieldName(fd: FunDef): String = if (fd.isSetter) fd.id.name.dropRight(2) else fd.id.name
       val setterNames = accessors.map(symbols.getFunction(_)).filter(_.isSetter).map(fieldName).toSet
 
-      // For symbols that are referenced by setters, we will create var fields,
-      // and for symbols that are only referenced by getters, we create val fields
-      val fieldAccessors = accessors
-        .map(symbols.getFunction(_))
-        .filter(fd => fd.isSetter || (fd.isGetter && !setterNames(fd.id.name)))
+      val getters = accessors.map(symbols.getFunction(_)).filter(_.isGetter)
 
       // Return a type instantiator that will substitute the type parameters in the given
       // function's signature/body by the relevant types based on the new dummy class
@@ -130,13 +126,30 @@ trait Sealing extends oo.CachingPhase
           }.toMap
       }.get)
 
-      val fields = fieldAccessors.map { fd =>
-        val id = FreshIdentifier(fieldName(fd))
-        val instantiator = getInstantiator(fd)
-        if (fd.isSetter) {
-          VarDef(id, instantiator.transform(fd.params.head.tpe), Seq()).copiedFrom(fd)
+      // These are the flags that we *discard* when overriding an accessor or a methodand creating a field
+      def overrideDiscardFlag(flag: Flag) = flag match {
+        case IsAbstract => true
+        case IsAccessor(_) => true
+        case IsMethodOf(_) => true
+        case _ => false
+      }
+
+      // These are the flags that we *keep* when creating a field for an accessor
+      def fieldKeepFlag(flag: Flag) = flag match {
+        case Ghost => true
+        case _ => false
+      }
+
+      // For symbols that are referenced by setters, we will create var fields,
+      // and for symbols that are only referenced by getters, we create val fields
+      val fields = getters.map { fd =>
+        val id = fd.id.freshen
+        val tpe = getInstantiator(fd).transform(fd.returnType)
+        val flags = fd.flags.filter(fieldKeepFlag)
+        if (setterNames(fd.id.name)) {
+          VarDef(id, tpe, flags).copiedFrom(fd)
         } else {
-          ValDef(id, instantiator.transform(fd.returnType), Seq()).copiedFrom(fd)
+          ValDef(id, tpe, flags).copiedFrom(fd)
         }
       }
 
@@ -161,27 +174,23 @@ trait Sealing extends oo.CachingPhase
         val vd = fieldsByName(fieldName(fd))
         val instantiator = getInstantiator(fd)
 
-        val ct = ClassType(dummyClass.id, cd.typeArgs)
+        val ct = ClassType(dummyClass.id, cd.typeArgs).setPos(fd)
+        val thiss = This(ct).setPos(fd)
+        val newFlags = fd.flags.filterNot(overrideDiscardFlag) ++
+          Seq(Synthetic, IsMethodOf(ct.id), Derived(id), IsAccessor(Some(vd.id)))
         instantiator.transform(exprOps.freshenSignature(if (fd.isSetter) {
           fd.copy(
             id = ast.SymbolIdentifier(id.symbol),
-            fullBody = FieldAssignment(This(ct), vd.id, fd.params.head.toVariable),
-            flags = Seq(Synthetic, IsMethodOf(ct.id), Derived(id), IsAccessor(Some(vd.id)))
+            fullBody = FieldAssignment(thiss, vd.id, fd.params.head.toVariable).setPos(fd),
+            flags = newFlags
           )
         } else {
           fd.copy(
             id = ast.SymbolIdentifier(id.symbol),
-            fullBody = ClassSelector(This(ct), vd.id),
-            flags = Seq(Synthetic, IsMethodOf(ct.id), Derived(id), Final, IsAccessor(Some(vd.id)))
+            fullBody = ClassSelector(thiss, vd.id).setPos(fd),
+            flags = newFlags
           )
         }))
-      }
-
-      // These are the flags that we keep when overriding a method
-      def overrideKeepFlags(flag: Flag) = flag match {
-        case IsPure => true
-        case Annotation("library", Seq()) => true
-        case _ => false
       }
 
       // For the normal methods, we create overrides with no body
@@ -193,8 +202,8 @@ trait Sealing extends oo.CachingPhase
           id = ast.SymbolIdentifier(id.symbol),
           fullBody = reconstructSpecs(specs, None, fd.returnType),
           flags = (
-            fd.flags.filter(overrideKeepFlags) ++
-            Seq(Extern, Derived(id), Synthetic, IsMethodOf(dummyClass.id))
+            fd.flags.filterNot(overrideDiscardFlag) ++
+              Seq(Extern, Derived(id), Synthetic, IsMethodOf(dummyClass.id))
           ).distinct
         )))
       }

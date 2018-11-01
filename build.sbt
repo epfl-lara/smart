@@ -13,7 +13,7 @@ val isMac     = osInf.indexOf("Mac") >= 0
 val osName = if (isWindows) "win" else if (isMac) "mac" else "unix"
 val osArch = System.getProperty("sun.arch.data.model")
 
-val inoxVersion = "1.1.0-304-g541bfb4"
+val inoxVersion = "1.1.0-315-gec5dd7d"
 val dottyVersion = "0.1.1-bin-20170429-10a2ce6-NIGHTLY"
 val circeVersion = "0.10.0-M2"
 
@@ -216,6 +216,15 @@ lazy val `stainless-scalac-plugin` = (project in file("frontends") / "stainless-
     packageBin in Compile := (assembly in (`stainless-scalac`, Compile)).value
   )
   .settings(artifactSettings, publishMavenSettings)
+
+lazy val `stainless-scalac-standalone` = (project in file("frontends") / "stainless-scalac-standalone")
+  .enablePlugins(JavaAppPackaging)
+  .settings(
+    name := "stainless-scalac-standalone",
+    (assemblyJarName in assembly) := (name.value + "-" + (git.baseVersion in ThisBuild).value + ".jar")
+  )
+  .dependsOn(`stainless-scalac`)
+  .settings(artifactSettings)
 
 lazy val `stainless-dotty-frontend` = (project in file("frontends") / "dotty")
   .disablePlugins(AssemblyPlugin)

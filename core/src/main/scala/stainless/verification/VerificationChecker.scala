@@ -89,8 +89,11 @@ trait VerificationChecker { self =>
     import MainHelpers._
     val results = Future.traverse(vcs)(vc => Future {
       if (stop) None else {
+        val simplifiedVC: VC = (vc.copy(
+          condition = simplifyExpr(simplifyLets(simplifyAssertions(vc.condition)))
+        ): VC).setPos(vc)
         val sf = getFactoryForVC(vc)
-        val res = checkVC(vc, sf)
+        val res = checkVC(simplifiedVC, sf)
 
         val shouldStop = stopWhen(res)
         interruptManager.synchronized { // Make sure that we only interrupt the manager once.
@@ -193,7 +196,7 @@ trait VerificationChecker { self =>
     val s = sf.getNewSolver
 
     try {
-      val cond = simplifyLets(simplifyAssertions(vc.condition))
+      val cond = vc.condition
       reporter.synchronized {
         reporter.info(s" - Now solving '${vc.kind}' VC for ${vc.fd.asString} @${vc.getPos}...")
         reporter.debug(cond.asString)
