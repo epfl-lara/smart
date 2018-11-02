@@ -13,7 +13,6 @@ trait ComponentTestSuite extends inox.TestSuite with inox.ResourceUtils with Inp
     Seq(inox.optSelectedSolvers(Set("smt-z3")), inox.optTimeout(300.seconds))
   )
 
-  // final override def createContext(options: inox.Options) = stainless.TestContext.debug(inox.solvers.DebugSectionSolver, options)
   final override def createContext(options: inox.Options) = stainless.TestContext(options)
 
   override protected def optionsString(options: inox.Options): String = {
@@ -73,10 +72,6 @@ trait ComponentTestSuite extends inox.TestSuite with inox.ResourceUtils with Inp
       // extraction results is enabled.
       val extractor = component.run(extraction.pipeline)
 
-      val solidityIds = program.symbols.classes.values.filter(extraction.smartcontracts.isSmartContractDep).map(_.id) ++
-                        program.symbols.functions.values.filter(extraction.smartcontracts.isSmartContractDep).map(_.id)
-      val solidityDeps = solidityIds.flatMap(id => program.symbols.dependencies(id) + id)
-
       for {
         unit <- structure
         if unit.isMain
@@ -84,9 +79,7 @@ trait ComponentTestSuite extends inox.TestSuite with inox.ResourceUtils with Inp
       } test(s"$dir/$name", ctx => filter(ctx, s"$dir/$name")) { implicit ctx =>
         val defs = unit.allFunctions(program.symbols).toSet ++ unit.allClasses
 
-
-        val deps = defs.flatMap(id => program.symbols.dependencies(id) + id) ++ solidityDeps
-
+        val deps = defs.flatMap(id => program.symbols.dependencies(id) + id)
         val symbols = extraction.xlang.trees.NoSymbols
           .withClasses(program.symbols.classes.values.filter(cd => deps(cd.id)).toSeq)
           .withFunctions(program.symbols.functions.values.filter(fd => deps(fd.id)).toSeq)
