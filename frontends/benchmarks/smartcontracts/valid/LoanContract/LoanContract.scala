@@ -42,9 +42,6 @@ trait LoanContract extends Contract {
   @ghost
   var visitedStates: List[State]
 
-  // FIXME: it shouldn't be needed to fix the address
-  override def addr = Address(1)
-
   def checkTokens(): Unit = {
     require(invariant(this))
 
