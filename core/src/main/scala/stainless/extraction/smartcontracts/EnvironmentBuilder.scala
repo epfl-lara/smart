@@ -124,20 +124,25 @@ trait EnvironmentBuilder extends oo.SimplePhase
       }
     }
 
+    def isThis(e: Expr) = e match {
+      case This(_) => true
+      case _ => false
+    }
+
     def bodyPostProcessing(fd: FunDef, body: s.Expr, msg: Expr, env: Expr) = {
       val newBody = postMap {
 
-        case v: MethodInvocation if fd.isInSmartContract =>
+        case mi@MethodInvocation(receiver, id, tps, args) if fd.isInSmartContract && !isThis(receiver) =>
           val cd = fd.flags.collectFirst {
             case IsMethodOf(cid) => symbols.getClass(cid)
           }.get
           val thisRef = This(cd.typed.toType)
           val addrMethod = symbols.lookup[FunDef]("stainless.smartcontracts.ContractInterface.addr").id
-          val addr = MethodInvocation(thisRef, addrMethod, Seq(), Seq()).setPos(v)
+          val addr = MethodInvocation(thisRef, addrMethod, Seq(), Seq()).setPos(mi)
           val newMsg = ClassConstructor(msgType, Seq(addr, uzero))
 
-          val newArgs = v.args ++ paramsMapper(newMsg, env, requiredParameters(v.id))
-          Some(v.copy(args = newArgs).setPos(v))
+          val newArgs = args ++ paramsMapper(newMsg, env, requiredParameters(id))
+          Some(MethodInvocation(receiver, id, tps, newArgs).setPos(mi))
 
         case v: MethodInvocation =>
           val newArgs = v.args ++ paramsMapper(msg, env, requiredParameters(v.id))
