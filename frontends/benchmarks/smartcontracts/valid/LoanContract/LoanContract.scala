@@ -12,7 +12,7 @@ import LoanContractInvariant._
 
 /************************************************
 **  See report for a detail explanation of the
-**  contract 
+**  contract
 *************************************************/
 
 sealed trait State
@@ -86,7 +86,7 @@ trait LoanContract extends Contract {
   @solidityPayable
   def payback(): Unit = {
     require (invariant(this))
-    dynRequire(address(this).balance >= Msg.value)
+    dynRequire(this.addr.balance >= Msg.value)
     dynRequire(Msg.value >= premiumAmount + wantedAmount)
     dynRequire(Msg.sender == lender)
 
@@ -115,12 +115,12 @@ trait LoanContract extends Contract {
 
       // Transfer all the guarantee to the lender
       var balance = tokenContractAddress.balanceOf(addr)
-      
+
       tokenContractAddress.transfer(lender, balance)
       ghost {
         visitedStates = Default :: visitedStates
       }
-      
+
       currentState = Default
     }
   } ensuring { _ =>

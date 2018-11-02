@@ -52,9 +52,9 @@ trait MinimumToken extends Contract {
   } ensuring { _ =>
     contractInvariant(balanceOf, total, participants)
   }
-  
+
   @ghost
-  def addParticipant(p: Address) = {
+  final def addParticipant(p: Address) = {
     if (!participants.contains(p))
       participants = p :: participants
   }
