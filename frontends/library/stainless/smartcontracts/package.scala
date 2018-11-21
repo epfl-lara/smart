@@ -6,6 +6,8 @@ import stainless.lang._
 import stainless.annotation._
 
 package object smartcontracts {
+  @library @inline
+  def address(c: ContractInterface): Address = c.addr
 
   @library @inline
   def unsafeIgnoreCode[T](code: T) = code

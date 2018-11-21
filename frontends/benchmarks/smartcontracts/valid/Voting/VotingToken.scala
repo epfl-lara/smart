@@ -25,7 +25,6 @@ trait VotingToken extends StandardToken {
   // Owned contract
   var owner: Address
 
-
   def constructor(
     _name: String,
     _symbol: String,
