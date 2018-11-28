@@ -29,11 +29,11 @@ object MinimumTokenInvariant {
     val b1 = balances.updated(to, newBalance)
 
     assert(
-    participants match {
-      case Nil() => true
-      case Cons(x,xs) => balancesUnchangedLemma(to, newBalance, xs, balances) &&
-          sumBalances(participants, balances) == sumBalances(participants, b1)
-    }
+      participants match {
+        case Nil() => true
+        case Cons(x,xs) => balancesUnchangedLemma(to, newBalance, xs, balances) &&
+            sumBalances(participants, balances) == sumBalances(participants, b1)
+      }
     )
     true
   } ensuring(_ => {
@@ -47,10 +47,10 @@ object MinimumTokenInvariant {
     total: Uint256,
     participants: List[Address]
   ): Boolean = {
-    distinctAddresses(participants) && 
+    distinctAddresses(participants) &&
     sumBalances(participants, balanceOf) == total &&
-    forall((x: Address) => 
-      (balanceOf(x) != Uint256.ZERO) ==> 
+    forall((x: Address) =>
+      (balanceOf(x) != Uint256.ZERO) ==>
       participants.contains(x)
     )
   }
@@ -70,7 +70,7 @@ object MinimumTokenInvariant {
 
     assert(
       participants match {
-        case Cons(x, xs) if (x == to) => 
+        case Cons(x, xs) if (x == to) =>
           (
             sumBalances(participants, b1)                     ==| trivial |:
             sumBalances(xs, b1) + b1(x)                       ==| balancesUnchangedLemma(to, newBalance, xs, balances) |:
@@ -94,7 +94,7 @@ object MinimumTokenInvariant {
     sumBalances(participants, b1) == sumBalances(participants, balances) - balances(to) + newBalance
   })
 
-  // Proof the that the sum of balances is maintained after two updates
+  // Proof that the sum of balances is maintained after two updates
   @ghost
   def transferProof(
     @ghost b0: Mapping[Address,Uint256],
@@ -117,8 +117,8 @@ object MinimumTokenInvariant {
     assert((
       sumBalances(participants, balanceOf)                                             ==| balancesUpdatedLemma(participants, b1, to, b1(to) + amount) |:
       sumBalances(participants, b1) - b1(to) + (b1(to) + amount)                       ==| trivial |:
-      sumBalances(participants, b1) + amount                                           ==| 
-        (balancesUpdatedLemma(participants, b0, from, b0(from) - amount) && 
+      sumBalances(participants, b1) + amount                                           ==|
+        (balancesUpdatedLemma(participants, b0, from, b0(from) - amount) &&
         sumBalances(participants, b1) == sumBalances(participants, b0) - b0(from) + (b0(from) - amount))
         |:
       sumBalances(participants, b0) - b0(from) + (b0(from) - amount) + amount         ==| ((b0(from) - amount) + amount == b0(from)) |:
