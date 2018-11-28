@@ -20,7 +20,7 @@ trait VotingToken extends StandardToken {
   var opened: Boolean
   var closed: Boolean
   var votingAddresses: List[Address]
-  val numberOfAlternatives = Uint256("6")
+  final val numberOfAlternatives = Uint256("6")
 
   // Owned contract
   var owner: Address

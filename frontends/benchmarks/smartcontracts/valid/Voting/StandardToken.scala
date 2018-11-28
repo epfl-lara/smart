@@ -14,6 +14,7 @@ import Util._
 import StandardTokenLemmas._
 import StandardTokenInvariant._
 
+@mutable
 trait StandardToken extends Contract {
   var name: String
   var symbol: String
