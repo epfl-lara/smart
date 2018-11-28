@@ -81,7 +81,8 @@ trait DebugPipeline extends ExtractionPipeline with PositionChecker { self =>
       // ensure well-formedness after each extraction step
       context.reporter.debug(s"Ensuring well-formedness after phase $name...")
       res.ensureWellFormed
-      context.reporter.debug(s"Ensuring well-formedness after phase $name: OK")
+      context.reporter.debug(s"=> SUCCESS")
+      context.reporter.debug(s"")
     }
 
     if (debugPos) {

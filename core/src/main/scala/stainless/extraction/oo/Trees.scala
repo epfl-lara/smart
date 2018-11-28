@@ -6,7 +6,7 @@ package oo
 
 import scala.collection.mutable.{Map => MutableMap}
 
-trait Trees extends imperative.Trees with Definitions { self =>
+trait Trees extends innerfuns.Trees with Definitions { self =>
 
   /* ========================================
    *              EXPRESSIONS
@@ -22,6 +22,12 @@ trait Trees extends imperative.Trees with Definitions { self =>
 
   /** $encodingof `expr.selector` */
   case class ClassSelector(expr: Expr, selector: Identifier) extends Expr with CachingTyped {
+    // TODO: Rename
+    def field(implicit s: Symbols): Option[ValDef] = getClassType(expr) match {
+      case ct: ClassType => ct.getField(selector)
+      case _ => None
+    }
+
     protected def computeType(implicit s: Symbols): Type = expr.getType match {
       case ct: ClassType =>
         ct.getField(selector).map(_.tpe).orElse((s.lookupFunction(selector), s.lookupClass(ct.id, ct.tps)) match {
@@ -72,11 +78,6 @@ trait Trees extends imperative.Trees with Definitions { self =>
    *                 TYPES
    * ======================================== */
 
-  override protected def getField(tpe: Type, selector: Identifier)(implicit s: Symbols): Option[ValDef] = tpe match {
-    case ct: ClassType => ct.getField(selector)
-    case _ => super.getField(tpe, selector)
-  }
-
   /** Type associated to instances of [[ClassConstructor]] */
    case class ClassType(id: Identifier, tps: Seq[Type]) extends Type {
     def lookupClass(implicit s: Symbols): Option[TypedClassDef] = s.lookupClass(id, tps)
@@ -97,12 +98,18 @@ trait Trees extends imperative.Trees with Definitions { self =>
   case class NothingType() extends Type
 
   /** $encodingof `_ :> lo <: hi` */
-  case class TypeBounds(lo: Type, hi: Type) extends Type
+  case class TypeBounds(lo: Type, hi: Type, flags: Seq[Flag]) extends Type
 
   protected def widenTypeParameter(tpe: Typed)(implicit s: Symbols): Type = tpe.getType match {
     case tp: TypeParameter => widenTypeParameter(tp.upperBound)
     case tpe => tpe
   }
+
+  protected def getClassType(tpe: Typed, tpes: Typed*)(implicit s: Symbols): Type =
+    widenTypeParameter(tpe.getType) match {
+      case ct: ClassType => checkAllTypes(tpes, ct, ct)
+      case _ => Untyped
+    }
 
   override protected def getBVType(tpe: Typed, tpes: Typed*)(implicit s: Symbols): Type =
     super.getBVType(widenTypeParameter(tpe), tpes: _*)
@@ -149,7 +156,7 @@ trait Trees extends imperative.Trees with Definitions { self =>
   trait SelfTreeTraverser extends TreeTraverser with super.SelfTreeTraverser
 }
 
-trait Printer extends imperative.Printer {
+trait Printer extends innerfuns.Printer {
   protected val trees: Trees
   import trees._
 
@@ -172,7 +179,7 @@ trait Printer extends imperative.Printer {
       }), "def")
   }
 
-  override def ppBody(tree: Tree)(implicit ctx: PrinterContext): Unit = tree match {
+  override protected def ppBody(tree: Tree)(implicit ctx: PrinterContext): Unit = tree match {
 
     case cd: ClassDef =>
       for (an <- cd.flags) {
@@ -197,7 +204,7 @@ trait Printer extends imperative.Printer {
     case NothingType() =>
       p"Nothing"
 
-    case TypeBounds(lo, hi) =>
+    case TypeBounds(lo, hi, _) =>
       p"_ >: $lo <: $hi"
 
     case tpd: TypeParameterDef =>
@@ -244,7 +251,7 @@ trait Printer extends imperative.Printer {
   }
 }
 
-trait ExprOps extends imperative.ExprOps {
+trait ExprOps extends innerfuns.ExprOps {
   protected val trees: Trees
   import trees._
 
@@ -269,7 +276,7 @@ trait ExprOps extends imperative.ExprOps {
   }
 }
 
-trait TreeDeconstructor extends imperative.TreeDeconstructor {
+trait TreeDeconstructor extends innerfuns.TreeDeconstructor {
   protected val s: Trees
   protected val t: Trees
 
@@ -305,7 +312,7 @@ trait TreeDeconstructor extends imperative.TreeDeconstructor {
     case s.ClassType(id, tps) => (Seq(id), Seq(), Seq(), tps, Seq(), (ids, _, _, tps, _) => t.ClassType(ids.head, tps))
     case s.AnyType() => (Seq(), Seq(), Seq(), Seq(), Seq(), (_, _, _, _, _) => t.AnyType())
     case s.NothingType() => (Seq(), Seq(), Seq(), Seq(), Seq(), (_, _, _, _, _) => t.NothingType())
-    case s.TypeBounds(lo, hi) => (Seq(), Seq(), Seq(), Seq(lo, hi), Seq(), (_, _, _, tps, _) => t.TypeBounds(tps(0), tps(1)))
+    case s.TypeBounds(lo, hi, fs) => (Seq(), Seq(), Seq(), Seq(lo, hi), fs, (_, _, _, tps, fs) => t.TypeBounds(tps(0), tps(1), fs))
     case _ => super.deconstruct(tpe)
   }
 
