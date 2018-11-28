@@ -321,13 +321,15 @@ trait AntiAliasing
 
           case up @ MutableMapUpdate(map, k, v) =>
             val rmap = exprOps.replaceFromSymbols(env.rewritings, map)
-            val effect = getExactEffect(rmap)
-            if (env.bindings contains effect.receiver.toVal) {
+            val effects = getExactEffects(rmap)
+
+            if (effects.exists(eff => !env.bindings.contains(eff.receiver.toVal)))
+              throw MissformedStainlessCode(up, "Unsupported form of map update")
+
+            Block(effects.toSeq map { effect =>
               val applied = applyEffect(effect + MutableMapAccessor(k), v)
               transform(Assignment(effect.receiver, applied).copiedFrom(up), env)
-            } else {
-              throw MissformedStainlessCode(up, "Unsupported form of map update")
-            }
+            }, UnitLiteral().copiedFrom(up)).copiedFrom(up)
 
           case as @ FieldAssignment(o, id, v) =>
             val so = exprOps.replaceFromSymbols(env.rewritings, o)
