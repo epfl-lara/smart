@@ -37,7 +37,7 @@ trait StandardToken extends Contract {
     // initial values given by Solidity (this part needs to be injected automatically)
     unsafeIgnoreCode {
       totalSupply = Uint256.ZERO
-      balances = MutableMap.withDefaultValue(Uint256.ZERO)
+      balances = MutableMap.withDefaultValue(() => Uint256.ZERO)
     }
 
     name = _name
@@ -50,7 +50,7 @@ trait StandardToken extends Contract {
   }
 
   @ghost
-  def addParticipant(p: Address) = {
+  final def addParticipant(p: Address) = {
     if (!participants.contains(p))
       participants = p :: participants
   }
@@ -66,12 +66,12 @@ trait StandardToken extends Contract {
     }
 
     // balances mapping before any update
-    @ghost val b0 = Mapping.duplicate(balances)
+    @ghost val b0 = balances.duplicate
 
     // code to remove balance from `Msg.sender`
     balances(Msg.sender) = sub(balances(Msg.sender), _value)
 
-    @ghost val b1 = Mapping.duplicate(balances)
+    @ghost val b1 = balances.duplicate
 
     // code to add balance to recipient `_to`
     balances(_to) = add(balances(_to), _value)
@@ -79,9 +79,9 @@ trait StandardToken extends Contract {
     assert((
       sumBalances(participants, balances)                                                       ==| balancesUpdatedLemma(participants, b1, _to, add(b1(_to), _value)) |:
       sumBalances(participants, b1) - b1(_to) + add(b1(_to), _value)                            ==| subSwap(sumBalances(participants,b1), b1(_to), _value) |:
-      sumBalances(participants, b1) + _value                                                    ==| 
-        (balancesUpdatedLemma(participants, b0, Msg.sender, sub(b0(Msg.sender), _value)) && 
-        sumBalances(participants, b1) == sumBalances(participants, b0) - b0(Msg.sender) + sub(b0(Msg.sender), _value)) 
+      sumBalances(participants, b1) + _value                                                    ==|
+        (balancesUpdatedLemma(participants, b0, Msg.sender, sub(b0(Msg.sender), _value)) &&
+        sumBalances(participants, b1) == sumBalances(participants, b0) - b0(Msg.sender) + sub(b0(Msg.sender), _value))
         |:
       sumBalances(participants, b0) - b0(Msg.sender) + sub(b0(Msg.sender), _value) + _value     ==| trivial |:
       sumBalances(participants, b0) - b0(Msg.sender) + (sub(b0(Msg.sender), _value) + _value)   ==| (sub(b0(Msg.sender), _value) + _value == b0(Msg.sender)) |:
@@ -94,7 +94,7 @@ trait StandardToken extends Contract {
 
     true
   } ensuring{ _ =>
-    standardTokenInvariant(this) 
+    standardTokenInvariant(this)
   }
 
   def transferFrom(_from: Address, _to: Address, _value: Uint256) = {
@@ -109,13 +109,13 @@ trait StandardToken extends Contract {
     }
 
     // balances mapping before any update
-    @ghost val b0 = Mapping.duplicate(balances)
+    @ghost val b0 = balances.duplicate
 
     // code to remove balance from `_from` address
     balances(_from) = sub(balances(_from), _value)
 
     // balances mapping before after the first update, before the second update
-    @ghost val b1 = Mapping.duplicate(balances)
+    @ghost val b1 = balances.duplicate
 
     // code to add balance to recipient `_to`
     balances(_to) = add(balances(_to), _value)
@@ -127,7 +127,7 @@ trait StandardToken extends Contract {
       sumBalances(participants, balances)                                             ==| balancesUpdatedLemma(participants, b1, _to, add(b1(_to), _value)) |:
       sumBalances(participants, b1) - b1(_to) + add(b1(_to), _value)                  ==| subSwap(sumBalances(participants,b1), b1(_to), _value) |:
       sumBalances(participants, b1) + _value                                          ==|
-        (balancesUpdatedLemma(participants, b0, _from, sub(b0(_from), _value)) && 
+        (balancesUpdatedLemma(participants, b0, _from, sub(b0(_from), _value)) &&
         sumBalances(participants, b1) == sumBalances(participants, b0) - b0(_from) + sub(b0(_from), _value))
         |:
       sumBalances(participants, b0) - b0(_from) + sub(b0(_from), _value) + _value     ==| trivial |:
@@ -145,7 +145,7 @@ trait StandardToken extends Contract {
   def approve(_spender: Address, _value: Uint256) = {
     require( standardTokenInvariant(this) )
     allowed(Msg.sender)(_spender) = _value
-    true    
+    true
   } ensuring { _ =>
     standardTokenInvariant(this)
   }

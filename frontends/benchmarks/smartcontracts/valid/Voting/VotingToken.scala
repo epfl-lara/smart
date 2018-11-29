@@ -5,6 +5,7 @@ import stainless.collection._
 import stainless.lang.StaticChecks._
 import stainless.lang.old
 import stainless.lang.ghost
+import stainless.lang.MutableMap
 import scala.language.postfixOps
 
 import scala.annotation.meta.field
@@ -35,7 +36,7 @@ trait VotingToken extends StandardToken {
     // initial values given by Solidity (this part needs to be injected automatically)
     unsafeIgnoreCode {
       totalSupply = Uint256.ZERO
-      balances = Mapping.constant(Uint256.ZERO)
+      balances = MutableMap.withDefaultValue(() => Uint256.ZERO)
     }
 
     // ghost initialization of participants
@@ -65,7 +66,7 @@ trait VotingToken extends StandardToken {
     _rewardVote(Msg.sender, _to, _value)
     true
   } ensuring{ _ =>
-    votingTokenInvariant(this) 
+    votingTokenInvariant(this)
   }
 
   def transferFrom(_from: Address, _to: Address, _value: Uint256) = {
@@ -78,10 +79,10 @@ trait VotingToken extends StandardToken {
 
   @solidityView
   def onlyOwner: Boolean = Msg.sender == owner
-  
+
   def transferOwnership(newOwner: Address) = {
     dynRequire(onlyOwner && newOwner != Address(0))
-        
+
     owner = newOwner
   } ensuring {
     _ => newOwner != Address(0)
@@ -97,7 +98,7 @@ trait VotingToken extends StandardToken {
     }
 
     val newBalance = add(balances(_to) , _amount)
-    @ghost val b0 = Mapping.duplicate(balances)
+    @ghost val b0 = balances.duplicate
     @ghost val oldSupply = totalSupply
 
     // two lines of code
@@ -112,7 +113,7 @@ trait VotingToken extends StandardToken {
       totalSupply)
         qed
     )
-        
+
     assert(participantsProp(participants, balances))
     assert(sumBalances(participants, balances) == totalSupply)
     assert(ownerInvariant(this))
@@ -124,7 +125,7 @@ trait VotingToken extends StandardToken {
     old(this).owner == this.owner
   }
 
-  def open() = {
+  final def open() = {
     require(votingTokenInvariant(this))
     dynRequire(onlyOwner)
     dynRequire(!opened)
@@ -135,10 +136,10 @@ trait VotingToken extends StandardToken {
     old(this).owner == this.owner
   }
 
-  def close() = {
+  final def close() = {
     require(votingTokenInvariant(this))
     dynRequire(onlyOwner)
-    dynRequire(opened) 
+    dynRequire(opened)
     dynRequire(!closed)
 
     closed = true
@@ -147,30 +148,32 @@ trait VotingToken extends StandardToken {
     old(this).owner == this.owner
   }
 
-  private def transferToken(tokens: List[ERC20], i: Uint256): Unit = {
-    // decreases(max(length(tokens) - i, 0))
+  // FIXME: tokens should be a list of addresses
+  // private def transferToken(tokens: List[ERC20], i: Uint256): Unit = {
+  //   // decreases(max(length(tokens) - i, 0))
 
-    if (i < length(tokens)) {
-      get(tokens,i).transfer(owner, get(tokens,i).balanceOf(address(this)))
-      transferToken(tokens, i + Uint256.ONE)
-    }
-  }
+  //   if (i < length(tokens)) {
+  //     get(tokens,i).transfer(owner, get(tokens,i).balanceOf(address(this)))
+  //     transferToken(tokens, i + Uint256.ONE)
+  //   }
+  // }
 
-  def destroy(tokens: List[ERC20]) = {
+  // FIXME: tokens should be a list of addresses
+  // def destroy(tokens: List[ERC20]) = {
+  //   require(votingTokenInvariant(this))
+  //   dynRequire(onlyOwner)
+
+  //   transferToken(tokens, Uint256.ZERO)
+  //   selfdestruct(owner)
+
+  // } ensuring { _ =>
+  //   votingTokenInvariant(this) &&
+  //   old(this).owner == this.owner
+  // }
+
+  private final def _rewardVote(_from: Address, _to: Address, _value: Uint256): Unit = {
     require(votingTokenInvariant(this))
-    dynRequire(onlyOwner)
-  
-    transferToken(tokens, Uint256.ZERO)
-    selfdestruct(owner)
 
-  } ensuring { _ =>
-    votingTokenInvariant(this) &&
-    old(this).owner == this.owner
-  }
-
-  private def _rewardVote(_from: Address, _to: Address, _value: Uint256): Unit = {
-    require(votingTokenInvariant(this))
-    
     if(_isVotingAddress(_to)) {
       dynRequire(opened && !closed)
       val rewardTokens:Uint256 = div(_value, Uint256("100"))
@@ -181,19 +184,19 @@ trait VotingToken extends StandardToken {
     votingTokenInvariant(this) &&
     old(this).owner == this.owner
   }
-      
+
   @solidityView
-  private def _isVotingAddressFrom(i: Uint256, votingAddress: Address): Boolean = {
+  private final def _isVotingAddressFrom(i: Uint256, votingAddress: Address): Boolean = {
     // require(i >= Uint256.ZERO)
     // decreases(max(length(votingAddresses) - i, Uint256.ZERO))
-      
+
     if (i >= length(votingAddresses)) false
     else if (get(votingAddresses,i) == votingAddress) true
     else _isVotingAddressFrom(i + Uint256.ONE, votingAddress)
   }
 
   @solidityView
-  private def _isVotingAddress(votingAddress: Address) = {
+  private final def _isVotingAddress(votingAddress: Address) = {
     require(votingTokenInvariant(this))
 
     _isVotingAddressFrom(Uint256.ZERO, votingAddress)
