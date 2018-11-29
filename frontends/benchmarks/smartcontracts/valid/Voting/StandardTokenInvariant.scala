@@ -12,13 +12,13 @@ object StandardTokenInvariant {
 
   def participantsProp(
     participants: List[Address],
-    balances: Mapping[Address, Uint256]
+    balances: MutableMap[Address, Uint256]
   ) = {
     forall((x: Address) => ((balances(x) != Uint256.ZERO) ==> (participants contains x))) &&
     distinctAddresses(participants)
   }
 
-  def sumBalances(addresses: List[Address], balances: Mapping[Address, Uint256]): Uint256 = addresses match {
+  def sumBalances(addresses: List[Address], balances: MutableMap[Address, Uint256]): Uint256 = addresses match {
     case Nil() => Uint256.ZERO
     case Cons(x,xs) => balances(x) + sumBalances(xs, balances)
   }
@@ -34,5 +34,5 @@ object StandardTokenInvariant {
     participantsProp(participants, balances)  &&
     sumBalances(participants, balances) == totalSupply
   }
-  
+
 }

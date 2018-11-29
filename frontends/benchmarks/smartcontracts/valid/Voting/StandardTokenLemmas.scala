@@ -11,7 +11,7 @@ object StandardTokenLemmas {
 
   def balancesUnchangedLemma(
     participants: List[Address],
-    balances: Mapping[Address, Uint256],
+    balances: MutableMap[Address, Uint256],
     to: Address,
     newBalance: Uint256
   ):Boolean = {
@@ -37,7 +37,7 @@ object StandardTokenLemmas {
 
   def balancesUpdatedLemma(
     participants: List[Address],
-    balances: Mapping[Address, Uint256],
+    balances: MutableMap[Address, Uint256],
     to: Address,
     newBalance: Uint256
   ): Boolean = {
@@ -50,7 +50,7 @@ object StandardTokenLemmas {
 
     assert(
       participants match {
-        case Cons(x, xs) if (x == to) => 
+        case Cons(x, xs) if (x == to) =>
         (
           sumBalances(participants, b1)                                   ==| trivial |:
           sumBalances(xs, b1) + b1(x)                                     ==| balancesUnchangedLemma(xs, balances, to, newBalance) |:

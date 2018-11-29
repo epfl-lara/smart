@@ -5,6 +5,7 @@ import stainless.collection._
 import stainless.lang.StaticChecks._
 import stainless.lang.old
 import stainless.lang.ghost
+import stainless.lang.MutableMap
 import scala.language.postfixOps
 
 import scala.annotation.meta.field
@@ -21,8 +22,8 @@ trait StandardToken extends Contract {
   var decimals: Uint8
   var totalSupply: Uint256
 
-  var balances: Mapping[Address, Uint256]
-  var allowed: Mapping[Address, Mapping[Address, Uint256]]
+  var balances: MutableMap[Address, Uint256]
+  var allowed: MutableMap[Address, MutableMap[Address, Uint256]]
 
   @ghost
   var participants: List[Address]
@@ -36,7 +37,7 @@ trait StandardToken extends Contract {
     // initial values given by Solidity (this part needs to be injected automatically)
     unsafeIgnoreCode {
       totalSupply = Uint256.ZERO
-      balances = Mapping.constant(Uint256.ZERO)
+      balances = MutableMap.withDefaultValue(Uint256.ZERO)
     }
 
     name = _name
