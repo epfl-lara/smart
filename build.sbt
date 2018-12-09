@@ -13,7 +13,7 @@ val isMac     = osInf.indexOf("Mac") >= 0
 val osName = if (isWindows) "win" else if (isMac) "mac" else "unix"
 val osArch = System.getProperty("sun.arch.data.model")
 
-val inoxVersion = "1.1.0-315-gec5dd7d"
+//val inoxVersion = "1.1.0-315-gec5dd7d"
 val dottyVersion = "0.1.1-bin-20170429-10a2ce6-NIGHTLY"
 val circeVersion = "0.10.0-M2"
 
@@ -59,9 +59,9 @@ lazy val commonSettings: Seq[Setting[_]] = artifactSettings ++ Seq(
 
   scalacOptions in (Compile, doc) ++= Seq("-doc-root-content", baseDirectory.value+"/src/main/scala/root-doc.txt"),
 
-  unmanagedJars in Runtime += {
-    root.base / "unmanaged" / s"scalaz3-$osName-$osArch-${scalaBinaryVersion.value}.jar"
-  },
+  // unmanagedJars in Runtime += {
+  //   root.base / "unmanaged" / s"scalaz3-$osName-$osArch-${scalaBinaryVersion.value}.jar"
+  // },
 
   resolvers ++= Seq(
     "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots",
@@ -71,8 +71,8 @@ lazy val commonSettings: Seq[Setting[_]] = artifactSettings ++ Seq(
   ),
 
   libraryDependencies ++= Seq(
-    "ch.epfl.lara" %% "inox" % inoxVersion,
-    "ch.epfl.lara" %% "inox" % inoxVersion % "test" classifier "tests",
+    // "ch.epfl.lara" %% "inox" % inoxVersion,
+    // "ch.epfl.lara" %% "inox" % inoxVersion % "test" classifier "tests",
     "ch.epfl.lara" %% "cafebabe" % "1.2",
     "org.scalatest" %% "scalatest" % "3.0.1" % "test",
     "io.circe" %% "circe-core" % circeVersion,
@@ -101,7 +101,7 @@ lazy val libraryFiles: Seq[(String, File)] = {
 
 lazy val commonFrontendSettings: Seq[Setting[_]] = Defaults.itSettings ++ Seq(
   libraryDependencies ++= Seq(
-    "ch.epfl.lara" %% "inox" % inoxVersion % "it" classifier "tests" classifier "it",
+    // "ch.epfl.lara" %% "inox" % inoxVersion % "it" classifier "tests" classifier "it",
     "org.scalatest" %% "scalatest" % "3.0.1" % "it" // FIXME: Does this override `% "test"` from commonSettings above?
   ),
 
@@ -162,7 +162,7 @@ val scriptSettings: Seq[Setting[_]] = Seq(
 
 def ghProject(repo: String, version: String) = RootProject(uri(s"${repo}#${version}"))
 
-//lazy val inox = RootProject(file("../inox"))
+lazy val inox = RootProject(file("../inox"))
 //lazy val dotty = ghProject("git://github.com/lampepfl/dotty.git", "b3194406d8e1a28690faee12257b53f9dcf49506")
 
 // Allow integration test to use facilities from regular tests
@@ -174,7 +174,7 @@ lazy val `stainless-core` = (project in file("core"))
   .settings(commonSettings, publishMavenSettings)
   .settings(site.settings)
   .settings(site.sphinxSupport())
-  //.dependsOn(inox % "compile->compile;test->test")
+  .dependsOn(inox % "compile->compile;test->test")
 
 lazy val `stainless-library` = (project in file("frontends") / "library")
   .disablePlugins(AssemblyPlugin)
@@ -204,7 +204,7 @@ lazy val `stainless-scalac` = (project in file("frontends") / "scalac")
     skip in publish := true // following https://github.com/sbt/sbt-assembly#q-despite-the-concerned-friends-i-still-want-publish-fat-jars-what-advice-do-you-have
   )
   .dependsOn(`stainless-core`)
-  //.dependsOn(inox % "test->test;it->test,it")
+  .dependsOn(inox % "test->test;it->test,it")
   .configs(IntegrationTest)
   .settings(commonSettings, commonFrontendSettings, scriptSettings)
 
@@ -243,7 +243,7 @@ lazy val `stainless-dotty` = (project in file("frontends") / "stainless-dotty")
   // Should truly depend on dotty, overriding the "provided" modifier above:
   .settings(libraryDependencies += "ch.epfl.lamp" % "dotty_2.11" % dottyVersion)
   .aggregate(`stainless-dotty-frontend`)
-  //.dependsOn(inox % "test->test;it->test,it")
+  .dependsOn(inox % "test->test;it->test,it")
   .configs(IntegrationTest)
   .settings(commonSettings, commonFrontendSettings, artifactSettings, scriptSettings, publishMavenSettings)
 

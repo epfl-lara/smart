@@ -12,16 +12,44 @@ import scala.annotation.meta.field
 
 import SafeMath._
 import Util._
-import StandardTokenLemmas._
-import StandardTokenInvariant._
+import VotingTokenLemmas._
 import VotingTokenInvariant._
 
-trait VotingToken extends StandardToken {
+trait VotingToken extends Contract {
   var rewardToken: ERC20
   var opened: Boolean
   var closed: Boolean
   var votingAddresses: List[Address]
-  final val numberOfAlternatives = Uint256("6")
+  var numberOfAlternatives: Uint256
+  var name: String
+  var symbol: String
+  var decimals: Uint8
+  var totalSupply: Uint256
+
+  var balances: MutableMap[Address, Uint256]
+  var allowed: MutableMap[Address, MutableMap[Address, Uint256]]
+
+  @ghost
+  var participants: List[Address]
+
+  @solidityView
+  def balanceOf(_owner: Address) = balances(_owner)
+  @solidityView
+  def allowance(_owner: Address, _spender: Address) = allowed(_owner)(_spender)
+
+  @ghost
+  final def addParticipant(p: Address) = {
+    if (!participants.contains(p))
+      participants = p :: participants
+  }
+
+  final def approve(_spender: Address, _value: Uint256) = {
+    require( standardTokenInvariant(this) )
+    allowed(Msg.sender)(_spender) = _value
+    true
+  } ensuring { _ =>
+    standardTokenInvariant(this)
+  }
 
   // Owned contract
   var owner: Address
@@ -31,12 +59,15 @@ trait VotingToken extends StandardToken {
     _symbol: String,
     _decimals: Uint8,
     _rewardToken: ERC20,
-    _votingAddresses: List[Address]
+    _votingAddresses: List[Address],
+    _numberOfAlternatives: Uint256
   ): Unit = {
     // initial values given by Solidity (this part needs to be injected automatically)
     unsafeIgnoreCode {
       totalSupply = Uint256.ZERO
       balances = MutableMap.withDefaultValue(() => Uint256.ZERO)
+      opened = false
+      closed = false
     }
 
     // ghost initialization of participants
@@ -44,43 +75,117 @@ trait VotingToken extends StandardToken {
       participants = List()
     }
 
-    // super[StandardToken].constructor(_name, _symbol, _decimals, Uint256.ZERO)
-    // begin code corresponding to super constructor (we don't support `super.constructor yet`)
     name = _name
     symbol = _symbol
     decimals = _decimals
-    // totalSupply = 0
-    // balances(Msg.sender) = 0
-    // end
 
-    dynRequire(length(_votingAddresses) == numberOfAlternatives)
+    dynRequire(length(_votingAddresses) == _numberOfAlternatives)
+    numberOfAlternatives = _numberOfAlternatives
     rewardToken = _rewardToken
     votingAddresses = _votingAddresses
 
-    assert(votingTokenInvariant(this))
+    dynRequire(Msg.sender != Address(0))
+    owner = Msg.sender
+
+    assert(ownerInvariant(this))
+    assert(openOrCloseInvariant(this))
+    assert(standardTokenInvariant(this))
   }
 
-  def transfer(_to: Address, _value: Uint256) = {
+  final def transfer(_to: Address, _value: Uint256) = {
     require(votingTokenInvariant(this))
-    dynRequire(super.transfer(_to, _value))
+
+    dynRequire(_to != Address(0))
+    dynRequire(_value <= balances(Msg.sender))
+
+    ghost {
+      addParticipant(_to)
+      addParticipant(Msg.sender)
+    }
+
+    // balances mapping before any update
+    @ghost val b0 = balances.duplicate
+
+    // code to remove balance from `Msg.sender`
+    balances(Msg.sender) = sub(balances(Msg.sender), _value)
+
+    @ghost val b1 = balances.duplicate
+
+    // code to add balance to recipient `_to`
+    balances(_to) = add(balances(_to), _value)
+
+    assert((
+      sumBalances(participants, balances)                                                       ==| balancesUpdatedLemma(participants, b1, _to, add(b1(_to), _value)) |:
+      sumBalances(participants, b1) - b1(_to) + add(b1(_to), _value)                            ==| subSwap(sumBalances(participants,b1), b1(_to), _value) |:
+      sumBalances(participants, b1) + _value                                                    ==|
+        (balancesUpdatedLemma(participants, b0, Msg.sender, sub(b0(Msg.sender), _value)) &&
+        sumBalances(participants, b1) == sumBalances(participants, b0) - b0(Msg.sender) + sub(b0(Msg.sender), _value))
+        |:
+      sumBalances(participants, b0) - b0(Msg.sender) + sub(b0(Msg.sender), _value) + _value     ==| trivial |:
+      sumBalances(participants, b0) - b0(Msg.sender) + (sub(b0(Msg.sender), _value) + _value)   ==| (sub(b0(Msg.sender), _value) + _value == b0(Msg.sender)) |:
+      sumBalances(participants, b0) - b0(Msg.sender) + b0(Msg.sender)                           ==| trivial |:
+      sumBalances(participants, b0)                                                             ==| trivial |:
+      totalSupply
+    ).qed)
+
+    assert(sumBalances(participants, balances) == totalSupply)
+
     _rewardVote(Msg.sender, _to, _value)
     true
   } ensuring{ _ =>
     votingTokenInvariant(this)
   }
 
-  def transferFrom(_from: Address, _to: Address, _value: Uint256) = {
+  final def transferFrom(_from: Address, _to: Address, _value: Uint256) = {
     require(votingTokenInvariant(this))
-    dynRequire(super.transferFrom(_from, _to, _value))
-    true
+
+    dynRequire(_to != Address(0))
+    dynRequire(_value <= balances(_from))
+    dynRequire(_value <= allowed(_from)(Msg.sender))
+
+    ghost {
+      addParticipant(_from)
+      addParticipant(_to)
+    }
+
+    // balances mapping before any update
+    @ghost val b0 = balances.duplicate
+
+    // code to remove balance from `_from` address
+    balances(_from) = sub(balances(_from), _value)
+
+    // balances mapping before after the first update, before the second update
+    @ghost val b1 = balances.duplicate
+
+    // code to add balance to recipient `_to`
+    balances(_to) = add(balances(_to), _value)
+
+    // code to remove from allowance
+    allowed(_from)(Msg.sender) = sub(allowed(_from)(Msg.sender), _value)
+
+    assert((
+      sumBalances(participants, balances)                                             ==| balancesUpdatedLemma(participants, b1, _to, add(b1(_to), _value)) |:
+      sumBalances(participants, b1) - b1(_to) + add(b1(_to), _value)                  ==| subSwap(sumBalances(participants,b1), b1(_to), _value) |:
+      sumBalances(participants, b1) + _value                                          ==|
+        (balancesUpdatedLemma(participants, b0, _from, sub(b0(_from), _value)) &&
+        sumBalances(participants, b1) == sumBalances(participants, b0) - b0(_from) + sub(b0(_from), _value))
+        |:
+      sumBalances(participants, b0) - b0(_from) + sub(b0(_from), _value) + _value     ==| trivial |:
+      sumBalances(participants, b0) - b0(_from) + (sub(b0(_from), _value) + _value)   ==| (sub(b0(_from), _value) + _value == b0(_from)) |:
+      sumBalances(participants, b0) - b0(_from) + b0(_from)                           ==| trivial |:
+      sumBalances(participants, b0)                                                   ==| trivial |:
+      totalSupply
+    ).qed)
+
+    _rewardVote(_from, _to, _value)
   } ensuring{ _ =>
     votingTokenInvariant(this)
   }
 
   @solidityView
-  def onlyOwner: Boolean = Msg.sender == owner
+  final def onlyOwner: Boolean = Msg.sender == owner
 
-  def transferOwnership(newOwner: Address) = {
+  final def transferOwnership(newOwner: Address) = {
     dynRequire(onlyOwner && newOwner != Address(0))
 
     owner = newOwner
@@ -88,7 +193,7 @@ trait VotingToken extends StandardToken {
     _ => newOwner != Address(0)
   }
 
-  def mint(_to: Address, _amount: Uint256) = {
+  final def mint(_to: Address, _amount: Uint256) = {
     require(votingTokenInvariant(this))
     dynRequire(onlyOwner)
     dynRequire(!opened)
@@ -187,7 +292,6 @@ trait VotingToken extends StandardToken {
 
   @solidityView
   private final def _isVotingAddressFrom(i: Uint256, votingAddress: Address): Boolean = {
-    // require(i >= Uint256.ZERO)
     // decreases(max(length(votingAddresses) - i, Uint256.ZERO))
 
     if (i >= length(votingAddresses)) false

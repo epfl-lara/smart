@@ -18,7 +18,7 @@ trait CallWithEther1 extends Contract {
   }
 
   @solidityPayable
-  def bar() = {
+  final def bar() = {
 
   }
 }

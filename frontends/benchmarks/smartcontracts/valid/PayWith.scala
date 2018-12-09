@@ -3,7 +3,7 @@ import stainless.annotation._
 
 trait Target extends Contract {
   @solidityPayable
-  def receiveMoney() = { }
+  final def receiveMoney() = { }
 }
 
 trait Source extends Contract {
