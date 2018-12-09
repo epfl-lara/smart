@@ -51,7 +51,7 @@ object InjectedDependencies {
   )
   val envType = ClassType(envCd.id, Seq())
 
-  // Methods of Environment
+  // Methods of Environment: transferBalance
   val fromTBParam = ValDef.fresh("from", addressType)
   val toTBParam = ValDef.fresh("to", addressType)
   val amountTBParam = ValDef.fresh("amount", uint256)
