@@ -336,7 +336,7 @@ trait AntiAliasing
             val effects = getExactEffects(so)
 
             if (effects.exists(eff => !env.bindings.contains(eff.receiver.toVal)))
-              throw MissformedStainlessCode(as, "Unsupported form of array update")
+              throw MissformedStainlessCode(as, "Unsupported form of field assignment")
 
             val accessor = o.getType match {
               case _: ADTType => ADTFieldAccessor(id)
