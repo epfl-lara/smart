@@ -12,7 +12,7 @@ import scala.annotation.meta.field
 import MinimumTokenInvariant._
 
 trait MinimumToken extends Contract {
-  var balanceOf: Mapping[Address,Uint256]
+  val balanceOf: Mapping[Address,Uint256]
   var total: Uint256
 
   @ghost
@@ -48,6 +48,8 @@ trait MinimumToken extends Contract {
     ghost {
       transferProof(b0,b1,balanceOf,from,to,amount,participants,total)
     }
+
+    assert(sumBalances(participants, balanceOf) == total)
 
   } ensuring { _ =>
     contractInvariant(balanceOf, total, participants)
