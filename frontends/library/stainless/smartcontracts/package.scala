@@ -93,11 +93,14 @@ package object smartcontracts {
   }
 
   object Environment {
-    @extern
+    @library @extern
     def balanceOf(addr: Address): Uint256 = ???
 
-    @extern
-    def updateBalance(from: Address, to: Address, amnt: Uint256): Unit = ???
+    // @library @extern
+    // def updateBalance(from: Address, to: Address, amnt: Uint256): Unit = ???
+
+    @library @extern @pure
+    def contractAt[@mutable T <: ContractInterface](a: Address): T = ???
   }
 
   object Msg {
@@ -113,11 +116,11 @@ package object smartcontracts {
     @library
     def balance = Environment.balanceOf(this)
 
-    @library
-    def transfer(amount: Uint256): Unit = {
-      dynRequire(Environment.balanceOf(Msg.sender) >= amount)
-      Environment.updateBalance(Msg.sender, this, amount)
-    }
+    @extern @library
+    def transfer(amount: Uint256): Unit = ???
+    //   dynRequire(Environment.balanceOf(Msg.sender) >= amount)
+    //   Environment.updateBalance(Msg.sender, this, amount)
+    // }
   }
 
   @library @mutable

@@ -24,6 +24,26 @@ object InjectedDependencies {
   )
   val addressType = ClassType(addressCd.id, Seq())
 
+  // ContractInterface
+  val contractInterfaceCd = new ClassDef(
+    ast.SymbolIdentifier("ContractInterface"),
+    Seq(),
+    Seq(),
+    Seq(),
+    Seq(Synthetic, IsAbstract, IsMutable)
+  )
+  val contractInterfaceType = ClassType(contractInterfaceCd.id, Seq())
+
+  // ContractInterface address accessor
+  val addressAccessor = new FunDef(
+    ast.SymbolIdentifier("addr"),
+    Seq(),
+    Seq(),
+    addressType,
+    NoTree(addressType),
+    Seq(Synthetic, IsAccessor(None), IsAbstract, IsMethodOf(contractInterfaceCd.id))
+  )
+
   // Msg
   val senderField = ValDef.fresh("sender", addressType)
   val valueField = ValDef.fresh("amount", uint256)
@@ -37,16 +57,20 @@ object InjectedDependencies {
   val msgType = ClassType(msgCd.id, Seq())
 
   // Environment
-  val balancesField = VarDef(
+  val balancesField = ValDef(
     FreshIdentifier("balances"),
-    MapType(addressType, uint256),
+    MutableMapType(addressType, uint256),
     Seq()
+  )
+  val contractAtField = ValDef(
+    FreshIdentifier("contractAt"),
+    MutableMapType(addressType, contractInterfaceType)
   )
   val envCd = new ClassDef(
     ast.SymbolIdentifier("Environment"),
     Seq(),
     Seq(),
-    Seq(balancesField),
+    Seq(balancesField, contractAtField),
     Seq(Synthetic, IsMutable)
   )
   val envType = ClassType(envCd.id, Seq())
@@ -62,25 +86,21 @@ object InjectedDependencies {
     UnitType(),
     Block(
       Seq(
-        FieldAssignment(This(envType), balancesField.id,
-          MapUpdated(
-            ClassSelector(This(envType), balancesField.id),
-            fromTBParam.toVariable,
-            Minus(
-              MapApply(ClassSelector(This(envType), balancesField.id), fromTBParam.toVariable),
-              amountTBParam.toVariable
-            )
+        MutableMapUpdate(
+          ClassSelector(This(envType), balancesField.id),
+          fromTBParam.toVariable,
+          Minus(
+            MutableMapApply(ClassSelector(This(envType), balancesField.id), fromTBParam.toVariable),
+            amountTBParam.toVariable
           )
         )
       ),
-      FieldAssignment(This(envType), balancesField.id,
-        MapUpdated(
-          ClassSelector(This(envType), balancesField.id),
-          toTBParam.toVariable,
-          Plus(
-            MapApply(ClassSelector(This(envType), balancesField.id), toTBParam.toVariable),
-            amountTBParam.toVariable
-          )
+      MutableMapUpdate(
+        ClassSelector(This(envType), balancesField.id),
+        fromTBParam.toVariable,
+        Minus(
+          MapApply(ClassSelector(This(envType), balancesField.id), toTBParam.toVariable),
+          amountTBParam.toVariable
         )
       )
     ),
@@ -121,6 +141,6 @@ object InjectedDependencies {
     Seq(Synthetic, IsMethodOf(addressCd.id), Inline)
   )
 
-  val newClasses = Seq(addressCd, msgCd, envCd)
-  val newFunctions = Seq(balanceFd, transferBalanceFd, transferFd)
+  val newClasses = Seq(addressCd, contractInterfaceCd, msgCd, envCd)
+  val newFunctions = Seq(balanceFd, addressAccessor, transferBalanceFd, transferFd)
 }

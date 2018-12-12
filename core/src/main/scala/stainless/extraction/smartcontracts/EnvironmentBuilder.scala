@@ -46,6 +46,7 @@ trait EnvironmentBuilder extends oo.SimplePhase
             case fi: FunctionInvocation if isIdentifier("stainless.smartcontracts.Msg.value", fi.id) => Set(MsgImplicit)
             case fi: FunctionInvocation if isIdentifier("stainless.smartcontracts.Environment.balanceOf", fi.id) => Set(EnvImplicit)
             case fi: FunctionInvocation if isIdentifier("stainless.smartcontracts.Environment.updateBalance", fi.id) => Set(EnvImplicit)
+            case fi: FunctionInvocation if isIdentifier("stainless.smartcontracts.Environment.contractAt", fi.id) => Set(EnvImplicit)
             case fi: FunctionInvocation if isIdentifier("stainless.smartcontracts.pay", fi.id) => Set(EnvImplicit)
             case _ => Set()
           }(fd.fullBody) ++
@@ -85,13 +86,11 @@ trait EnvironmentBuilder extends oo.SimplePhase
           val newMsg = ClassConstructor(msgType, Seq(addr, uzero))
           Some(MethodInvocation(address, transferFd.id, Seq(), Seq(transform(amount), env, newMsg)).setPos(mi))
 
-        case fi: FunctionInvocation if isIdentifier("stainless.smartcontracts.Environment.updateBalance", fi.id) =>
-          val updateBalance = symbols.lookup[FunDef]("stainless.smartcontracts.Environment.updateBalance").id
-          Some(MethodInvocation(env, updateBalance, Seq(), fi.args).setPos(fi))
+        case fi@FunctionInvocation(id, _, Seq(addr)) if isIdentifier("stainless.smartcontracts.Environment.balanceOf", fi.id) =>
+          Some(MutableMapApply(ClassSelector(env, balancesField.id).setPos(fi), addr).setPos(fi))
 
-        case fi: FunctionInvocation if isIdentifier("stainless.smartcontracts.Environment.balanceOf", fi.id) =>
-          val updateBalance = symbols.lookup[FunDef]("stainless.smartcontracts.Environment.balanceOf").id
-          Some(MethodInvocation(env, updateBalance, Seq(), fi.args).setPos(fi))
+        case fi@FunctionInvocation(id, Seq(ct), Seq(addr)) if isIdentifier("stainless.smartcontracts.Environment.contractAt", id) =>
+          Some(AsInstanceOf(MutableMapApply(ClassSelector(env, contractAtField.id).setPos(fi), addr).setPos(fi), ct).setPos(fi))
 
         case fi@FunctionInvocation(id, _, Seq(method: MethodInvocation, amount)) if isIdentifier("stainless.smartcontracts.pay", id) =>
           if(!symbols.getFunction(method.id).isPayable)
@@ -111,7 +110,8 @@ trait EnvironmentBuilder extends oo.SimplePhase
         case FunctionInvocation(id, _, Seq(m, _)) if isIdentifier("stainless.smartcontracts.pay", id) =>
           throw SmartcontractException(m, "Pay can be only used with a call to a payable method of a contract")
 
-        case e => None
+        case e =>
+          None
       }(body)
 
       newBody
@@ -137,8 +137,8 @@ trait EnvironmentBuilder extends oo.SimplePhase
             case IsMethodOf(cid) => symbols.getClass(cid)
           }.get
           val thisRef = This(cd.typed.toType)
-          val addrMethod = symbols.lookup[FunDef]("stainless.smartcontracts.ContractInterface.addr").id
-          val addr = MethodInvocation(thisRef, addrMethod, Seq(), Seq()).setPos(mi)
+          // val addrMethod = symbols.lookup[FunDef]("stainless.smartcontracts.ContractInterface.addr").id
+          val addr = MethodInvocation(thisRef, addressAccessor.id, Seq(), Seq()).setPos(mi)
           val newMsg = ClassConstructor(msgType, Seq(addr, uzero))
 
           val newArgs = args ++ paramsMapper(newMsg, env, requiredParameters(id))
@@ -158,8 +158,15 @@ trait EnvironmentBuilder extends oo.SimplePhase
       newBody
     }
 
+    override def transform(e: Expr): Expr = e match {
+      case mi@MethodInvocation(ci, id, _, _) if isIdentifier("stainless.smartcontracts.ContractInterface.addr", id) =>
+        MethodInvocation(super.transform(ci), addressAccessor.id, Seq(), Seq()).setPos(mi)
+      case _ => super.transform(e)
+    }
+
     override def transform(tpe: Type): Type = tpe match {
       case ClassType(ast.SymbolIdentifier("stainless.smartcontracts.Address"), Seq()) => addressType
+      case ClassType(ast.SymbolIdentifier("stainless.smartcontracts.ContractInterface"), Seq()) => contractInterfaceType
       case _ => super.transform(tpe)
     }
 
