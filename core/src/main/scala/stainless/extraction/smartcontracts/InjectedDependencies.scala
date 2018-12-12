@@ -97,9 +97,9 @@ object InjectedDependencies {
       ),
       MutableMapUpdate(
         ClassSelector(This(envType), balancesField.id),
-        fromTBParam.toVariable,
-        Minus(
-          MapApply(ClassSelector(This(envType), balancesField.id), toTBParam.toVariable),
+        toTBParam.toVariable,
+        Plus(
+          MutableMapApply(ClassSelector(This(envType), balancesField.id), toTBParam.toVariable),
           amountTBParam.toVariable
         )
       )
@@ -114,7 +114,7 @@ object InjectedDependencies {
     Seq(),
     Seq(envBalanceParam),
     uint256,
-    MapApply(ClassSelector(envBalanceParam.toVariable, balancesField.id), This(addressType)),
+    MutableMapApply(ClassSelector(envBalanceParam.toVariable, balancesField.id), This(addressType)),
     Seq(Synthetic, IsMethodOf(addressCd.id), Inline)
   )
 
@@ -128,7 +128,7 @@ object InjectedDependencies {
     UnitType(),
     Assume(
       GreaterEquals(
-        MapApply(ClassSelector(envTransferParam.toVariable, balancesField.id),
+        MutableMapApply(ClassSelector(envTransferParam.toVariable, balancesField.id),
           ClassSelector(msgTransferParam.toVariable, senderField.id)),
         uzero
       ),

@@ -42,6 +42,7 @@ trait EnvironmentBuilder extends oo.SimplePhase
       allFunctions.map { fd =>
         fd.id -> {
           collect[ImplicitParams] {
+            case mi: MethodInvocation if isIdentifier("stainless.smartcontracts.Address.transfer", mi.id) => Set(MsgImplicit, EnvImplicit)
             case fi: FunctionInvocation if isIdentifier("stainless.smartcontracts.Msg.sender", fi.id) => Set(MsgImplicit)
             case fi: FunctionInvocation if isIdentifier("stainless.smartcontracts.Msg.value", fi.id) => Set(MsgImplicit)
             case fi: FunctionInvocation if isIdentifier("stainless.smartcontracts.Environment.balanceOf", fi.id) => Set(EnvImplicit)
@@ -81,8 +82,7 @@ trait EnvironmentBuilder extends oo.SimplePhase
           if (contractType.isEmpty) {
             throw SmartcontractException(symbols.getFunction(id), "Function transfer can only be used within a contract.")
           }
-          val addrMethod = symbols.lookup[FunDef]("stainless.smartcontracts.ContractInterface.addr").id
-          val addr = MethodInvocation(This(contractType.get), addrMethod, Seq(), Seq()).setPos(mi)
+          val addr = MethodInvocation(This(contractType.get), addressAccessor.id, Seq(), Seq()).setPos(mi)
           val newMsg = ClassConstructor(msgType, Seq(addr, uzero))
           Some(MethodInvocation(address, transferFd.id, Seq(), Seq(transform(amount), env, newMsg)).setPos(mi))
 
@@ -99,10 +99,9 @@ trait EnvironmentBuilder extends oo.SimplePhase
           if(!symbols.getFunction(method.id).isInSmartContract)
             throw SmartcontractException(method, "The function must be a method of a contract class or interface")
 
-          val addrMethod = symbols.lookup[FunDef]("stainless.smartcontracts.ContractInterface.addr").id
-          val addr = MethodInvocation(This(contractType.get), addrMethod, Seq(), Seq()).setPos(fi)
+          val addr = MethodInvocation(This(contractType.get), addressAccessor.id, Seq(), Seq()).setPos(fi)
           val newMsg = ClassConstructor(msgType, Seq(addr, uzero))
-          val receiverAddress = t.MethodInvocation(transform(method.receiver), addrMethod, Seq(), Seq()).setPos(fi)
+          val receiverAddress = t.MethodInvocation(transform(method.receiver), addressAccessor.id, Seq(), Seq()).setPos(fi)
           val sendCall = t.MethodInvocation(receiverAddress, transferFd.id, Seq(), Seq(transform(amount), env, newMsg)).setPos(fi)
 
           Some(t.Block(Seq(sendCall), transform(method)).setPos(fi))
@@ -137,7 +136,6 @@ trait EnvironmentBuilder extends oo.SimplePhase
             case IsMethodOf(cid) => symbols.getClass(cid)
           }.get
           val thisRef = This(cd.typed.toType)
-          // val addrMethod = symbols.lookup[FunDef]("stainless.smartcontracts.ContractInterface.addr").id
           val addr = MethodInvocation(thisRef, addressAccessor.id, Seq(), Seq()).setPos(mi)
           val newMsg = ClassConstructor(msgType, Seq(addr, uzero))
 
