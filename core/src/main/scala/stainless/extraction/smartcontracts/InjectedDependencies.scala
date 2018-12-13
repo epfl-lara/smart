@@ -41,7 +41,7 @@ object InjectedDependencies {
     Seq(),
     addressType,
     NoTree(addressType),
-    Seq(Synthetic, IsAccessor(None), IsAbstract, IsMethodOf(contractInterfaceCd.id))
+    Seq(Synthetic, IsAccessor(None), IsAbstract, Inline, IsMethodOf(contractInterfaceCd.id))
   )
 
   // Msg

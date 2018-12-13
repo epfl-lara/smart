@@ -8,6 +8,8 @@ object LoanContractInvariant {
   def invariant(
     contract: LoanContract
   ) = {
+    contract.addr != contract.borrower &&
+    contract.addr != contract.tokenContractAddress.addr &&
     tokenInvariant(contract.addr, contract.currentState, contract.tokenAmount, contract.tokenContractAddress) &&
     stateInvariant(contract.currentState, contract.visitedStates)
   }
@@ -27,6 +29,19 @@ object LoanContractInvariant {
     case (Cons(x, xs), Cons(y, ys)) => x == y && isPrefix(xs, ys)
     case _ => false
   }
+
+
+  def visitedStatesPrefixLemma(currentState: State, visitedStates: List[State]) = {
+    require {
+      val expected1: List[State] = List(WaitingForData, WaitingForLender, WaitingForPayback, Finished)
+      val expected2: List[State] = List(WaitingForData, WaitingForLender, WaitingForPayback, Default)
+      !visitedStates.isEmpty &&
+      visitedStates.head == WaitingForPayback &&
+      (isPrefix(visitedStates.reverse, expected1) || isPrefix(visitedStates.reverse, expected2))
+    }
+
+    visitedStates == List(WaitingForPayback, WaitingForLender, WaitingForData)
+  } holds
 
   @ghost
   def stateInvariant(
