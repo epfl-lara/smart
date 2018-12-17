@@ -7,10 +7,15 @@ package smartcontracts
 import inox.utils.Graphs._
 
 trait DependencyGraph extends methods.DependencyGraph {
+  protected val trees: smartcontracts.Trees
   import trees._
 
   override protected def computeDependencyGraph: DiGraph[Identifier, SimpleEdge[Identifier]] = {
     var g = super.computeDependencyGraph
+
+    for (cd <- symbols.classes.values if cd.isContract)
+      for (fid <- cd.methods(symbols) if (fid.name == "invariant" || fid.name == "evolution"))
+        g += SimpleEdge(cd.id, fid)
 
     g
   }

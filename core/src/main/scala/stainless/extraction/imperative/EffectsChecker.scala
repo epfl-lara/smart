@@ -156,24 +156,24 @@ trait EffectsChecker { self: EffectsAnalyzer =>
       case Require(pre, _) =>
         val preEffects = effects(pre)
         if (preEffects.nonEmpty)
-          throw ImperativeEliminationException(pre, "Precondition has effects on: " + preEffects.head.receiver.asString)
+          throw ImperativeEliminationException(pre, s"Precondition of ${fd.id.asString} has effects on: " + preEffects.head.receiver.asString)
 
       case Ensuring(_, post @ Lambda(_, body)) =>
         val bodyEffects = effects(body)
         if (bodyEffects.nonEmpty)
-          throw ImperativeEliminationException(post, "Postcondition has effects on: " + bodyEffects.head.receiver.asString)
+          throw ImperativeEliminationException(post, s"Postcondition of ${fd.id.asString}  has effects on: " + bodyEffects.head.receiver.asString)
 
         val oldEffects = effects(exprOps.postMap {
           case Old(e) => Some(e)
           case _ => None
         } (body))
         if (oldEffects.nonEmpty)
-          throw ImperativeEliminationException(post, s"Postcondition tries to mutate ${Old(oldEffects.head.receiver).asString}")
+          throw ImperativeEliminationException(post, s"Postcondition of ${fd.id.asString} tries to mutate ${Old(oldEffects.head.receiver).asString}")
 
       case Decreases(meas, _) =>
         val measEffects = effects(meas)
         if (measEffects.nonEmpty)
-          throw ImperativeEliminationException(meas, "Decreases has effects on: " + measEffects.head.receiver.asString)
+          throw ImperativeEliminationException(meas, s"Decreases of ${fd.id.asString} has effects on: " + measEffects.head.receiver.asString)
 
       case Assert(pred, _, _) =>
         val predEffects = effects(pred)

@@ -182,6 +182,14 @@ trait Trees extends throwing.Trees { self =>
       case _ => false
     }
 
+    def findClass: Option[Identifier] = {
+      fd.flags.collectFirst {
+        case IsMethodOf(cid) => cid
+      }
+    }
+
+    def isInClass(id: Identifier): Boolean = findClass == Some(id)
+
     def isFinal: Boolean = fd.flags contains Final
     def isAbstract: Boolean = fd.flags contains IsAbstract
     def isInvariant: Boolean = fd.flags contains IsInvariant

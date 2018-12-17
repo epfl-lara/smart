@@ -26,6 +26,8 @@ package object smartcontracts {
     def apply(tree: inox.ast.Trees#Tree, msg: String) = new SmartcontractException(tree, msg)
   }
 
+  val contractID = "stainless.smartcontracts.Contract"
+
   def isIdentifier(name: String, id: Identifier) = id match {
     case ast.SymbolIdentifier(`name`) => true
     case _ => false
@@ -37,6 +39,7 @@ package object smartcontracts {
       override val t: methods.trees.type = methods.trees
     })
 
+    utils.DebugPipeline("SmartContractInvariant", SmartContractInvariant()) andThen
     utils.DebugPipeline("EnvironmentBuilder", EnvironmentBuilder()) andThen
     lowering
   }
