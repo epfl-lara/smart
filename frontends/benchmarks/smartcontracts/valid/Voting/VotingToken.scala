@@ -16,7 +16,7 @@ import VotingTokenLemmas._
 import VotingTokenInvariant._
 
 trait VotingToken extends Contract {
-  var rewardToken: ERC20
+  var rewardToken: Address
   var opened: Boolean
   var closed: Boolean
   var votingAddresses: List[Address]
@@ -26,8 +26,8 @@ trait VotingToken extends Contract {
   var decimals: Uint8
   var totalSupply: Uint256
 
-  var balances: MutableMap[Address, Uint256]
-  var allowed: MutableMap[Address, MutableMap[Address, Uint256]]
+  val balances: MutableMap[Address, Uint256]
+  val allowed: MutableMap[Address, MutableMap[Address, Uint256]]
 
   @ghost
   var participants: List[Address]
@@ -58,17 +58,17 @@ trait VotingToken extends Contract {
     _name: String,
     _symbol: String,
     _decimals: Uint8,
-    _rewardToken: ERC20,
+    _rewardToken: Address,
     _votingAddresses: List[Address],
     _numberOfAlternatives: Uint256
   ): Unit = {
     // initial values given by Solidity (this part needs to be injected automatically)
-    unsafeIgnoreCode {
-      totalSupply = Uint256.ZERO
-      balances = MutableMap.withDefaultValue(() => Uint256.ZERO)
-      opened = false
-      closed = false
-    }
+    require(
+      totalSupply == Uint256.ZERO &&
+      balances == MutableMap.withDefaultValue(() => Uint256.ZERO) &&
+      opened == false &&
+      closed == false
+    )
 
     // ghost initialization of participants
     ghost {
@@ -282,7 +282,8 @@ trait VotingToken extends Contract {
     if(_isVotingAddress(_to)) {
       dynRequire(opened && !closed)
       val rewardTokens:Uint256 = div(_value, Uint256("100"))
-      dynRequire(rewardToken.transfer(_from, rewardTokens))
+      // FIXME: uncomment when we implement external calls
+      // dynRequire(rewardToken.transfer(_from, rewardTokens))
     }
 
   } ensuring { _ =>
