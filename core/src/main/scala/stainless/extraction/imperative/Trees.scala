@@ -115,6 +115,11 @@ trait Trees extends oo.Trees with Definitions { self =>
     protected def computeType(implicit s: Symbols): Type = e.getType
   }
 
+  /** $encodingof `snapshot(e)` */
+  case class Snapshot(e: Expr) extends Expr with CachingTyped {
+    protected def computeType(implicit s: Symbols): Type = e.getType
+  }
+
   /** $encodingof `a & b` for Boolean; desuggared to { val l = lhs; val r = rhs; l && r } when removing imperative style. */
   case class BoolBitwiseAnd(lhs: Expr, rhs: Expr) extends Expr with CachingTyped {
     protected def computeType(implicit s: Symbols): Type =
@@ -235,6 +240,9 @@ trait Printer extends oo.Printer {
     case Old(e) =>
       p"old($e)"
 
+    case Snapshot(e) =>
+      p"snapshot($e)"
+
     case BoolBitwiseAnd(lhs, rhs) => optP {
       p"$lhs & $rhs"
     }
@@ -303,6 +311,9 @@ trait TreeDeconstructor extends oo.TreeDeconstructor {
 
     case s.Old(e) =>
       (Seq(), Seq(), Seq(e), Seq(), Seq(), (_, _, es, _, _) => t.Old(es.head))
+
+    case s.Snapshot(e) =>
+      (Seq(), Seq(), Seq(e), Seq(), Seq(), (_, _, es, _, _) => t.Snapshot(es.head))
 
     case s.MutableMapWithDefault(from, to, default) =>
       (Seq(), Seq(), Seq(default), Seq(from, to), Seq(), (_, _, es, tps, _) => t.MutableMapWithDefault(tps(0), tps(1), es(0)))
