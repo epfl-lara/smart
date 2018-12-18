@@ -3,6 +3,10 @@ import stainless.smartcontracts._
 trait PositiveEvolution extends Contract {
   var x: BigInt
 
+  final def constructor() = {
+    x = 2
+  }
+
   final def increment() = {
     x = x + 1
   }

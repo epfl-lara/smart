@@ -92,7 +92,7 @@ trait SmartContractInvariant extends oo.SimplePhase
     }.toMap
     val evolutionOfFun: Map[Identifier, Identifier] = contracts.flatMap { cd =>
       cd.methods.collect {
-        case fid if fid.name != "invariant" && fid.name != "evolution" && fid.name != "$init" && !symbols.getFunction(fid).isAccessor && evolutions.contains(cd.id) =>
+        case fid if fid.name != "constructor" && fid.name != "invariant" && fid.name != "evolution" && fid.name != "$init" && !symbols.getFunction(fid).isAccessor && evolutions.contains(cd.id) =>
           (fid, evolutions(cd.id))
       }
     }.toMap
