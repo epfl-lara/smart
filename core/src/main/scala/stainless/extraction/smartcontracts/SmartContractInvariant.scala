@@ -149,9 +149,10 @@ trait SmartContractInvariant extends oo.SimplePhase
         val invCall = invariantOfFun.get(fd.id).map { inv =>
           MethodInvocation(tthis, inv, Seq(), Seq())
         }
-        val oldContract = ValDef.fresh("oldContract", ct)
+        val oldVar = Variable(FreshIdentifier("oldContract"), ct, Seq(Synthetic, Ghost))
+        val oldContract = new ValDef(oldVar)
         val evoCall = evolutionOfFun.get(fd.id).map { evo =>
-          MethodInvocation(tthis, evo, Seq(), Seq(oldContract.toVariable))
+          MethodInvocation(tthis, evo, Seq(), Seq(oldVar))
         }
 
         val newPre = Precondition(
