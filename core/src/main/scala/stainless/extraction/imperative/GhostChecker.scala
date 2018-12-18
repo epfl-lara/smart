@@ -76,6 +76,7 @@ trait GhostChecker { self: EffectsAnalyzer =>
       case Assignment(_, _) => false
       case FieldAssignment(_, _, _) => false
       case Block(_, e) => isGhostExpression(e)
+      case Assert(_, _, body) => isGhostExpression(body)
 
       case Operator(es, _) => es.exists(isGhostExpression)
     }
