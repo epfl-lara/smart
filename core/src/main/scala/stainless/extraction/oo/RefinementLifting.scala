@@ -120,11 +120,13 @@ trait RefinementLifting
               s.ApplyLetRec(id, tparams, vd.tpe.asInstanceOf[s.FunctionType], tps, params.map(_.toVariable))
             )
           )
-          transform(s.Assert(
-            s.exprOps.freshenLocals(s.exprOps.replaceFromSymbols(subst, pred)),
-            Some("Inner refinement lifting"),
+          transform(
+            // FIXME: https://github.com/epfl-lara/stainless/issues/421
+            // s.Assert(
+            // s.exprOps.freshenLocals(s.exprOps.replaceFromSymbols(subst, pred)),
+            // Some("Inner refinement lifting"),
             s.ApplyLetRec(id, tparams, vd.tpe.asInstanceOf[s.FunctionType], tps, args)
-          ).copiedFrom(e))
+          ).copiedFrom(e)
 
         case _ => super.transform(e)
       }

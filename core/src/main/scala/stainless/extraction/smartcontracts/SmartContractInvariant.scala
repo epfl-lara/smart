@@ -101,6 +101,7 @@ trait SmartContractInvariant extends oo.SimplePhase
     // satisfies the `invariant` and `evolution` functions of the contract
     def insertPost(id: Identifier, invCall: Option[Expr], evoCall: Option[Expr], e: Expr): Expr = {
       def rec(e: Expr): Expr = e match {
+        case NoTree(_) => e
         case IfExpr(b, t1, t2) => IfExpr(b, rec(t1), rec(t2)).copiedFrom(e)
         case Let(x, v, body) => Let(x, v, rec(body)).copiedFrom(e)
         case Assert(cond, err, body) => Assert(cond, err, rec(body)).copiedFrom(e)
