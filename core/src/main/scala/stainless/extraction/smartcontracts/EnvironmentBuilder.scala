@@ -156,6 +156,12 @@ trait EnvironmentBuilder extends oo.SimplePhase
       newBody
     }
 
+    override def transform(f: Flag): Flag = f match {
+      case IsMethodOf(id) if isIdentifier("stainless.smartcontracts.ContractInterface", id) =>
+        IsMethodOf(contractInterfaceCd.id)
+      case _ => super.transform(f)
+    }
+
     override def transform(e: Expr): Expr = e match {
       case mi@MethodInvocation(ci, id, _, _) if isIdentifier("stainless.smartcontracts.ContractInterface.addr", id) =>
         MethodInvocation(super.transform(ci), addressAccessor.id, Seq(), Seq()).setPos(mi)

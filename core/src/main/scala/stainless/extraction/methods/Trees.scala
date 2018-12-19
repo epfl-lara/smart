@@ -191,6 +191,7 @@ trait Trees extends throwing.Trees { self =>
     def isInClass(id: Identifier): Boolean = findClass == Some(id)
 
     def isFinal: Boolean = fd.flags contains Final
+    def isPrivate: Boolean = fd.flags contains Private
     def isAbstract: Boolean = fd.flags contains IsAbstract
     def isInvariant: Boolean = fd.flags contains IsInvariant
     def isLaw: Boolean = fd.flags contains Law
