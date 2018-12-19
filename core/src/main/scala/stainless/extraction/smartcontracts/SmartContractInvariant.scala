@@ -121,6 +121,9 @@ trait SmartContractInvariant extends oo.SimplePhase
             case MatchCase(pattern, guard, rhs) => MatchCase(pattern, guard, rec(rhs))
           }).copiedFrom(e)
         case e =>
+          if (e.getType == Untyped) {
+            context.reporter.fatalError(s"Expression ${e.asString}\nis not well-typed:\n\n${symbols.explainTyping(e)}")
+          }
           val res = ValDef.fresh("result", e.getType).setPos(e)
           val wrapWithEvo =
             if (evoCall.isDefined)
@@ -148,14 +151,16 @@ trait SmartContractInvariant extends oo.SimplePhase
         e
     }
 
+    private def optAnd(e1: Option[Expr], e2: Expr): Expr = {
+      e1.map(e => And(e, e2)).getOrElse(e2).setPos(e2)
+    }
 
     override def transform(fd: FunDef): FunDef = {
-      val nfd = super.transform(fd)
       val cidOpt = fd.findClass
 
       if (cidOpt.isDefined) {
         val cd = symbols.getClass(cidOpt.get)
-        val (Seq(Precondition(pre), post), bodyOpt) = exprOps.deconstructSpecs(nfd.fullBody)
+        val (Seq(Precondition(pre), Postcondition(Lambda(vd, postBody))), bodyOpt) = exprOps.deconstructSpecs(fd.fullBody)
         val ct = cd.typed.toType
         val tthis = This(ct)
         val invCall = invariantOfFun.get(fd.id).map { inv =>
@@ -166,6 +171,9 @@ trait SmartContractInvariant extends oo.SimplePhase
         val evoCall = evolutionOfFun.get(fd.id).map { evo =>
           MethodInvocation(tthis, evo, Seq(), Seq(oldVar))
         }
+        val evoCall2 = evolutionOfFun.get(fd.id).map { evo =>
+          MethodInvocation(tthis, evo, Seq(), Seq(Old(tthis)))
+        }
 
         val newPre = Precondition(
           if (invCall.isDefined && fd.id.name != "constructor") {
@@ -175,30 +183,21 @@ trait SmartContractInvariant extends oo.SimplePhase
           }
         )
 
+        val newPost = Postcondition(Lambda(vd,
+          optAnd(invCall, optAnd(evoCall2, postBody))
+        ))
+
         val newBody = bodyOpt.map(body =>
           if (evoCall.isDefined)
             Let(oldContract, Snapshot(tthis), insertPost(fd.id, invCall, evoCall, body)).setPos(body)
           else
             insertPost(fd.id, invCall, evoCall, body)
         )
-        val newFullBody = exprOps.reconstructSpecs(Seq(newPre, post), newBody, fd.returnType)
+        val newFullBody = exprOps.reconstructSpecs(Seq(newPre, newPost), newBody, fd.returnType)
 
-        // val inv =
-        // val ct = fd.findClass
-        // val inv = None
-        // val newPre =
-        //   if (fd.id.name == "constructor") {
-        //     // We don't inject the invariant precondition for constructors
-        //     pre
-        //   } else if (inv.isDefined) {
-        //     And(MethodInvocation(inv, Seq(), Seq()), pre)
-        //   } else {
-        //     pre
-        //   }
-
-        nfd.copy(fullBody = newFullBody).copiedFrom(nfd)
+        super.transform(fd.copy(fullBody = newFullBody).copiedFrom(fd))
       } else {
-        nfd
+        super.transform(fd)
       }
     }
   }

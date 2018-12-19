@@ -39,6 +39,7 @@ package object smartcontracts {
       override val t: methods.trees.type = methods.trees
     })
 
+    utils.DebugPipeline("HavocInjection", HavocInjection()) andThen
     utils.DebugPipeline("SmartContractInvariant", SmartContractInvariant()) andThen
     utils.DebugPipeline("EnvironmentBuilder", EnvironmentBuilder()) andThen
     lowering

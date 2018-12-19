@@ -208,7 +208,10 @@ trait EnvironmentBuilder extends oo.SimplePhase
 
   override def extractSymbols(context: TransformerContext, symbols: Symbols): Symbols = {
     val oldAddressCd = symbols.lookup.get[ClassDef]("stainless.smartcontracts.Address").toSet
-    val toRemove: Set[Identifier] = oldAddressCd.map(_.id) ++ oldAddressCd.flatMap(_.methods(symbols))
+    val oldContractInterfaceCd = symbols.lookup.get[ClassDef]("stainless.smartcontracts.ContractInterface").toSet
+    val classesToRemove: Set[ClassDef] = oldAddressCd ++ oldContractInterfaceCd
+    val methodsToRemove: Set[Identifier] = classesToRemove.flatMap(_.methods(symbols))
+    val toRemove: Set[Identifier] = classesToRemove.map(_.id) ++ methodsToRemove
 
     // we inject the synthetic classes and functions, and then transform
     val enhancedSymbols = symbols.withClasses(newClasses).withFunctions(newFunctions)

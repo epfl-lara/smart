@@ -131,13 +131,13 @@ package object smartcontracts {
     def selfdestruct(recipient: Address):Unit = {
       recipient.transfer(addr.balance)
     }
-
-    @extern
-    def havoc(): Unit
   }
 
   @library @mutable
-  trait Contract extends ContractInterface
+  trait Contract extends ContractInterface {
+    @extern
+    def havoc(): Unit
+  }
 
   @ignore
   sealed case class Uint8() {
