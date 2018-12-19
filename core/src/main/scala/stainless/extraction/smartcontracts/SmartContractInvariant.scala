@@ -152,7 +152,10 @@ trait SmartContractInvariant extends oo.SimplePhase
     }
 
     private def optAnd(e1: Option[Expr], e2: Expr): Expr = {
-      e1.map(e => And(e, e2)).getOrElse(e2).setPos(e2)
+      if (e1.isDefined && e2 == BooleanLiteral(true))
+        e1.get.setPos(e2)
+      else
+        e1.map(e => And(e.setPos(e2), e2)).getOrElse(e2).setPos(e2)
     }
 
     override def transform(fd: FunDef): FunDef = {
@@ -177,7 +180,7 @@ trait SmartContractInvariant extends oo.SimplePhase
 
         val newPre = Precondition(
           if (invCall.isDefined && fd.id.name != "constructor") {
-            And(invCall.get.setPos(pre), pre).setPos(pre)
+            optAnd(invCall, pre)
           } else {
             pre
           }
