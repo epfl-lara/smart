@@ -116,6 +116,7 @@ trait SmartContractInvariant extends oo.SimplePhase
         case IfExpr(b, t1, t2) => IfExpr(b, rec(t1), rec(t2)).copiedFrom(e)
         case Let(x, v, body) => Let(x, v, rec(body)).copiedFrom(e)
         case Assert(cond, err, body) => Assert(cond, err, rec(body)).copiedFrom(e)
+        case Block(ts, t) => Block(ts, rec(t)).copiedFrom(e)
         case MatchExpr(s, cases) =>
           MatchExpr(s, cases.map {
             case MatchCase(pattern, guard, rhs) => MatchCase(pattern, guard, rec(rhs))
