@@ -56,10 +56,19 @@ package object smartcontracts {
 
   @library
   def get[T](l: List[T], i: Uint256): T = {
-    require(Uint256.ZERO <= i && i < length(l))
+    require(i < length(l))
 
     if (i == Uint256.ZERO) l.head
     else get(l.tail, i - Uint256.ONE)
+  }
+
+  @library
+  def updated[T](l: List[T], i: Uint256, t: T): List[T] = {
+    require(i < length(l))
+
+    val Cons(x, xs) = l
+    if (i == Uint256.ZERO) Cons(t, xs)
+    else Cons(x, updated(xs, i - Uint256.ONE, t))
   }
 
   //abstract class Event
