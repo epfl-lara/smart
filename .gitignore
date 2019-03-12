@@ -76,5 +76,9 @@ out-classes
 # Solidity files
 *.sol
 
+# Metal
+.metals
+.bloop
+
 # misc
 stainlessCmd
