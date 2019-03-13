@@ -58,13 +58,12 @@ trait EnvironmentBuilder extends oo.SimplePhase
 
     val requiredParameters: Map[Identifier, Set[ImplicitParams]] = {
       allFunctions.map { fd  =>
-        if (newFunctions.contains(fd))
+        if (newFunctions.contains(fd) || fd.isAccessor)
           fd.id -> Set.empty[ImplicitParams]
         else
           fd.id -> (symbols.dependencies(fd.id) + fd.id).flatMap(directParameters.getOrElse(_, Set()))
       }.toMap
     }
-
 
     def bodyPreProcessing(body: s.Expr, msg: Variable, env: Variable, contractType: Option[ClassType]) = {
       val msgSender = ClassSelector(msg, senderField.id)
