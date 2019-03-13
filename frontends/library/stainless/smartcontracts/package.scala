@@ -109,7 +109,7 @@ package object smartcontracts {
     // def updateBalance(from: Address, to: Address, amnt: Uint256): Unit = ???
 
     @library @extern @pure
-    def contractAt[@mutable T <: ContractInterface](a: Address): T = ???
+    def contractAt(a: Address): ContractInterface = ???
   }
 
   object Msg {
