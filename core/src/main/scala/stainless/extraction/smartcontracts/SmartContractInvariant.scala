@@ -37,7 +37,7 @@ trait SmartContractInvariant extends oo.SimplePhase
 
     // We make sure that contracts are not extended
     contracts.find { cd => !cd.children.isEmpty } match {
-      case Some(cd) => context.reporter.fatalError("A contract cannot be extended: ${cd.id.asString}.")
+      case Some(cd) => context.reporter.fatalError(s"A contract cannot be extended: ${cd.id.asString}.")
       case None => ()
     }
 
@@ -48,7 +48,7 @@ trait SmartContractInvariant extends oo.SimplePhase
         fd.returnType == BooleanType()
       ) ()
       else {
-        context.reporter.fatalError("The `invariant` function of contract ${cid.asString} must be of type: invariant(): Boolean")
+        context.reporter.fatalError(s"The `invariant` function of contract ${cid.asString} must be of type: invariant(): Boolean")
       }
     }
 
@@ -60,7 +60,7 @@ trait SmartContractInvariant extends oo.SimplePhase
         fd.returnType == BooleanType()
       ) ()
       else {
-        context.reporter.fatalError("The `invariant` function of contract ${ct.id.asString} must be of type: evolution(old: ${ct.asString}): Boolean")
+        context.reporter.fatalError(s"The `invariant` function of contract ${ct.id.asString} must be of type: evolution(old: ${ct.asString}): Boolean")
       }
     }
 
