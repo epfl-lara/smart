@@ -20,7 +20,7 @@ package object smartcontracts {
   }
 
   class SmartcontractException(tree: inox.ast.Trees#Tree, msg: String)
-    extends MissformedStainlessCode(tree, msg)
+    extends MalformedStainlessCode(tree, msg)
 
   object SmartcontractException {
     def apply(tree: inox.ast.Trees#Tree, msg: String) = new SmartcontractException(tree, msg)

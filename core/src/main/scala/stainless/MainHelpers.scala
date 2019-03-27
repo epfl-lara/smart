@@ -3,9 +3,6 @@
 package stainless
 
 import utils.JsonUtils
-
-import scala.util.{ Failure, Success }
-
 import java.io.File
 
 import io.circe.Json
@@ -45,8 +42,9 @@ trait MainHelpers extends inox.MainHelpers {
     optWatch -> Description(General, "Re-run stainless upon file changes"),
     optCompact -> Description(General, "Print only invalid elements of summaries"),
     frontend.optPersistentCache -> Description(General, "Enable caching of program extraction & analysis"),
-    utils.Caches.optCacheDir -> Description(General, "Specify the directory in which cache files should be stored"),
-    solidity.optSolidityOutput -> Description(Solidity, "From Stainless to Solidity")
+    solidity.optSolidityOutput -> Description(Solidity, "From Stainless to Solidity"),
+    frontend.optBatchedProgram -> Description(General, "Process the whole program together, skip dependency analysis"),
+    utils.Caches.optCacheDir -> Description(General, "Specify the directory in which cache files should be stored")
   ) ++ MainHelpers.components.map { component =>
     val option = inox.FlagOptionDef(component.name, default = false)
     option -> Description(Pipelines, component.description)
@@ -64,8 +62,7 @@ trait MainHelpers extends inox.MainHelpers {
     extraction.utils.DebugSectionTrees,
     extraction.utils.DebugSectionPositions,
     frontend.DebugSectionExtraction,
-    frontend.DebugSectionFrontend,
-    utils.DebugSectionRegistry
+    frontend.DebugSectionFrontend
   )
 
   override protected def displayVersion(reporter: inox.Reporter): Unit = {
@@ -131,7 +128,7 @@ trait MainHelpers extends inox.MainHelpers {
       val files: Set[File] = compiler.sources.toSet map {
         file: String => new File(file).getAbsoluteFile
       }
-      val watcher = new utils.FileWatcher(ctx, files, action = watchRunCycle)
+      val watcher = new utils.FileWatcher(ctx, files, action = () => watchRunCycle())
 
       watchRunCycle() // first run
       watcher.run()   // subsequent runs on changes

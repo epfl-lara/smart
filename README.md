@@ -1,8 +1,8 @@
 Stainless 0.1s [![Gitter chat](https://img.shields.io/gitter/room/gitterHQ/gitter.svg)](https://gitter.im/epfl-lara/smart)
 =============
 
-Stainless 0.1s is a fork of [Stainless](https://github.com/epfl-lara/stainless) 
-which showcases formal verification of smart contracts written in a subset of 
+Stainless 0.1s is a fork of [Stainless](https://github.com/epfl-lara/stainless)
+which showcases formal verification of smart contracts written in a subset of
 Scala, and the compiler of this subset to Solidity.
 
 # Installation
@@ -15,7 +15,7 @@ $ cd smart
 $ sbt clean universal:stage
 ```
 
-You can then create a symbolic link (e.g. for Linux & Mac OS-X) to have access 
+You can then create a symbolic link (e.g. for Linux & Mac OS-X) to have access
 to a ``stainless`` command-line.
 
 ```bash
@@ -28,12 +28,12 @@ Fore more information, you can refer to the Stainless documentation:
 
 # Formal Verification
 
-To get the flavor of verification of smart contracts, consult 
+To get the flavor of verification of smart contracts, consult
 [the examples in the repository](frontends/benchmarks/smartcontracts/valid).
 
-[`Candy`](frontends/benchmarks/smartcontracts/valid/Candy.scala) 
+[`Candy`](frontends/benchmarks/smartcontracts/valid/Candy.scala)
 is a simple smart contract written in our language. The
-constructor of the contract takes an initial number of candies, which can then 
+constructor of the contract takes an initial number of candies, which can then
 be eaten by the `eatCandy` function. The contract maintains the
 invariant that the sum of eaten and remaining candies equals the initial candies.
 
@@ -56,7 +56,7 @@ case class Candy(
     assert(invariant)
   }
 
-  def eatCandy(candies: Uint256) = {      
+  def eatCandy(candies: Uint256) = {
     require(invariant)
     dynRequire(candies <= remainingCandies)
 
@@ -75,8 +75,8 @@ case class Candy(
 }
 ```
 
-Stainless is able to verify that the assertions written in the contract are 
-indeed valid. Verification for `Uint256` examples is faster if you 
+Stainless is able to verify that the assertions written in the contract are
+indeed valid. Verification for `Uint256` examples is faster if you
 configure stainless to use the external [CVC4](http://cvc4.cs.stanford.edu/web/) solver:
 
 > ./stainless frontends/benchmarks/smartcontracts/valid/Candy.scala --solvers=smt-cvc4
@@ -98,7 +98,7 @@ You can also ensure that the arithmetic performed does not include overflows:
 
 # Compilation to Solidity
 
-The contract can be compiled to Solidity using 
+The contract can be compiled to Solidity using
 
 > stainless frontends/benchmarks/smartcontracts/valid/Candy.scala --solidity
 
@@ -132,7 +132,7 @@ contract Candy {
 
     // Private functions
     function invariant () view private returns (bool) {
-        return eatenCandies <= initialCandies && remainingCandies <= initialCandies && 
+        return eatenCandies <= initialCandies && remainingCandies <= initialCandies &&
           initialCandies - eatenCandies == remainingCandies;
     }
 }

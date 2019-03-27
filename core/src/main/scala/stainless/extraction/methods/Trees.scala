@@ -171,7 +171,7 @@ trait Trees extends throwing.Trees { self =>
       fd.flags exists { case IsField(_) => true case _ => false }
 
     def isSetter: Boolean = isAccessor && fd.id.name.endsWith("_=") && fd.params.size == 1
-    def isGetter: Boolean = isAccessor && fd.params.size == 0
+    def isGetter: Boolean = isAccessor && fd.params.isEmpty
 
     def solidityLibraryName: Option[String] = fd.flags.collectFirst {
       case SolidityLibrary(name) => name

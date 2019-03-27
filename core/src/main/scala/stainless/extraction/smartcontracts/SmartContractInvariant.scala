@@ -5,8 +5,6 @@ package extraction
 package smartcontracts
 import scala.collection.mutable.{Map => MutableMap, Set => MutableSet}
 
-import InjectedDependencies._
-
 trait SmartContractInvariant extends oo.SimplePhase
   with oo.SimplyCachedClasses
   with SimplyCachedSorts

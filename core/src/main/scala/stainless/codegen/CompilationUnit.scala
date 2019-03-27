@@ -7,17 +7,12 @@ import inox.utils.UniqueCounter
 import runtime.Monitor
 
 import cafebabe._
-import cafebabe.AbstractByteCodes._
 import cafebabe.ByteCodes._
 import cafebabe.ClassFileTypes._
 import cafebabe.Flags._
 
-import scala.collection.JavaConverters._
-
 import java.lang.reflect.Constructor
 import java.lang.reflect.InvocationTargetException
-
-import evaluators._
 
 import scala.collection.mutable.{Map => MutableMap}
 
@@ -102,13 +97,15 @@ trait CompilationUnit extends CodeGeneration {
   private[this] val adtConstructors: MutableMap[ADTConstructor, Constructor[_]] = MutableMap.empty
 
   private[this] def adtConstructor(cons: ADTConstructor): Constructor[_] =
-    adtConstructors.getOrElseUpdate(cons, {
+    adtConstructors.getOrElse(cons, {
       val cf = getClass(cons)
       val klass = loader.loadClass(cf.className)
       // This is a hack: we pick the constructor with the most arguments.
       val conss = klass.getConstructors.sortBy(_.getParameterTypes.length)
       assert(conss.nonEmpty)
-      conss.last
+      val res = conss.last
+      adtConstructors(cons) = res
+      res
     })
 
   private[this] lazy val tupleConstructor: Constructor[_] = {

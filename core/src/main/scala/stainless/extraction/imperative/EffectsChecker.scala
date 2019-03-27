@@ -16,18 +16,12 @@ trait EffectsChecker { self: EffectsAnalyzer =>
 
   protected def checkEffects(fd: FunDef)(analysis: EffectsAnalysis): CheckResult = {
     import analysis._
-    import symbols.isMutableType
 
     def isMutableSynthetic(id: Identifier): Boolean = {
       val fd = symbols.getFunction(id)
       fd.flags.contains(Synthetic) &&
-      !isAccessor(Outer(fd)) &&
       fd.params.exists(vd => isMutableType(vd.tpe)) &&
       !exprOps.withoutSpecs(fd.fullBody).forall(isExpressionFresh)
-    }
-
-    def isAccessor(fd: FunAbstraction): Boolean = {
-      fd.flags.exists(_.name == "accessor")
     }
 
     // We can safely get rid of the function as we are assured
@@ -44,7 +38,7 @@ trait EffectsChecker { self: EffectsAnalyzer =>
       exprOps.withoutSpecs(fd.fullBody).foreach { bd =>
 
         // check return value
-        if (!isAccessor(fd) && isMutableType(bd.getType) && !isExpressionFresh(bd)) {
+        if (isMutableType(bd.getType) && !isExpressionFresh(bd)) {
           throw ImperativeEliminationException(bd,
             "Cannot return a shared reference to a mutable object: " + bd.asString)
         }
@@ -54,9 +48,9 @@ trait EffectsChecker { self: EffectsAnalyzer =>
             case l @ Let(vd, e, b) =>
               if (!isExpressionFresh(e) && isMutableType(vd.tpe)) try {
                 // Check if a precise effect can be computed
-                getEffects(e)
+                getEffect(e)
               } catch {
-                case _: MissformedStainlessCode =>
+                case _: MalformedStainlessCode =>
                   throw ImperativeEliminationException(e, "Illegal aliasing: " + e.asString)
               }
 
@@ -93,7 +87,7 @@ trait EffectsChecker { self: EffectsAnalyzer =>
             case l @ Lambda(args, body) =>
               if (isMutableType(body.getType) && !isExpressionFresh(body))
                 throw ImperativeEliminationException(l, "Illegal aliasing in lambda body")
-              if (effects(body).exists(e => !args.exists(_ == e.receiver.toVal)))
+              if (effects(body).exists(e => !args.contains(e.receiver.toVal)))
                 throw ImperativeEliminationException(l, "Illegal effects in lambda body")
               super.traverse(l)
 
@@ -156,24 +150,24 @@ trait EffectsChecker { self: EffectsAnalyzer =>
       case Require(pre, _) =>
         val preEffects = effects(pre)
         if (preEffects.nonEmpty)
-          throw ImperativeEliminationException(pre, s"Precondition of ${fd.id.asString} has effects on: " + preEffects.head.receiver.asString)
+          throw ImperativeEliminationException(pre, "Precondition has effects on: " + preEffects.head.receiver.asString)
 
       case Ensuring(_, post @ Lambda(_, body)) =>
         val bodyEffects = effects(body)
         if (bodyEffects.nonEmpty)
-          throw ImperativeEliminationException(post, s"Postcondition of ${fd.id.asString}  has effects on: " + bodyEffects.head.receiver.asString)
+          throw ImperativeEliminationException(post, "Postcondition has effects on: " + bodyEffects.head.receiver.asString)
 
         val oldEffects = effects(exprOps.postMap {
           case Old(e) => Some(e)
           case _ => None
         } (body))
         if (oldEffects.nonEmpty)
-          throw ImperativeEliminationException(post, s"Postcondition of ${fd.id.asString} tries to mutate ${Old(oldEffects.head.receiver).asString}")
+          throw ImperativeEliminationException(post, s"Postcondition tries to mutate ${Old(oldEffects.head.receiver).asString}")
 
       case Decreases(meas, _) =>
         val measEffects = effects(meas)
         if (measEffects.nonEmpty)
-          throw ImperativeEliminationException(meas, s"Decreases of ${fd.id.asString} has effects on: " + measEffects.head.receiver.asString)
+          throw ImperativeEliminationException(meas, "Decreases has effects on: " + measEffects.head.receiver.asString)
 
       case Assert(pred, _, _) =>
         val predEffects = effects(pred)
