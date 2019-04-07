@@ -5,13 +5,10 @@ package extraction
 package imperative
 
 trait ImperativeCodeElimination
-  extends oo.CachingPhase
-     with SimpleFunctions
+  extends SimpleFunctions
      with IdentitySorts
-     with oo.IdentityClasses
      with SimplyCachedFunctions
-     with SimplyCachedSorts
-     with oo.SimplyCachedClasses {
+     with SimplyCachedSorts {
 
   val s: Trees
   val t: s.type
