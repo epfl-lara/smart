@@ -4,7 +4,7 @@ package stainless
 package extraction
 package throwing
 
-trait Trees extends imperative.Trees { self =>
+trait Trees extends oo.Trees { self =>
 
   protected def getExceptionType(implicit s: Symbols): Option[Type] =
     s.lookup.get[ClassDef]("stainless.lang.Exception").map(cd => ClassType(cd.id, Seq()))
@@ -62,7 +62,7 @@ trait Trees extends imperative.Trees { self =>
   }
 }
 
-trait Printer extends imperative.Printer {
+trait Printer extends oo.Printer {
   protected val trees: Trees
   import trees._
 
@@ -112,7 +112,7 @@ trait Printer extends imperative.Printer {
   }
 }
 
-trait ExprOps extends imperative.ExprOps {
+trait ExprOps extends oo.ExprOps {
   protected val trees: Trees
   import trees._
 
@@ -180,7 +180,7 @@ trait ExprOps extends imperative.ExprOps {
   }
 }
 
-trait TreeDeconstructor extends imperative.TreeDeconstructor {
+trait TreeDeconstructor extends oo.TreeDeconstructor {
   protected val s: Trees
   protected val t: Trees
 

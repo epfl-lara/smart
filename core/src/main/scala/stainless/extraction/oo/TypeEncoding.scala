@@ -64,7 +64,7 @@ trait TypeEncoding
   private[this] def isObject(tpe: s.Type)(implicit scope: Scope): Boolean = tpe match {
     case _: s.ClassType => true
     case s.NothingType() | s.AnyType() => true
-    case s.TypeBounds(_, _, _) => true
+    case s.TypeBounds(_, _) => true
     case tp: s.TypeParameter => scope.tparams contains tp
     case _ => false
   }
@@ -95,7 +95,7 @@ trait TypeEncoding
 
   private[this] def erasedBy(tpe: s.Type)(implicit scope: Scope): s.Type = s.typeOps.postMap {
     case tp: s.TypeParameter if scope.tparams contains tp => Some(s.AnyType().copiedFrom(tp))
-    case tb @ s.TypeBounds(s.NothingType(), s.AnyType(), _) => Some(s.AnyType().copiedFrom(tb))
+    case tb @ s.TypeBounds(s.NothingType(), s.AnyType()) => Some(s.AnyType().copiedFrom(tb))
     case _ => None
   } (tpe)
 
@@ -310,7 +310,7 @@ trait TypeEncoding
 
       case (_, s.AnyType()) => t.BooleanLiteral(true)
       case (_, s.NothingType()) => t.BooleanLiteral(false)
-      case (_, s.TypeBounds(_, hi, _)) => instanceOf(e, in, hi)
+      case (_, s.TypeBounds(_, hi)) => instanceOf(e, in, hi)
 
       case (s.RefinementType(vd, pred), _) => instanceOf(e, vd.tpe, tpe)
 
@@ -724,8 +724,8 @@ trait TypeEncoding
           x => t.Annotated(instanceOf(x, s.AnyType().copiedFrom(tp), ct), Seq(t.Unchecked)).copiedFrom(tp)
         }.copiedFrom(tp)
 
-      case s.TypeBounds(_, s.AnyType(), _) => ref.copiedFrom(tp)
-      case s.TypeBounds(_, upperBound, _) =>
+      case s.TypeBounds(_, s.AnyType()) => ref.copiedFrom(tp)
+      case s.TypeBounds(_, upperBound) =>
         refinement(("x" :: ref.copiedFrom(tp)).copiedFrom(tp)) {
           x => t.Annotated(instanceOf(x, s.AnyType().copiedFrom(tp), upperBound), Seq(t.Unchecked)).copiedFrom(tp)
         }.copiedFrom(tp)
@@ -761,6 +761,11 @@ trait TypeEncoding
       case s.ClassSelector(expr, id) =>
         val field = erased(expr.getType).asInstanceOf[s.ClassType].tcd.fields.find(_.id == id).get
         convert(t.ADTSelector(transform(expr), id).copiedFrom(e), field.getType, inType)
+
+      case s.FieldAssignment(s.IsTyped(obj, ct: s.ClassType), id, rhs) =>
+        val field = erased(ct).tcd.fields.find(_.id == id).get
+        val newAssignment = t.FieldAssignment(transform(obj), id, transform(rhs, field.getType)).copiedFrom(e)
+        convert(newAssignment, e.getType, inType)
 
       case s.IsInstanceOf(expr, tpe) =>
         instanceOf(transform(expr), expr.getType, tpe).copiedFrom(e)
@@ -818,6 +823,7 @@ trait TypeEncoding
 
       // push conversions down into branches/leaves
       case (_: s.IfExpr | _: s.MatchExpr | _: s.Let) => super.transform(e, inType)
+      case (_: s.Block | _: s.LetVar) => super.transform(e, inType)
 
       case e if isObject(e.getType) != isObject(inType) =>
         convert(transform(e), e.getType, inType)
@@ -918,7 +924,7 @@ trait TypeEncoding
         .collect { case (tp, i) if tparams(i) => tp }
         .foldLeft((this in fd.id, Seq[t.ValDef]())) {
           case ((scope, vds), tp) =>
-            val s.TypeBounds(lowerBound, upperBound, _) = tp.bounds
+            val s.TypeBounds(lowerBound, upperBound) = tp.bounds
 
             val tpe = if (lowerBound == s.NothingType() && upperBound == s.AnyType()) {
               (ref.copiedFrom(tp) =>: t.BooleanType().copiedFrom(tp)).copiedFrom(tp)

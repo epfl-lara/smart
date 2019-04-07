@@ -35,12 +35,12 @@ package object extraction {
     "Sealing"                   -> "Seal every class and add mutable flags",
     "MethodLifting"             -> "Lift methods into dispatching functions",
     "FieldAccessors"            -> "Inline field accessors of concrete classes",
-    "AntiAliasing"              -> "Rewrite field and array mutations",
-    "ImperativeCodeElimination" -> "Eliminate while loops and assignments",
-    "ImperativeCleanup"         -> "Cleanup after imperative transformations",
     "AdtSpecialization"         -> "Specialize classes into ADTs (when possible)",
     "RefinementLifting"         -> "Lift simple refinements to contracts",
     "TypeEncoding"              -> "Encode non-ADT types",
+    "AntiAliasing"              -> "Rewrite field and array mutations",
+    "ImperativeCodeElimination" -> "Eliminate while loops and assignments",
+    "ImperativeCleanup"         -> "Cleanup after imperative transformations",
     "FunctionClosure"           -> "Lift inner functions",
     "FunctionInlining"          -> "Transitively inline marked functions",
     "PartialEvaluation"         -> "Partially evaluate marked function calls"
@@ -93,8 +93,8 @@ package object extraction {
     smartcontracts.extractor  andThen
     methods.extractor    andThen
     throwing.extractor   andThen
-    imperative.extractor andThen
     oo.extractor         andThen
+    imperative.extractor andThen
     innerfuns.extractor  andThen
     inlining.extractor
   }

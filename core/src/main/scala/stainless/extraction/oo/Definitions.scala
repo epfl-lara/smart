@@ -9,7 +9,7 @@ import scala.collection.mutable.{Map => MutableMap}
 
 // Note: we can't extend `ast.Definitions` here as termination.Trees
 // extends the bounds on `type Symbols`...
-trait Definitions extends innerfuns.Trees { self: Trees =>
+trait Definitions extends imperative.Trees { self: Trees =>
 
   class ClassDef(
     val id: Identifier,
@@ -170,7 +170,7 @@ trait Definitions extends innerfuns.Trees { self: Trees =>
 
     def withClasses(classes: Seq[ClassDef]): Symbols
     def removeDefinitions(defs: Set[Identifier]): Symbols
-    
+
     protected class Lookup extends super.Lookup {
       override def get[T <: Definition : ClassTag](name: String): Option[T] = ({
         if (classTag[ClassDef].runtimeClass.isAssignableFrom(classTag[T].runtimeClass)) find(name, classes)
@@ -198,9 +198,8 @@ trait Definitions extends innerfuns.Trees { self: Trees =>
 
   implicit class TypeParameterWrapper(tp: TypeParameter) {
     def bounds: TypeBounds = {
-      val flags = tp.flags.filter { case Bounds(_, _) => false case _ => true }
-      tp.flags.collectFirst { case Bounds(lo, hi) => TypeBounds(lo, hi, flags) }
-        .getOrElse(TypeBounds(NothingType(), AnyType(), flags))
+      tp.flags.collectFirst { case Bounds(lo, hi) => TypeBounds(lo, hi) }
+        .getOrElse(TypeBounds(NothingType(), AnyType()))
     }
 
     def lowerBound: Type = bounds.lo

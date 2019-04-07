@@ -78,10 +78,10 @@ trait Trees extends throwing.Trees { self =>
             acd.methods.filter(id => getFunction(id).isAbstract).map(_.symbol)
         }
 
-        // if (remainingAbstract.nonEmpty) {
-        //   throw NotWellFormedException(cd,
-        //     Some("Abstract methods " + remainingAbstract.map(_.name).mkString(", ") + " were not overriden"))
-        // }
+        if (remainingAbstract.nonEmpty) {
+          throw NotWellFormedException(cd,
+            Some("Abstract methods " + remainingAbstract.map(_.name).mkString(", ") + " were not overriden"))
+        }
       }
 
       // Check that method overrides are well-typed
@@ -108,8 +108,8 @@ trait Trees extends throwing.Trees { self =>
 
           val tpSubst = (fd.typeArgs zip sfd.typeArgs).toMap
           (fd.typeArgs zip sfd.typeArgs).foreach { case (tp, stp) =>
-            val TypeBounds(lo, hi, _) = tp.bounds
-            val TypeBounds(slo, shi, _) = stp.bounds
+            val TypeBounds(lo, hi) = tp.bounds
+            val TypeBounds(slo, shi) = stp.bounds
 
             if (!isSubtypeOf(
               typeOps.instantiateType(lo, tpSubst),
@@ -139,7 +139,7 @@ trait Trees extends throwing.Trees { self =>
 
   case class IsAccessor(id: Option[Identifier]) extends Flag("accessor", id.toSeq)
   case class IsMethodOf(id: Identifier) extends Flag("method", Seq(id))
-  val Law = Annotation("law", Seq.empty)
+  val Law = Annotation("law", Seq())
 
   implicit class ClassDefWrapper(cd: ClassDef) {
     def isSealed: Boolean = cd.flags contains IsSealed
@@ -166,7 +166,6 @@ trait Trees extends throwing.Trees { self =>
   implicit class FunDefWrapper(fd: FunDef) {
     def isAccessor: Boolean =
       fd.flags exists { case IsAccessor(_) => true case _ => false }
-
     def isField: Boolean =
       fd.flags exists { case IsField(_) => true case _ => false }
 
