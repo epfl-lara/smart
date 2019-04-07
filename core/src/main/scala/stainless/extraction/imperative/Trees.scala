@@ -6,7 +6,7 @@ package imperative
 
 import inox.utils.Position
 
-trait Trees extends oo.Trees with Definitions { self =>
+trait Trees extends innerfuns.Trees with Definitions { self =>
 
   /* XLang imperative trees to desugar */
 
@@ -33,15 +33,15 @@ trait Trees extends oo.Trees with Definitions { self =>
       checkParamType(value, v.tpe, UnitType())
   }
 
+  // Override point for alternative field assignment targets
+  protected def getField(tpe: Type, selector: Identifier)(implicit s: Symbols): Option[ValDef] = tpe match {
+    case adt: ADTType => adt.getField(selector)
+    case _ => None
+  }
+
   /** $encodingof `obj.selector = value` */
   case class FieldAssignment(obj: Expr, selector: Identifier, value: Expr) extends Expr with CachingTyped {
-    def getField(implicit s: Symbols): Option[ValDef] = getClassType(obj) match {
-      case ct: ClassType => ct.getField(selector)
-      case _ => getADTType(obj) match {
-        case adt: ADTType => adt.getField(selector)
-        case _ => None
-      }
-    }
+    def getField(implicit s: Symbols): Option[ValDef] = self.getField(obj.getType, selector)
 
     protected def computeType(implicit s: Symbols): Type = {
       getField
@@ -191,7 +191,7 @@ trait Trees extends oo.Trees with Definitions { self =>
   }
 }
 
-trait Printer extends oo.Printer {
+trait Printer extends innerfuns.Printer {
   protected val trees: Trees
   import trees._
 
@@ -275,7 +275,7 @@ trait Printer extends oo.Printer {
   }
 }
 
-trait TreeDeconstructor extends oo.TreeDeconstructor {
+trait TreeDeconstructor extends innerfuns.TreeDeconstructor {
   protected val s: Trees
   protected val t: Trees
 
@@ -346,7 +346,7 @@ trait TreeDeconstructor extends oo.TreeDeconstructor {
   }
 }
 
-trait ExprOps extends oo.ExprOps {
+trait ExprOps extends innerfuns.ExprOps {
   protected val trees: Trees
   import trees._
 
