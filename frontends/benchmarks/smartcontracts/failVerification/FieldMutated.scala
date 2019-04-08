@@ -3,7 +3,7 @@ import stainless.lang._
 import stainless.annotation._
 import stainless.lang._
 
-trait A extends Contract {
+trait FieldMutated extends Contract {
     var testField:Uint256
 
     final def invariant() = true

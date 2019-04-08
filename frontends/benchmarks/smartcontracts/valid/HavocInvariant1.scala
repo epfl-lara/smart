@@ -3,7 +3,7 @@ import stainless.lang._
 import stainless.annotation._
 import stainless.lang._
 
-trait A extends Contract {
+trait HavocInvariant1 extends Contract {
     var balance: Uint256
     var empty: Boolean
 
