@@ -318,12 +318,28 @@ trait TransformerWithType extends TreeTransformer {
       ).copiedFrom(expr)
     case s.Old(e) =>
       t.Old(transform(e, tpe)).copiedFrom(expr)
+    case s.Snapshot(e) =>
+      t.Snapshot(transform(e, tpe)).copiedFrom(expr)
     case s.BoolBitwiseAnd(lhs, rhs) =>
       t.BoolBitwiseAnd(transform(lhs, s.BooleanType()), transform(rhs, s.BooleanType())).copiedFrom(expr)
     case s.BoolBitwiseOr(lhs, rhs) =>
       t.BoolBitwiseOr(transform(lhs, s.BooleanType()), transform(rhs, s.BooleanType())).copiedFrom(expr)
     case s.BoolBitwiseXor(lhs, rhs) =>
       t.BoolBitwiseXor(transform(lhs, s.BooleanType()), transform(rhs, s.BooleanType())).copiedFrom(expr)
+    case s.MutableMapApply(map, key) =>
+      val mt @ s.MutableMapType(from, _) = widen(map.getType)
+      t.MutableMapApply(transform(map, mt), transform(key, from)).copiedFrom(expr)
+    case s.MutableMapUpdated(map, key, value) =>
+      val mt @ s.MutableMapType(from, to) = widen(map.getType)
+      t.MutableMapUpdated(transform(map, mt), transform(key, from), transform(value, to)).copiedFrom(expr)
+    case s.MutableMapUpdate(map, key, value) =>
+      val mt @ s.MutableMapType(from, to) = widen(map.getType)
+      t.MutableMapUpdate(transform(map, mt), transform(key, from), transform(value, to)).copiedFrom(expr)
+    case s.MutableMapDuplicate(map) =>
+      val mt = widen(map.getType)
+      t.MutableMapDuplicate(transform(map, mt)).copiedFrom(expr)
+    case s.MutableMapWithDefault(from, to, default) =>
+      t.MutableMapWithDefault(transform(from), transform(to), transform(default, to))
 
     // OO expressions
     case s.ClassConstructor(ct, args) =>

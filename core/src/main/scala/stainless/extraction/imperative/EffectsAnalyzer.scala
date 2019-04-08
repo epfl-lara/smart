@@ -219,6 +219,7 @@ trait EffectsAnalyzer extends CachingPhase {
       case (_: FunctionInvocation | _: ApplyLetRec | _: Application) => None
       case (_: FiniteArray | _: LargeArray | _: ArrayUpdated) => None
       case Old(_) => None
+      case Snapshot(_) => None
       case Let(vd, e, b) if !isMutableType(vd.tpe) => rec(b, path)
       case Let(vd, e, b) => (getEffect(e), rec(b, path)) match {
         case (Some(ee), Some(be)) if be.receiver == vd.toVariable =>
