@@ -29,11 +29,14 @@ trait Trees extends methods.Trees {self =>
         case IsMethodOf(cid) =>
           val cd = symbols.getClass(cid)
           val ancestorsIds = cd.ancestors.map(_.id) :+ cid
-
-          ancestorsIds.exists { id => isIdentifier("stainless.smartcontracts.ContractInterface", id) }
+          ancestorsIds.exists { id => isIdentifier("stainless.smartcontracts.ContractInterface", id) ||
+                                      isIdentifier("ContractInterface", id)}
         case _ => false
       }
     }
+
+    def isInvariant(implicit symbols: self.Symbols): Boolean = fd.isInSmartContract && fd.id.name == "invariant"
+    def isContractMethod(implicit symbols: self.Symbols): Boolean = !fd.isInvariant && fd.isInSmartContract && !fd.flags.exists{ _.name == "accessor" }
   }
 
   implicit class SmartContractsClassDefWrapper(cd: ClassDef) {

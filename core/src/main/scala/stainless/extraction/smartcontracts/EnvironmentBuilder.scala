@@ -43,13 +43,14 @@ trait EnvironmentBuilder extends oo.SimplePhase
         fd.id -> {
           collect[ImplicitParams] {
             case mi: MethodInvocation if isIdentifier("stainless.smartcontracts.Address.transfer", mi.id) => Set(MsgImplicit, EnvImplicit)
-            case fi: FunctionInvocation if isIdentifier("stainless.smartcontracts.Msg.sender", fi.id) => Set(MsgImplicit)
-            case fi: FunctionInvocation if isIdentifier("stainless.smartcontracts.Msg.value", fi.id) => Set(MsgImplicit)
+            case fi: FunctionInvocation if isIdentifier("stainless.smartcontracts.Msg.sender", fi.id) => Set(EnvImplicit, MsgImplicit)
+            case fi: FunctionInvocation if isIdentifier("stainless.smartcontracts.Msg.value", fi.id) => Set(EnvImplicit, MsgImplicit)
             case fi: FunctionInvocation if isIdentifier("stainless.smartcontracts.Environment.balanceOf", fi.id) => Set(EnvImplicit)
             case fi: FunctionInvocation if isIdentifier("stainless.smartcontracts.Environment.updateBalance", fi.id) => Set(EnvImplicit)
             case fi: FunctionInvocation if isIdentifier("stainless.smartcontracts.Environment.contractAt", fi.id) => Set(EnvImplicit)
+            case fi: FunctionInvocation if isIdentifier("stainless.smartcontracts.Environment.etherUpdate", fi.id) => Set(EnvImplicit)
             case fi: FunctionInvocation if isIdentifier("stainless.smartcontracts.pay", fi.id) => Set(EnvImplicit)
-            case _ => Set()
+            case _ => Set(EnvImplicit)
           }(fd.fullBody) ++
           (if (fd.flags.exists(_ == Payable)) Some(MsgImplicit) else None)
         }
@@ -129,7 +130,6 @@ trait EnvironmentBuilder extends oo.SimplePhase
 
     def bodyPostProcessing(fd: FunDef, body: s.Expr, msg: Expr, env: Expr) = {
       val newBody = postMap {
-
         case mi@MethodInvocation(receiver, id, tps, args) if fd.isInSmartContract && !isThis(receiver) =>
           val cd = fd.flags.collectFirst {
             case IsMethodOf(cid) => symbols.getClass(cid)
@@ -214,6 +214,7 @@ trait EnvironmentBuilder extends oo.SimplePhase
 
     // we inject the synthetic classes and functions, and then transform
     val enhancedSymbols = symbols.withClasses(newClasses).withFunctions(newFunctions)
+
     val transformedSymbols = super.extractSymbols(context, enhancedSymbols)
     val oldIds = (symbols.functions.values.map(_.id) ++ symbols.classes.values.map(_.id)).toSet
     val allDependencies = oldIds.flatMap(id => transformedSymbols.dependencies(id) + id)

@@ -40,8 +40,9 @@ package object smartcontracts {
     })
 
     utils.DebugPipeline("HavocInjection", HavocInjection()) andThen
-    utils.DebugPipeline("SmartContractInvariant", SmartContractInvariant()) andThen
+    //utils.DebugPipeline("SmartContractInvariant", SmartContractInvariant()) andThen
     utils.DebugPipeline("EnvironmentBuilder", EnvironmentBuilder()) andThen
+    utils.DebugPipeline("GlobalInvariantInjection", GlobalInvariantInjection()) andThen
     lowering
   }
 

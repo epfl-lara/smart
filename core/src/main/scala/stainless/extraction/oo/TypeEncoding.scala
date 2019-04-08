@@ -29,17 +29,18 @@ trait TypeEncoding
   private[this] val refID = FreshIdentifier("Object")
   private[this] def ref = T(refID)()
 
-  private[this] val (int,  intValue)  = (FreshIdentifier("Integer"),   FreshIdentifier("value"))
-  private[this] val (bool, boolValue) = (FreshIdentifier("Boolean"),   FreshIdentifier("value"))
-  private[this] val (char, charValue) = (FreshIdentifier("Character"), FreshIdentifier("value"))
-  private[this] val (real, realValue) = (FreshIdentifier("Real"),      FreshIdentifier("value"))
-  private[this] val (str,  strValue)  = (FreshIdentifier("String"),    FreshIdentifier("value"))
-  private[this] val (open, openValue) = (FreshIdentifier("Open"),      FreshIdentifier("value"))
-  private[this] val (arr,  arrValue)  = (FreshIdentifier("Array"),     FreshIdentifier("value"))
-  private[this] val (set,  setValue)  = (FreshIdentifier("Set"),       FreshIdentifier("value"))
-  private[this] val (bag,  bagValue)  = (FreshIdentifier("Bag"),       FreshIdentifier("value"))
-  private[this] val (map,  mapValue)  = (FreshIdentifier("Map"),       FreshIdentifier("value"))
-  private[this] val unit = FreshIdentifier("Unit")
+  private[this] val (int,  intValue)                = (FreshIdentifier("Integer"),   FreshIdentifier("value"))
+  private[this] val (bool, boolValue)               = (FreshIdentifier("Boolean"),   FreshIdentifier("value"))
+  private[this] val (char, charValue)               = (FreshIdentifier("Character"), FreshIdentifier("value"))
+  private[this] val (real, realValue)               = (FreshIdentifier("Real"),      FreshIdentifier("value"))
+  private[this] val (str,  strValue)                = (FreshIdentifier("String"),    FreshIdentifier("value"))
+  private[this] val (open, openValue)               = (FreshIdentifier("Open"),      FreshIdentifier("value"))
+  private[this] val (arr,  arrValue)                = (FreshIdentifier("Array"),     FreshIdentifier("value"))
+  private[this] val (set,  setValue)                = (FreshIdentifier("Set"),       FreshIdentifier("value"))
+  private[this] val (bag,  bagValue)                = (FreshIdentifier("Bag"),       FreshIdentifier("value"))
+  private[this] val (map,  mapValue)                = (FreshIdentifier("Map"),       FreshIdentifier("value"))
+  private[this] val (mutableMap,  mutableMapValue)  = (FreshIdentifier("MutableMap"),       FreshIdentifier("value"))
+  private[this] val unit                            = FreshIdentifier("Unit")
 
   private[this] val bv: ((Boolean, Int)) => Identifier = new CachedID[(Boolean, Int)]({
     case (signed, i) => FreshIdentifier((if (signed) "Signed" else "Unsigned") + "Bitvector" + i)
@@ -109,6 +110,7 @@ trait TypeEncoding
     case s.FunctionType(from, _) => C(fun(from.size))(convert(e, tpe, erased(tpe)))
     case s.TupleType(tps) => C(tpl(tps.size))(convert(e, tpe, erased(tpe)))
     case (_: s.ArrayType) => C(arr)(convert(e, tpe, erased(tpe)))
+    case (_: s.MutableMapType) => C(mutableMap)(convert(e, tpe, erased(tpe)))
     case (_: s.SetType) => C(set)(convert(e, tpe, erased(tpe)))
     case (_: s.BagType) => C(bag)(convert(e, tpe, erased(tpe)))
     case (_: s.MapType) => C(map)(convert(e, tpe, erased(tpe)))
@@ -131,6 +133,7 @@ trait TypeEncoding
     case s.FunctionType(from, _) => convert(getRefField(e, funValue(from.size)), erased(tpe), tpe)
     case s.TupleType(tps) => convert(getRefField(e, tplValue(tps.size)), erased(tpe), tpe)
     case (_: s.ArrayType) => convert(getRefField(e, arrValue), erased(tpe), tpe)
+    case (_: s.MutableMapType) => convert(getRefField(e, mutableMapValue), erased(tpe), tpe)
     case (_: s.SetType) => convert(getRefField(e, setValue), erased(tpe), tpe)
     case (_: s.BagType) => convert(getRefField(e, bagValue), erased(tpe), tpe)
     case (_: s.MapType) => convert(getRefField(e, mapValue), erased(tpe), tpe)
@@ -206,6 +209,19 @@ trait TypeEncoding
             i => t.Equals(
               convert(t.ArraySelect(e, i).copiedFrom(e), b1, b2),
               t.ArraySelect(res, i).copiedFrom(e)
+            ).copiedFrom(e)
+          }.copiedFrom(e)
+        }
+
+      case (t.MutableMapUpdated(m, k, v), s.MutableMapType(f1, t1), s.MutableMapType(f2, t2)) =>
+        t.MutableMapUpdated(convert(m, tpe, expected), convert(k, f1, f2), convert(v, t1, t2))
+
+      case (_, s.MutableMapType(f1, t1), s.MutableMapType(f2, t2)) =>
+        choose(t.ValDef(FreshIdentifier("res"), scope.transform(expected), Seq(t.Unchecked)).copiedFrom(e)) {
+          res => forall(("x" :: scope.transform(f1)).copiedFrom(e)) {
+            x => t.Equals(
+              convert(t.MutableMapApply(e, x).copiedFrom(e), t1, t2),
+              t.MutableMapApply(res, convert(x, f1, f2)).copiedFrom(e)
             ).copiedFrom(e)
           }.copiedFrom(e)
         }
@@ -429,6 +445,15 @@ trait TypeEncoding
             instanceOf(t.ArraySelect(e, i).copiedFrom(e), b1, b2)
           )).copiedFrom(e)
         }.copiedFrom(e)
+
+      case (s.MutableMapType(f1, t1), s.MutableMapType(f2, t2)) =>
+        forall(("x" :: scope.transform(f1)).copiedFrom(e)) { x =>
+          instanceOf(t.MutableMapApply(e, x).copiedFrom(e), t1, t2)
+        }
+
+      case (_, s.MutableMapType(_, _)) if isObject(in) =>
+        (e is mutableMap).copiedFrom(e) &&
+        instanceOf(getRefField(e, mutableMapValue), erased(tpe), tpe)
 
       case (_, s.ArrayType(_)) if isObject(in) =>
         (e is arr).copiedFrom(e) &&
@@ -1140,6 +1165,7 @@ trait TypeEncoding
         new t.ADTConstructor(set,  refID, Seq(t.ValDef(setValue,  t.SetType(ref)))),
         new t.ADTConstructor(bag,  refID, Seq(t.ValDef(bagValue,  t.BagType(ref)))),
         new t.ADTConstructor(map,  refID, Seq(t.ValDef(mapValue,  t.MapType(ref, ref)))),
+        new t.ADTConstructor(mutableMap,  refID, Seq(t.ValDef(mutableMapValue,  t.MutableMapType(ref, ref)))),
         new t.ADTConstructor(unit, refID, Seq()),
         new t.ADTConstructor(open, refID, Seq(t.ValDef(openValue, t.IntegerType())))
       ), Seq(t.Synthetic))

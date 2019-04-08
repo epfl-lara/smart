@@ -41,9 +41,6 @@ trait Definitions extends imperative.Trees { self: Trees =>
     def descendants(implicit s: Symbols): Seq[ClassDef] =
       children.flatMap(cd => cd +: cd.descendants).distinct
 
-    def descendantsIdsWithSelf(implicit s: Symbols): Set[Identifier] =
-      descendants(s).map(_.id).toSet + id
-
     def typeArgs = tparams map (_.tp)
 
     def typed(tps: Seq[Type])(implicit s: Symbols): TypedClassDef = TypedClassDef(this, tps)
@@ -169,7 +166,6 @@ trait Definitions extends imperative.Trees { self: Trees =>
     override def hashCode: Int = super.hashCode + 31 * classes.hashCode
 
     def withClasses(classes: Seq[ClassDef]): Symbols
-    def removeDefinitions(defs: Set[Identifier]): Symbols
 
     protected class Lookup extends super.Lookup {
       override def get[T <: Definition : ClassTag](name: String): Option[T] = ({
