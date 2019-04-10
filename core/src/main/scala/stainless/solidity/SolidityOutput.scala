@@ -56,14 +56,15 @@ trait SolidityOutput {
   def transformFlags(flags: Seq[Flag]) = {
     def process(l: Seq[Flag]): Seq[SFlag] = l match {
       case Nil => Nil
-      case Private :: xs => SPrivate() +: process(xs)
       case x :: xs if x == IsPure =>
         // FIXME: this warning doesn't show up for some reason
         ctx.reporter.warning("The @pure annotation is ignored by the compiler to Solidity. Use @solidityPure instead.")
         process(xs)
-      case Payable :: xs  => SPayable() +: process(xs)
-      case Annotation("solidityPure", _) :: xs  => SPure() +: process(xs)
-      case Annotation("solidityView", _) :: xs  => SView() +: process(xs)
+      case Payable :: xs  => SPayable +: process(xs)
+      case Annotation("solidityPure", _) :: xs  => SPure +: process(xs)
+      case Annotation("solidityView", _) :: xs  => SView +: process(xs)
+      case Annotation("solidityPrivate", _) :: xs  => SPure +: process(xs)
+      case Annotation("solidityPublic", _) :: xs  => SPublic +: process(xs)
       case x :: xs => process(xs)
     }
 
@@ -362,6 +363,13 @@ trait SolidityOutput {
     case Assert(_,_,body) => transformExpr(body)
     case Choose(_,_) => STerminal()
     case Return(e) => SReturn(transformExpr(e))
+
+    case AsInstanceOf(FunctionInvocation(id, _, Seq(a)), contract) if isIdentifier("stainless.smartcontracts.Environment.contractAt", id) =>
+      SAddressCast(transformType(contract), transformExpr(a))
+
+    case AsInstanceOf(FunctionInvocation(id, _, _), contract) => id match {
+      case ast.SymbolIdentifier(name) => ctx.reporter.fatalError(name)
+    }
 
     // Recursive Functions
     case LetRec(fds, _) => ctx.reporter.fatalError("The compiler to Solidity does not support locally defined recursive functions:\n" + fds.head)

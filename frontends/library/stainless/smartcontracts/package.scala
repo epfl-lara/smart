@@ -144,7 +144,7 @@ package object smartcontracts {
 
   @library @mutable
   trait Contract extends ContractInterface {
-    @extern
+    @extern @ghost
     def havoc(): Unit
   }
 

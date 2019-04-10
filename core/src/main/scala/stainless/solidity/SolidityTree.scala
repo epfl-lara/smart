@@ -44,6 +44,7 @@ case class SThis() extends SolidityExpr
 case class SSuper() extends SolidityExpr
 case class SEvent(tpe: SEventType, args: Seq[SolidityExpr]) extends SolidityExpr
 case class SClassConstructor(tpe: SolidityType, args: Seq[SolidityExpr]) extends SolidityExpr
+case class SAddressCast(contract: SolidityType, address: SolidityExpr) extends SolidityExpr
 case class SClassSelector(expr: SolidityExpr, id: String) extends SolidityExpr
 case class SLiteral(value: String) extends SolidityExpr
 case class STerminal() extends SolidityExpr
@@ -101,10 +102,11 @@ case class SEventType(id: String) extends SolidityType
 case class SArrayType(underlying: SolidityType) extends SolidityType
 
 sealed trait SFlag
-case class SPayable()                  extends SFlag
-case class SPure()                     extends SFlag
-case class SView()                     extends SFlag
-case class SPrivate()                  extends SFlag
+case object SPayable                  extends SFlag
+case object SPure                     extends SFlag
+case object SView                     extends SFlag
+case object SPrivate                  extends SFlag
+case object SPublic                   extends SFlag
 
 object SolidityTreeOps {
     def transform(f: PartialFunction[SolidityExpr, SolidityExpr], expr: SolidityExpr) = {
@@ -123,7 +125,7 @@ object SolidityTreeOps {
             case SIfExpr(cond, thenn, elze) => SIfExpr(process(cond), process(thenn), process(elze))
             case SBlock(exprs, last) => SBlock(exprs.map(process), process(last))
             case SReturn(expr) => SReturn(process(expr))
-            
+
             case SAnd(exprs) => SAnd(exprs.map(process))
             case SOr(exprs) => SOr(exprs.map(process))
             case SNot(expr) => SNot(process(expr))

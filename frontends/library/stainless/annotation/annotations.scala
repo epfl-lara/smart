@@ -64,6 +64,14 @@ class solidityView extends Annotation
 @ignore
 class solidityLibrary(name: String) extends Annotation
 
+/** Annotation for the compiler to Solidity, used for "public" functions in Solidity. */
+@ignore
+class solidityPublic extends Annotation
+
+/** Annotation for the compiler to Solidity, used for "public" functions in Solidity. */
+@ignore
+class solidityPrivate extends Annotation
+
 /** Mark this function as expressing a law that must be satisfied
   * by instances or subclasses of the enclosing class.
   */

@@ -1,4 +1,4 @@
-package stainless 
+package stainless
 package solidity
 
 import java.io._
@@ -6,7 +6,7 @@ import java.io._
 object SolidityPrinter {
   def writeFile(ctx: inox.Context, filename: String, imports: Set[SolidityImport], defs: Seq[SolidityDef]) = {
     def ppHeader()(implicit out: Writer) = {
-      out.write("pragma solidity ^0.4.24;\n\n")
+      out.write("pragma solidity ^0.5.7;\n\n")
     }
 
     def ppImports()(implicit out: Writer) = {
@@ -23,10 +23,11 @@ object SolidityPrinter {
 
     def printFunModifiers(mod: Seq[SFlag])(implicit out: Writer) = {
       mod.foreach{
-        case SPayable() => out.write("payable ")
-        case SPure() => out.write("pure ")
-        case SPrivate() => out.write("private ")
-        case SView() => out.write("view ")
+        case SPayable => out.write("payable ")
+        case SPure => out.write("pure ")
+        case SPrivate => out.write("private ")
+        case SPublic => out.write("public ")
+        case SView => out.write("view ")
       }
     }
 
@@ -46,7 +47,7 @@ object SolidityPrinter {
 
 
     def writeParamsWithComma(ls: Seq[SParamDef])(implicit out: Writer, indentLvl: Int): Unit = ls match {
-      case Nil => 
+      case Nil =>
       case SParamDef(_, name, tpe) +: Nil => writeWithIndent(typeToString(tpe) + " " + name)
       case SParamDef(_, name, tpe) +: xs  => writeWithIndent(typeToString(tpe) + " " + name)
                         out.write(", ")
@@ -109,7 +110,7 @@ object SolidityPrinter {
           ppCode(ether.get)(out, 0)
           out.write(")")
         }
-        
+
         out.write("(")
         writeWithSeparator(args, ", ")(out, 0)
         out.write(")")
@@ -130,13 +131,13 @@ object SolidityPrinter {
         ppCode(receiver)(out, 0)
         out.write(");")
 
-      case SReturn(expr) => 
+      case SReturn(expr) =>
         writeWithIndent("return ")
         ppCode(expr)(out, 0)
         out.write(";")
 
       case SBlock(exprs, last) =>
-        for (e <- exprs) {  
+        for (e <- exprs) {
           ppCode(e)
           shouldAddColon(e)
           out.write("\n")
@@ -190,13 +191,18 @@ object SolidityPrinter {
         writeWithSeparator(args, ", ")
         out.write(")")
 
+      case SAddressCast(contract, address) =>
+        writeWithIndent(typeToString(contract) + "(")
+        ppCode(address)(out, 0)
+        out.write(")")
+
       case SClassSelector(expr, id) =>
         if(expr != SThis()) {
           ppCode(expr)
           out.write("." + id)
         } else writeWithIndent(id)
 
-      case SLiteral(value) => 
+      case SLiteral(value) =>
         if(!value.isEmpty) {
           out.write(value)
         }
@@ -228,7 +234,7 @@ object SolidityPrinter {
           out.write("\n")
         }
 
-      case SWhile(cond, body) => 
+      case SWhile(cond, body) =>
         writeWithIndent("while (")
         ppCode(cond)(out, 0)
         out.write(") {\n")
@@ -239,7 +245,7 @@ object SolidityPrinter {
       case SAnd(exprs) =>
         writeWithIndent("")
         writeWithSeparator(exprs, " && ")(out, 0)
-      
+
       case SOr(exprs) =>
         writeWithIndent("")
         writeWithSeparator(exprs, " || ")(out, 0)
@@ -259,12 +265,12 @@ object SolidityPrinter {
       case SDivision(l,r)     =>  ppOperatorExpr(l, r, "/")
       case SMult(l,r)       =>  ppOperatorExpr(l, r, "*")
 
-      case SRequire(cond, err) => 
+      case SRequire(cond, err) =>
         writeWithIndent("require(")
         ppCode(cond)(out, 0)
         out.write(", \"" + err + "\");")
 
-      case SAssert(cond, err) => 
+      case SAssert(cond, err) =>
         writeWithIndent("assert(")
         ppCode(cond)(out, 0)
         out.write(");")
@@ -286,12 +292,7 @@ object SolidityPrinter {
         writeWithIndent("function " + name + " (")
         writeParamsWithComma(params)(out, 0)
 
-        // if (modifiers.contains(SPrivate()))
-          out.write(") ")
-        // else
-        //   out.write(") public ")
-        // FIXME: we shouldn't print `public' if it wasn't written in the source
-        // Instead, we should extract a public annotation in Scala
+        out.write(") ")
 
         // the private keyword is printed here
         printFunModifiers(modifiers)
@@ -326,11 +327,11 @@ object SolidityPrinter {
 
       val SContractDefinition(name, parents, cons, events, enums, fields, methods) = deff
       writeWithIndent("contract " + name)(out, 0)
-      if (!parents.isEmpty) 
+      if (!parents.isEmpty)
         writeWithIndent(" is " + parents.mkString(", "))(out, 0)
-      
+
       writeWithIndent(" {\n")(out,0)
-      
+
       if (!fields.isEmpty) {
         writeWithIndent("// Fields\n")(out,1)
         fields.foreach{
@@ -339,7 +340,7 @@ object SolidityPrinter {
         }
         out.write("\n")
       }
-      
+
       /*writeWithIndent("// Events\n")(out,1)
       events.foreach{e => ppEventDef(e)(out, 1)}
       out.write("\n")*/
@@ -353,8 +354,8 @@ object SolidityPrinter {
       writeWithIndent("// Constructor\n")(out,1)
       ppConstructor(cons)(1)
 
-      val (privateFunctions, publicFunctions) = 
-        methods.partition(m => m.flags.contains(SPrivate()))
+      val (privateFunctions, publicFunctions) =
+        methods.partition(m => m.flags.contains(SPrivate))
 
       if (!publicFunctions.isEmpty) {
         writeWithIndent("// Public functions\n")(out,1)
