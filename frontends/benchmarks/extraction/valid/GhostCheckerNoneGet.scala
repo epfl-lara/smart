@@ -9,4 +9,3 @@ trait GhostCheckerNoneGet {
     x = x + 1
   }
 }
-

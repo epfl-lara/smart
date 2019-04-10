@@ -25,4 +25,3 @@ object AccessorMutation1 {
   }
 
 }
-

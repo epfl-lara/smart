@@ -16,12 +16,18 @@ trait EffectsChecker { self: EffectsAnalyzer =>
 
   protected def checkEffects(fd: FunDef)(analysis: EffectsAnalysis): CheckResult = {
     import analysis._
+    import symbols.isMutableType
 
     def isMutableSynthetic(id: Identifier): Boolean = {
       val fd = symbols.getFunction(id)
       fd.flags.contains(Synthetic) &&
+      !isAccessor(Outer(fd)) &&
       fd.params.exists(vd => isMutableType(vd.tpe)) &&
       !exprOps.withoutSpecs(fd.fullBody).forall(isExpressionFresh)
+    }
+
+    def isAccessor(fd: FunAbstraction): Boolean = {
+      fd.flags.exists(_.name == "accessor")
     }
 
     // We can safely get rid of the function as we are assured
@@ -38,7 +44,7 @@ trait EffectsChecker { self: EffectsAnalyzer =>
       exprOps.withoutSpecs(fd.fullBody).foreach { bd =>
 
         // check return value
-        if (isMutableType(bd.getType) && !isExpressionFresh(bd)) {
+        if (!isAccessor(fd) && isMutableType(bd.getType) && !isExpressionFresh(bd)) {
           throw ImperativeEliminationException(bd,
             "Cannot return a shared reference to a mutable object: " + bd.asString)
         }
@@ -48,7 +54,7 @@ trait EffectsChecker { self: EffectsAnalyzer =>
             case l @ Let(vd, e, b) =>
               if (!isExpressionFresh(e) && isMutableType(vd.tpe)) try {
                 // Check if a precise effect can be computed
-                getEffect(e)
+                getEffects(e)
               } catch {
                 case _: MalformedStainlessCode =>
                   throw ImperativeEliminationException(e, "Illegal aliasing: " + e.asString)
@@ -61,6 +67,24 @@ trait EffectsChecker { self: EffectsAnalyzer =>
                 throw ImperativeEliminationException(e, "Illegal aliasing: " + e.asString)
 
               super.traverse(l)
+
+            case au @ ArrayUpdate(a, i, e) =>
+              if (!isExpressionFresh(e) && isMutableType(e.getType))
+                throw ImperativeEliminationException(e, "Illegal aliasing: " + e.asString)
+
+              super.traverse(au)
+
+            case mu @ MapUpdated(m, k, e) =>
+              if (!isExpressionFresh(e) && isMutableType(e.getType))
+                throw ImperativeEliminationException(e, "Illegal aliasing: " + e.asString)
+
+              super.traverse(mu)
+
+            case fa @ FieldAssignment(o, sel, e) =>
+              if (!isExpressionFresh(e) && isMutableType(fa.getField.get.getType))
+                throw ImperativeEliminationException(e, "Illegal aliasing: " + e.asString)
+
+              super.traverse(fa)
 
             case l @ LetRec(fds, body) =>
               fds.foreach(fd => check(Inner(fd)))
