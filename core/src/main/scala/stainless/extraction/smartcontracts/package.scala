@@ -39,11 +39,16 @@ package object smartcontracts {
       override val t: methods.trees.type = methods.trees
     })
 
-    utils.DebugPipeline("HavocInjection", HavocInjection()) andThen
-    //utils.DebugPipeline("SmartContractInvariant", SmartContractInvariant()) andThen
-    utils.DebugPipeline("EnvironmentBuilder", EnvironmentBuilder()) andThen
-    utils.DebugPipeline("GlobalInvariantInjection", GlobalInvariantInjection()) andThen
-    lowering
+
+    if (ctx.options.findOptionOrDefault(frontend.optSmartContracts)) {
+      utils.DebugPipeline("HavocInjection", HavocInjection()) andThen
+      //utils.DebugPipeline("SmartContractInvariant", SmartContractInvariant()) andThen
+      utils.DebugPipeline("EnvironmentBuilder", EnvironmentBuilder()) andThen
+      utils.DebugPipeline("GlobalInvariantInjection", GlobalInvariantInjection()) andThen
+      lowering
+    } else {
+      lowering
+    }
   }
 
 }

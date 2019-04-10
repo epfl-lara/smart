@@ -44,6 +44,7 @@ trait MainHelpers extends inox.MainHelpers {
     frontend.optPersistentCache -> Description(General, "Enable caching of program extraction & analysis"),
     solidity.optSolidityOutput -> Description(Solidity, "From Stainless to Solidity"),
     frontend.optBatchedProgram -> Description(General, "Process the whole program together, skip dependency analysis"),
+    frontend.optSmartContracts -> Description(General, "Go through the smart contracts phases for verification (implies --batched)"),
     utils.Caches.optCacheDir -> Description(General, "Specify the directory in which cache files should be stored")
   ) ++ MainHelpers.components.map { component =>
     val option = inox.FlagOptionDef(component.name, default = false)

@@ -22,6 +22,10 @@ package object frontend {
     */
   object optBatchedProgram extends inox.FlagOptionDef("batched", false)
 
+  /** Go through the smart contracts phases for verification
+    */
+  object optSmartContracts extends inox.FlagOptionDef("smart-contracts", false)
+
   /**
    * Given a context (with its reporter) and a frontend factory, proceed to compile,
    * extract, transform and verify the input programs based on the active components
@@ -76,7 +80,8 @@ package object frontend {
     val activeComponents = getActiveComponents(ctx)
     if(hasOptSolidityOutput)
       new SolidityCallBack
-    else if(ctx.options.findOptionOrDefault(optBatchedProgram))
+    else if(ctx.options.findOptionOrDefault(optBatchedProgram) ||
+            ctx.options.findOptionOrDefault(optSmartContracts))
       new BatchedCallBack(activeComponents)
     else
       new SplitCallBack(activeComponents)
