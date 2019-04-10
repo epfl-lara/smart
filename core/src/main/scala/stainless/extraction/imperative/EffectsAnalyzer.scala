@@ -318,7 +318,7 @@ trait EffectsAnalyzer extends oo.CachingPhase {
         }
 
         if (res.isEmpty)
-          throw MissformedStainlessCode(expr, s"Couldn't compute effect targets in: $expr")
+          throw MalformedStainlessCode(expr, s"Couldn't compute effect targets in: $expr")
 
         res
 

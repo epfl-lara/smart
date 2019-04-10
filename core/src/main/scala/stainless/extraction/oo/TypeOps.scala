@@ -67,9 +67,6 @@ trait TypeOps extends innerfuns.TypeOps {
     case (MapType(f1, t1), MapType(f2, t2)) if f1 == f2 =>
       Some(MapType(f1, typeBound(t1, t2, upper)))
 
-    case (MutableMapType(f1, t1), MutableMapType(f2, t2)) if f1 == f2 =>
-      Some(MutableMapType(f1, typeBound(t1, t2, upper)))
-
     case _ => None
   }).getOrElse(if (upper) AnyType() else NothingType()).getType
 

@@ -82,7 +82,7 @@ trait ImperativeCleanup
       throw MalformedStainlessCode(o,
         s"Stainless `old` can only occur on `this` and variables. Did you mean `old($v).$id`?")
     case o @ s.Old(s.ClassSelector(v: s.Variable, id)) =>
-      throw MissformedStainlessCode(o,
+      throw MalformedStainlessCode(o,
         s"Stainless `old` can only occur on `this` and variables. Did you mean `old($v).$id`?")
     case o @ s.Old(e) =>
       throw MalformedStainlessCode(o, s"Stainless `old` is only defined on `this` and variables.")
