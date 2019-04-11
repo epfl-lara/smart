@@ -42,7 +42,7 @@ class BatchedCallBack(components: Seq[Component])(implicit val context: inox.Con
     val smartcontractsGroup = if (smartcontracts) Some("smart-contracts") else None
     val keepGroups = context.options.findOptionOrDefault(optKeep) ++ smartcontractsGroup
     def hasKeepFlag(flags: Seq[xt.Flag]) =
-      keepGroups.exists(g => flags.contains(xt.Annotation("keep",Seq(g))))
+      keepGroups.exists(g => flags.contains(xt.Annotation("keep",Seq(xt.StringLiteral(g)))))
 
     val symbols =
       xt.NoSymbols.withClasses(currentClasses.filter(cd => hasKeepFlag(cd.flags) || userDependencies.contains(cd.id)))
