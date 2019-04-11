@@ -1,6 +1,6 @@
 import stainless.smartcontracts._
 
 trait MappingType3 extends Contract {
-  def foo(m: Mapping[Address, Uint256]) = {
+  def foo(m: MutableMap[Address, Uint256]) = {
   }
 }

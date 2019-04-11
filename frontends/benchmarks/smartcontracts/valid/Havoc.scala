@@ -1,4 +1,5 @@
 import stainless.smartcontracts._
+import stainless.lang._
 
 trait Havoc extends Contract {
   var x: BigInt
@@ -6,7 +7,9 @@ trait Havoc extends Contract {
   override final def invariant() = x == 0
 
   def f() = {
-    havoc()
+    ghost {
+      havoc()
+    }
     assert(x == 0)
   }
 }

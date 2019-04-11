@@ -12,7 +12,7 @@ import scala.annotation.meta.field
 import MinimumTokenInvariant._
 
 trait MinimumToken extends Contract {
-  val balanceOf: Mapping[Address,Uint256]
+  val balanceOf: MutableMap[Address,Uint256]
   var total: Uint256
 
   @ghost

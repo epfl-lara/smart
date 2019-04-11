@@ -37,6 +37,7 @@ trait LoanContract extends Contract {
   @ghost
   var visitedStates: List[State]
 
+  @solidityPublic
   final def checkTokens(): Unit = {
     require(invariant(this))
 
@@ -54,6 +55,7 @@ trait LoanContract extends Contract {
   }
 
   @solidityPayable
+  @solidityPublic
   final def lend(): Unit = {
     require (invariant(this))
 
@@ -82,6 +84,7 @@ trait LoanContract extends Contract {
   }
 
   @solidityPayable
+  @solidityPublic
   final def payback(): Unit = {
     require (invariant(this))
     dynRequire(this.addr.balance >= Msg.value)
@@ -118,6 +121,7 @@ trait LoanContract extends Contract {
     }
   }
 
+  @solidityPublic
   final def requestDefault(): Unit = {
     require (invariant(this))
 

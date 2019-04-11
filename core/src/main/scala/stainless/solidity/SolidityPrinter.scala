@@ -403,7 +403,7 @@ object SolidityPrinter {
     }
 
     val f = new File(filename)
-    if (f.exists)
+    if (f.exists && !ctx.options.findOptionOrDefault(solidity.optOverwriteSol))
       ctx.reporter.fatalError(s"Cannot write to file $filename as file already exists.")
     else {
       val writer = new PrintWriter(f)

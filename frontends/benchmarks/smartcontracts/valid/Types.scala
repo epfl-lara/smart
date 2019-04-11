@@ -1,4 +1,5 @@
 import stainless.smartcontracts._
+import stainless.lang._
 
 trait InterfaceType extends ContractInterface
 
@@ -10,7 +11,7 @@ trait Types extends Contract {
   val a: Address
   val uiint: BigInt
   val intt: Int
-  val map: Mapping[Address,BigInt]
+  val map: MutableMap[Address,BigInt]
   val booll: Boolean
   val str: String
   val interfaceType: InterfaceType

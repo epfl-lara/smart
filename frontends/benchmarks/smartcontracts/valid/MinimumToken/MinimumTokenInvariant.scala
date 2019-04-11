@@ -10,7 +10,7 @@ object MinimumTokenInvariant {
     case Cons(a, as) => (!as.contains(a)) && distinctAddresses(as)
   }
 
-  def sumBalances(addresses: List[Address], balances: Mapping[Address, Uint256]): Uint256 = addresses match {
+  def sumBalances(addresses: List[Address], balances: MutableMap[Address, Uint256]): Uint256 = addresses match {
     case Nil() => Uint256.ZERO
     case Cons(x,xs) => balances(x) + sumBalances(xs, balances)
   }
@@ -19,7 +19,7 @@ object MinimumTokenInvariant {
     to: Address,
     newBalance: Uint256,
     participants: List[Address],
-    balances: Mapping[Address, Uint256]
+    balances: MutableMap[Address, Uint256]
   ):Boolean = {
     require(
       !participants.contains(to) &&
@@ -43,7 +43,7 @@ object MinimumTokenInvariant {
 
   @ghost
   def contractInvariant(
-    balanceOf: Mapping[Address,Uint256],
+    balanceOf: MutableMap[Address,Uint256],
     total: Uint256,
     participants: List[Address]
   ): Boolean = {
@@ -57,7 +57,7 @@ object MinimumTokenInvariant {
 
   def balancesUpdatedLemma(
     participants: List[Address],
-    balances: Mapping[Address, Uint256],
+    balances: MutableMap[Address, Uint256],
     to: Address,
     newBalance: Uint256
   ): Boolean = {
@@ -97,9 +97,9 @@ object MinimumTokenInvariant {
   // Proof that the sum of balances is maintained after two updates
   @ghost
   def transferProof(
-    @ghost b0: Mapping[Address,Uint256],
-    @ghost b1: Mapping[Address,Uint256],
-    @ghost balanceOf: Mapping[Address,Uint256],
+    @ghost b0: MutableMap[Address,Uint256],
+    @ghost b1: MutableMap[Address,Uint256],
+    @ghost balanceOf: MutableMap[Address,Uint256],
     @ghost from: Address,
     @ghost to: Address,
     @ghost amount: Uint256,

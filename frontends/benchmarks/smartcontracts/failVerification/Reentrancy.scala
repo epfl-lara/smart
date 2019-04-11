@@ -4,7 +4,7 @@ import stainless.lang._
 import stainless.annotation._
 
 case class Reentrancy (
-   var balanceOf: Mapping[Address,Uint256]
+   var balanceOf: MutableMap[Address,Uint256]
 ) extends Contract {
    // Only called when the contract is created, for initialization
    def deposit(): Unit = {

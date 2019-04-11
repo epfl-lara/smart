@@ -75,32 +75,6 @@ package object smartcontracts {
   //@extern
   //def emit(e: Event): Unit = ???
 
-  @library
-  case class Mapping[A, B](
-    private var underlying: A => B
-  ) {
-    @library
-    def apply(k: A): B = underlying(k)
-
-    @library
-    def update(k: A, v: B) = {
-      underlying = (x: A) => if (k == x) v else underlying(x)
-    }
-
-    @library
-    def updated(k: A, v: B) = {
-      Mapping((x: A) => if (k == x) v else underlying(x))
-    }
-  }
-
-  object Mapping {
-    @library
-    def constant[A,B](default: B): Mapping[A,B] = Mapping((x: A) => default)
-
-    @library
-    def duplicate[A,B](that: Mapping[A,B]) = Mapping(that.underlying)
-  }
-
   object Environment {
     @library @extern
     def balanceOf(addr: Address): Uint256 = ???

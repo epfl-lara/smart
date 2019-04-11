@@ -43,6 +43,7 @@ trait MainHelpers extends inox.MainHelpers {
     optCompact -> Description(General, "Print only invalid elements of summaries"),
     frontend.optPersistentCache -> Description(General, "Enable caching of program extraction & analysis"),
     solidity.optSolidityOutput -> Description(Solidity, "From Stainless to Solidity"),
+    solidity.optOverwriteSol -> Description(Solidity, "Overwrite existing Solidity files when compiling"),
     frontend.optBatchedProgram -> Description(General, "Process the whole program together, skip dependency analysis"),
     frontend.optSmartContracts -> Description(General, "Go through the smart contracts phases for verification (implies --batched)"),
     utils.Caches.optCacheDir -> Description(General, "Specify the directory in which cache files should be stored")

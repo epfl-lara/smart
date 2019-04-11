@@ -82,7 +82,7 @@ trait SolidityOutput {
       case UnitType() => SUnitType()
       case BVType(false, size) => SUIntType(size)
       case BVType(true, size) => SIntType(size)
-      case ClassType(id, Seq(tp1, tp2)) if isIdentifier("stainless.smartcontracts.Mapping", id) =>
+      case MutableMapType(tp1, tp2) =>
         SMapping(transformType(tp1), transformType(tp2))
       case ClassType(id, Seq(tp)) if isIdentifier("stainless.collection.List", id) =>
         SArrayType(transformType(tp))
@@ -91,7 +91,7 @@ trait SolidityOutput {
       case ct:ClassType if enumTypeMap.isDefinedAt(ct) => SEnumType(enumTypeMap(ct).toString)
       case ClassType(id, Seq()) => SContractType(id.toString)
 
-      case _ =>  ctx.reporter.fatalError("Unsupported type " + tpe + " at position " + tpe.getPos + " " + tpe.getPos.file)
+      case _ =>  ctx.reporter.fatalError("Type " + tpe + " at position " + tpe.getPos + " " + tpe.getPos.file + " is not supported for Solidity output")
     }
   }
 
@@ -145,19 +145,11 @@ trait SolidityOutput {
       val srcv = transformExpr(rcv)
       SClassSelector(srcv, "balance")
 
-    case MethodInvocation(rcv, id, _, args) if isIdentifier("stainless.smartcontracts.Mapping.apply", id) =>
-      val Seq(arg) = args
-      val newArg = transformExpr(arg)
-      val newRcv = transformExpr(rcv)
-      SMappingRef(newRcv, newArg)
+    case MutableMapApply(map, k) =>
+      SMappingRef(transformExpr(map), transformExpr(k))
 
-    case MethodInvocation(rcv, id, _, args) if isIdentifier("stainless.smartcontracts.Mapping.update", id) =>
-      val Seq(key, value) = args
-      val newKey = transformExpr(key)
-      val newVal = transformExpr(value)
-      val newRcv = transformExpr(rcv)
-
-      SAssignment(SMappingRef(newRcv, newKey), newVal)
+    case MutableMapUpdate(map, k, v) =>
+      SAssignment(SMappingRef(transformExpr(map), transformExpr(k)), transformExpr(v))
 
     case MethodInvocation(rcv, id, _, Seq(arg)) if isSolidityNumericType(rcv) =>
       val tpe = rcv.getType(symbols)
