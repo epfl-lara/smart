@@ -75,6 +75,7 @@ package object smartcontracts {
   //@extern
   //def emit(e: Event): Unit = ???
 
+  @keep("smart-contracts")
   object Environment {
     @library @extern
     def balanceOf(addr: Address): Uint256 = ???
@@ -106,6 +107,7 @@ package object smartcontracts {
   case class Msg(sender: PayableAddress, amount: Uint256)
 
   @library
+  @keep("smart-contracts")
   abstract class Address {
     val id: BigInt
 
@@ -114,6 +116,7 @@ package object smartcontracts {
   }
 
   @library
+  @keep("smart-contracts")
   case class PayableAddress(id: BigInt) extends Address {
     @extern @library
     def transfer(amount: Uint256): Unit = ???
@@ -121,7 +124,6 @@ package object smartcontracts {
     //   Environment.updateBalance(Msg.sender, this, amount)
     // }
   }
-
 
 
   @library @mutable
