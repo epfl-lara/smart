@@ -81,7 +81,8 @@ package object frontend {
     if(hasOptSolidityOutput)
       new SolidityCallBack
     else if(ctx.options.findOptionOrDefault(optBatchedProgram) ||
-            ctx.options.findOptionOrDefault(optSmartContracts))
+            ctx.options.findOptionOrDefault(optSmartContracts) ||
+            !ctx.options.findOptionOrDefault(optKeep).isEmpty)
       new BatchedCallBack(activeComponents)
     else
       new SplitCallBack(activeComponents)

@@ -46,6 +46,7 @@ trait MainHelpers extends inox.MainHelpers {
     solidity.optOverwriteSol -> Description(Solidity, "Overwrite existing Solidity files when compiling"),
     frontend.optBatchedProgram -> Description(General, "Process the whole program together, skip dependency analysis"),
     frontend.optSmartContracts -> Description(General, "Go through the smart contracts phases for verification (implies --batched)"),
+    frontend.optKeep -> Description(General, "Keep library objects marked by @keep(g) for some g in g1,g2,... (implies --batched)"),
     utils.Caches.optCacheDir -> Description(General, "Specify the directory in which cache files should be stored")
   ) ++ MainHelpers.components.map { component =>
     val option = inox.FlagOptionDef(component.name, default = false)
