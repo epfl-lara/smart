@@ -38,7 +38,9 @@ class BatchedCallBack(components: Seq[Component])(implicit val context: inox.Con
       currentClasses.filterNot(cd => cd.flags.exists(notUserFlag)).map(_.id) ++
       currentFunctions.filterNot(fd => fd.flags.exists(notUserFlag)).map(_.id)
     val userDependencies = userIds.flatMap(id => allSymbols.dependencies(id) ) ++ userIds
-    val keepGroups = context.options.findOptionOrDefault(optKeep)
+    val smartcontracts = context.options.findOptionOrDefault(optSmartContracts)
+    val smartcontractsGroup = if (smartcontracts) Some("smart-contracts") else None
+    val keepGroups = context.options.findOptionOrDefault(optKeep) ++ smartcontractsGroup
     def hasKeepFlag(flags: Seq[xt.Flag]) =
       keepGroups.exists(g => flags.contains(xt.Annotation("keep",Seq(g))))
 
@@ -55,16 +57,9 @@ class BatchedCallBack(components: Seq[Component])(implicit val context: inox.Con
 
     val reports = runs map { run =>
       val ids = symbols.functions.keys.toSeq
-      val analysis = Try(run(ids, symbols, filterSymbols = true))
-      analysis match {
-        case Success(analysis) =>
-          val report = Await.result(analysis, Duration.Inf).toReport
-          Some(RunReport(run)(report))
-
-        case Failure(err) =>
-          reporter.error(s"Run has failed with error: $err")
-          None
-      }
+      val analysis = run(ids, symbols, filterSymbols = true)
+      val report = Await.result(analysis, Duration.Inf).toReport
+      Some(RunReport(run)(report))
     }
     report = Report(reports collect { case Some(r) => r })
   }

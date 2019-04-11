@@ -86,19 +86,35 @@ package object smartcontracts {
     def contractAt(a: Address): ContractInterface = ???
   }
 
+  @library
+  @keep("smart-contracts")
+  case class Environment(
+    balances: MutableMap[Address, Uint256],
+    contractAt: MutableMap[Address, ContractInterface]
+  )
+
   object Msg {
     @extern @library
     def sender: Address = ???
 
     @extern @library
     def value: Uint256 = ???
-   }
+  }
 
   @library
-  case class Address(id: BigInt) {
-    @library
-    def balance = Environment.balanceOf(this)
+  @keep("smart-contracts")
+  case class Msg(sender: PayableAddress, amount: Uint256)
 
+  @library
+  abstract class Address {
+    val id: BigInt
+
+    @library
+    final def balance = Environment.balanceOf(this)
+  }
+
+  @library
+  case class PayableAddress(id: BigInt) extends Address {
     @extern @library
     def transfer(amount: Uint256): Unit = ???
     //   dynRequire(Environment.balanceOf(Msg.sender) >= amount)
@@ -106,12 +122,14 @@ package object smartcontracts {
     // }
   }
 
+
+
   @library @mutable
   trait ContractInterface {
     val addr: Address
 
     @library
-    def selfdestruct(recipient: Address):Unit = {
+    def selfdestruct(recipient: PayableAddress):Unit = {
       recipient.transfer(addr.balance)
     }
   }

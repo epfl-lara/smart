@@ -5,8 +5,6 @@ package extraction
 package smartcontracts
 import scala.collection.mutable.{Map => MutableMap, Set => MutableSet}
 
-import InjectedDependencies._
-
 trait EnvironmentBuilder extends oo.SimplePhase
   with oo.SimplyCachedClasses
   with SimplyCachedSorts
@@ -20,8 +18,7 @@ trait EnvironmentBuilder extends oo.SimplePhase
    * ==================================== */
 
   override protected final val funCache = new ExtractionCache[s.FunDef, FunctionResult]((fd, context) => {
-    if (newFunctions.contains(fd)) FunctionKey(fd)
-    else getDependencyKey(fd.id)(context.symbols) + ValueKey(context.requiredParameters(fd.id))
+    getDependencyKey(fd.id)(context.symbols) + ValueKey(context.requiredParameters(fd.id))
   })
 
   override protected def getContext(symbols: s.Symbols) = new TransformerContext()(symbols)
@@ -31,18 +28,34 @@ trait EnvironmentBuilder extends oo.SimplePhase
 
     import s.exprOps._
 
+    // Functions and classes defined in the library for smart contracts
+    val msgCd: ClassDef = symbols.lookup[ClassDef]("stainless.smartcontracts.Msg")
+    val msgType: ClassType = msgCd.typed.toType
+    val envCd: ClassDef = symbols.lookup[ClassDef]("stainless.smartcontracts.Environment")
+    val envType: ClassType = envCd.typed.toType
+    val senderAccessor: FunDef = symbols.lookup[FunDef]("stainless.smartcontracts.Msg.sender")
+    val amountAccessor: FunDef = symbols.lookup[FunDef]("stainless.smartcontracts.Msg.amount")
+    val balancesAccessor: FunDef = symbols.lookup[FunDef]("stainless.smartcontracts.Environment.balances")
+    val contractAtAccessor: FunDef = symbols.lookup[FunDef]("stainless.smartcontracts.Environment.contractAt")
+    val addressAccessor: FunDef = symbols.lookup[FunDef]("stainless.smartcontracts.ContractInterface.addr")
+    val transferFd: FunDef = symbols.lookup[FunDef]("stainless.smartcontracts.PayableAddress.transfer")
+
+    // Useful shorthands
+    val uint256 = BVType(false, 256)
+    val uzero = BVLiteral(false, 0, 256)
+
     // Used to indicate that a function needs an implicit message or an environment parameter
     sealed abstract class ImplicitParams
     case object MsgImplicit extends ImplicitParams
     case object EnvImplicit extends ImplicitParams
 
-    val allFunctions = symbols.functions.values ++ newFunctions
+    val allFunctions = symbols.functions.values
 
     val directParameters: Map[Identifier, Set[ImplicitParams]] = {
       allFunctions.map { fd =>
         fd.id -> {
           collect[ImplicitParams] {
-            case mi: MethodInvocation if isIdentifier("stainless.smartcontracts.Address.transfer", mi.id) => Set(MsgImplicit, EnvImplicit)
+            case mi: MethodInvocation if isIdentifier("stainless.smartcontracts.PayableAddress.transfer", mi.id) => Set(MsgImplicit, EnvImplicit)
             case fi: FunctionInvocation if isIdentifier("stainless.smartcontracts.Msg.sender", fi.id) => Set(EnvImplicit, MsgImplicit)
             case fi: FunctionInvocation if isIdentifier("stainless.smartcontracts.Msg.value", fi.id) => Set(EnvImplicit, MsgImplicit)
             case fi: FunctionInvocation if isIdentifier("stainless.smartcontracts.Environment.balanceOf", fi.id) => Set(EnvImplicit)
@@ -59,7 +72,7 @@ trait EnvironmentBuilder extends oo.SimplePhase
 
     val requiredParameters: Map[Identifier, Set[ImplicitParams]] = {
       allFunctions.map { fd  =>
-        if (newFunctions.contains(fd) || fd.isAccessor)
+        if (fd.isAccessor)
           fd.id -> Set.empty[ImplicitParams]
         else
           fd.id -> (symbols.dependencies(fd.id) + fd.id).flatMap(directParameters.getOrElse(_, Set()))
@@ -67,30 +80,30 @@ trait EnvironmentBuilder extends oo.SimplePhase
     }
 
     def bodyPreProcessing(body: s.Expr, msg: Variable, env: Variable, contractType: Option[ClassType]) = {
-      val msgSender = ClassSelector(msg, senderField.id)
-      val msgValue = ClassSelector(msg, valueField.id)
+      val msgSender = MethodInvocation(msg, senderAccessor.id, Seq(), Seq())
+      val msgAmount = MethodInvocation(msg, amountAccessor.id, Seq(), Seq())
       val newBody = postMap {
         // Msg.sender -> msg.sender
         case fi: FunctionInvocation if isIdentifier("stainless.smartcontracts.Msg.sender", fi.id) => Some(msgSender.setPos(fi))
         // Msg.value -> msg.value
-        case fi: FunctionInvocation if isIdentifier("stainless.smartcontracts.Msg.value", fi.id) => Some(msgValue.setPos(fi))
+        case fi: FunctionInvocation if isIdentifier("stainless.smartcontracts.Msg.value", fi.id) => Some(msgAmount.setPos(fi))
 
-        case mi@MethodInvocation(address, id, Seq(), Seq()) if isIdentifier("stainless.smartcontracts.Address.balance", id) =>
-          Some(MethodInvocation(address, balanceFd.id, Seq(), Seq(env)).setPos(mi))
+        // case mi@MethodInvocation(address, id, Seq(), Seq()) if isIdentifier("stainless.smartcontracts.Address.balance", id) =>
+        //   Some(MethodInvocation(address, balanceFd.id, Seq(), Seq(env)).setPos(mi))
 
-        case mi@MethodInvocation(address, id, Seq(), Seq(amount)) if isIdentifier("stainless.smartcontracts.Address.transfer", id) =>
-          if (contractType.isEmpty) {
-            throw SmartcontractException(symbols.getFunction(id), "Function transfer can only be used within a contract.")
-          }
-          val addr = MethodInvocation(This(contractType.get), addressAccessor.id, Seq(), Seq()).setPos(mi)
-          val newMsg = ClassConstructor(msgType, Seq(addr, uzero))
-          Some(MethodInvocation(address, transferFd.id, Seq(), Seq(transform(amount), env, newMsg)).setPos(mi))
+        // case mi@MethodInvocation(address, id, Seq(), Seq(amount)) if isIdentifier("stainless.smartcontracts.Address.transfer", id) =>
+        //   if (contractType.isEmpty) {
+        //     throw SmartcontractException(symbols.getFunction(id), "Function transfer can only be used within a contract.")
+        //   }
+        //   val addr = MethodInvocation(This(contractType.get), addressAccessor.id, Seq(), Seq()).setPos(mi)
+        //   val newMsg = ClassConstructor(msgType, Seq(addr, uzero))
+        //   Some(MethodInvocation(address, transferFd.id, Seq(), Seq(transform(amount), env, newMsg)).setPos(mi))
 
         case fi@FunctionInvocation(id, _, Seq(addr)) if isIdentifier("stainless.smartcontracts.Environment.balanceOf", fi.id) =>
-          Some(MutableMapApply(ClassSelector(env, balancesField.id).setPos(fi), addr).setPos(fi))
+          Some(MutableMapApply(MethodInvocation(env, balancesAccessor.id, Seq(), Seq()).setPos(fi), addr).setPos(fi))
 
         case fi@FunctionInvocation(id, Seq(ct), Seq(addr)) if isIdentifier("stainless.smartcontracts.Environment.contractAt", id) =>
-          Some(AsInstanceOf(MutableMapApply(ClassSelector(env, contractAtField.id).setPos(fi), addr).setPos(fi), ct).setPos(fi))
+          Some(AsInstanceOf(MutableMapApply(MethodInvocation(env, contractAtAccessor.id, Seq(), Seq()).setPos(fi), addr).setPos(fi), ct).setPos(fi))
 
         case fi@FunctionInvocation(id, _, Seq(method: MethodInvocation, amount)) if isIdentifier("stainless.smartcontracts.pay", id) =>
           if(!symbols.getFunction(method.id).isPayable)
@@ -130,6 +143,7 @@ trait EnvironmentBuilder extends oo.SimplePhase
 
     def bodyPostProcessing(fd: FunDef, body: s.Expr, msg: Expr, env: Expr) = {
       val newBody = postMap {
+        // Changes the `msg` parameter by putting the address of `this`
         case mi@MethodInvocation(receiver, id, tps, args) if fd.isInSmartContract && !isThis(receiver) =>
           val cd = fd.flags.collectFirst {
             case IsMethodOf(cid) => symbols.getClass(cid)
@@ -141,10 +155,12 @@ trait EnvironmentBuilder extends oo.SimplePhase
           val newArgs = args ++ paramsMapper(newMsg, env, requiredParameters(id))
           Some(MethodInvocation(receiver, id, tps, newArgs).setPos(mi))
 
+        // Forwards to the previous message
         case v: MethodInvocation =>
           val newArgs = v.args ++ paramsMapper(msg, env, requiredParameters(v.id))
           Some(v.copy(args = newArgs).setPos(v))
 
+        // Forwards to the previous message
         case v: FunctionInvocation =>
           val newArgs = v.args ++ paramsMapper(msg, env, requiredParameters(v.id))
           Some(v.copy(args = newArgs).setPos(v))
@@ -153,24 +169,6 @@ trait EnvironmentBuilder extends oo.SimplePhase
       }(body)
 
       newBody
-    }
-
-    override def transform(f: Flag): Flag = f match {
-      case IsMethodOf(id) if isIdentifier("stainless.smartcontracts.ContractInterface", id) =>
-        IsMethodOf(contractInterfaceCd.id)
-      case _ => super.transform(f)
-    }
-
-    override def transform(e: Expr): Expr = e match {
-      case mi@MethodInvocation(ci, id, _, _) if isIdentifier("stainless.smartcontracts.ContractInterface.addr", id) =>
-        MethodInvocation(super.transform(ci), addressAccessor.id, Seq(), Seq()).setPos(mi)
-      case _ => super.transform(e)
-    }
-
-    override def transform(tpe: Type): Type = tpe match {
-      case ClassType(ast.SymbolIdentifier("stainless.smartcontracts.Address"), Seq()) => addressType
-      case ClassType(ast.SymbolIdentifier("stainless.smartcontracts.ContractInterface"), Seq()) => contractInterfaceType
-      case _ => super.transform(tpe)
     }
 
     override def transform(fd: FunDef): FunDef = {
@@ -199,30 +197,6 @@ trait EnvironmentBuilder extends oo.SimplePhase
         ).setPos(fd)
       }
     }
-  }
-
-  /* ====================================
-   *             Extraction
-   * ==================================== */
-
-  override def extractSymbols(context: TransformerContext, symbols: Symbols): Symbols = {
-    val oldAddressCd = symbols.lookup.get[ClassDef]("stainless.smartcontracts.Address").toSet
-    val oldContractInterfaceCd = symbols.lookup.get[ClassDef]("stainless.smartcontracts.ContractInterface").toSet
-    val classesToRemove: Set[ClassDef] = oldAddressCd ++ oldContractInterfaceCd
-    val methodsToRemove: Set[Identifier] = classesToRemove.flatMap(_.methods(symbols))
-    val toRemove: Set[Identifier] = classesToRemove.map(_.id) ++ methodsToRemove
-
-    // we inject the synthetic classes and functions, and then transform
-    val enhancedSymbols = symbols.withClasses(newClasses).withFunctions(newFunctions)
-
-    val transformedSymbols = super.extractSymbols(context, enhancedSymbols)
-    val oldIds = (symbols.functions.values.map(_.id) ++ symbols.classes.values.map(_.id)).toSet
-    val allDependencies = oldIds.flatMap(id => transformedSymbols.dependencies(id) + id)
-    NoSymbols.withFunctions(
-      transformedSymbols.functions.values.toSeq.filter { fd => allDependencies(fd.id) && !toRemove(fd.id) }
-    ).withClasses(
-      transformedSymbols.classes.values.toSeq.filter { cd => allDependencies(cd.id) && !toRemove(cd.id) }
-    )
   }
 }
 

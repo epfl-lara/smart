@@ -175,7 +175,6 @@ class SplitCallBack(components: Seq[Component])(override implicit val context: i
             context.reporter.error(s"Run has failed with error: $err")
             None
         }
-        Some(runReport)
       }
     }.flatten
 
