@@ -3,7 +3,7 @@ import stainless.annotation._
 import stainless.lang._
 
 trait OwnedContract extends Contract {
-  var owner: Address
+  var owner: PayableAddress
 
   @solidityPayable
   def sendBalance() = {

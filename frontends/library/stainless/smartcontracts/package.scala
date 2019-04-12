@@ -5,6 +5,8 @@ import stainless.proof._
 import stainless.lang._
 import stainless.annotation._
 
+import scala.language.implicitConversions
+
 package object smartcontracts {
   @library @inline
   def address(c: ContractInterface): Address = c.addr
@@ -96,7 +98,7 @@ package object smartcontracts {
 
   object Msg {
     @extern @library
-    def sender: Address = ???
+    def sender: PayableAddress = ???
 
     @extern @library
     def value: Uint256 = ???
@@ -108,16 +110,17 @@ package object smartcontracts {
 
   @library
   @keep("smart-contracts")
-  abstract class Address {
-    val id: BigInt
-
+  case class Address(id: BigInt) {
     @library
     final def balance = Environment.balanceOf(this)
   }
 
   @library
   @keep("smart-contracts")
-  case class PayableAddress(id: BigInt) extends Address {
+  case class PayableAddress(id: BigInt) {
+    @library
+    final def balance = Environment.balanceOf(this)
+
     @extern @library
     def transfer(amount: Uint256): Unit = ???
     //   dynRequire(Environment.balanceOf(Msg.sender) >= amount)
@@ -125,6 +128,7 @@ package object smartcontracts {
     // }
   }
 
+  implicit def payableAddressToAddress(a: PayableAddress): Address = Address(a.id)
 
   @library @mutable
   trait ContractInterface {

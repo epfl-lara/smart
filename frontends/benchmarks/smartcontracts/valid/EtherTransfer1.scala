@@ -2,7 +2,7 @@ import stainless.smartcontracts._
 
 trait EtherTransfer1 extends Contract {
 
-  val other: Address
+  val other: PayableAddress
 
   def foo(): Unit = {
       require(addr.balance == Uint256("50") &&
