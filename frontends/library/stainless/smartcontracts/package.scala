@@ -82,8 +82,8 @@ package object smartcontracts {
     @library @extern
     def balanceOf(addr: Address): Uint256 = ???
 
-    // @library @extern
-    // def updateBalance(from: Address, to: Address, amnt: Uint256): Unit = ???
+    @library @extern
+    def updateBalance(from: Address, to: Address, amnt: Uint256): Unit = ???
 
     @library @extern @pure
     def contractAt(a: Address): ContractInterface = ???
@@ -94,7 +94,12 @@ package object smartcontracts {
   case class Environment(
     balances: MutableMap[Address, Uint256],
     contractAt: MutableMap[Address, ContractInterface]
-  )
+  ) {
+    def updateBalance(from: Address, to: Address, amnt: Uint256): Unit = {
+      balances(from) = balances(from) - amnt
+      balances(to) = balances(to) + amnt
+    }
+  }
 
   object Msg {
     @extern @library
@@ -122,10 +127,10 @@ package object smartcontracts {
     final def balance = Environment.balanceOf(this)
 
     @extern @library
-    def transfer(amount: Uint256): Unit = ???
-    //   dynRequire(Environment.balanceOf(Msg.sender) >= amount)
-    //   Environment.updateBalance(Msg.sender, this, amount)
-    // }
+    def transfer(amount: Uint256): Unit = {
+      dynRequire(Environment.balanceOf(Msg.sender) >= amount)
+      Environment.updateBalance(Msg.sender, this, amount)
+    }
   }
 
   implicit def payableAddressToAddress(a: PayableAddress): Address = Address(a.id)
@@ -142,8 +147,8 @@ package object smartcontracts {
 
   @library @mutable
   trait Contract extends ContractInterface {
-    @extern @ghost
-    def havoc(): Unit
+    //@extern @ghost
+    //def havoc(): Unit
   }
 
   @ignore
