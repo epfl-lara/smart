@@ -27,9 +27,10 @@ package object extraction {
 
   val phases: Seq[(String, String)] = Seq(
     "PartialFunctions"          -> "Lift partial function preconditions",
-    "HavocInjection"            -> "Inject a havoc method in each Contract that can be used to reset variables to arbirary values",
-    "SmartContractInvariant"    -> "Insert invariant and evolution methods in pre and postconditions of smart contracts methods",
     "EnvironmentBuilder"        -> "Give semantics to Msg.sender and smart contracts environment",
+    "GlobalInvariantInjection"  -> "Inject the invariant that should holds for the whole environment",
+    "HavocInjection"            -> "Inject a havoc method in each Contract that can be used to reset variables to arbirary values",
+    "EtherUpdateInjection"      -> "Inject a method that check if the global invariant holds under increase of ether for any address",
     "Laws"                      -> "Rewrite laws as abstract functions with contracts",
     "SuperCalls"                -> "Resolve super-function calls",
     "Sealing"                   -> "Seal every class and add mutable flags",
