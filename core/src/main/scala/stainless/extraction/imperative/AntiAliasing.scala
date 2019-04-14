@@ -476,6 +476,10 @@ trait AntiAliasing
             else Annotated(ClassSelector(casted, vd.id).copiedFrom(receiver), Seq(Unchecked)).copiedFrom(receiver)
           }).copiedFrom(newValue)
 
+        case MutableMapAccessor(key) :: fs =>
+          val r = rec(Annotated(MutableMapApply(receiver, key).copiedFrom(newValue), Seq(Unchecked)).copiedFrom(newValue), fs)
+          MutableMapUpdated(receiver, key, r).copiedFrom(newValue)
+
         case ArrayAccessor(index) :: fs =>
           val r = rec(Annotated(ArraySelect(receiver, index).copiedFrom(newValue), Seq(Unchecked)).copiedFrom(newValue), fs)
           ArrayUpdated(receiver, index, r).copiedFrom(newValue)
