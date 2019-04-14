@@ -33,10 +33,12 @@ trait EnvironmentBuilder extends oo.SimplePhase
     val msgType: ClassType = msgCd.typed.toType
     val envCd: ClassDef = symbols.lookup[ClassDef]("stainless.smartcontracts.Environment")
     val envType: ClassType = envCd.typed.toType
+    val addressCd: ClassDef = symbols.lookup[ClassDef]("stainless.smartcontracts.Address")
+    val addressType: ClassType = addressCd.typed.toType
     val senderAccessor: FunDef = symbols.lookup[FunDef]("stainless.smartcontracts.Msg.sender")
     val amountAccessor: FunDef = symbols.lookup[FunDef]("stainless.smartcontracts.Msg.amount")
     val balancesAccessor: FunDef = symbols.lookup[FunDef]("stainless.smartcontracts.Environment.balances")
-    val contractAtAccessor: FunDef = symbols.lookup[FunDef]("stainless.smartcontracts.Environment.contractAt")
+    val contractAtAccessor: ValDef = envCd.fields.find(vd => isIdentifier("stainless.smartcontracts.Environment.contractAt", vd.id)).get
     val addressAccessor: FunDef = symbols.lookup[FunDef]("stainless.smartcontracts.ContractInterface.addr")
     val transferFd: FunDef = symbols.lookup[FunDef]("stainless.smartcontracts.PayableAddress.transfer")
 
@@ -121,7 +123,7 @@ trait EnvironmentBuilder extends oo.SimplePhase
 
         case FunctionInvocation(id, _, Seq(m, _)) if isIdentifier("stainless.smartcontracts.pay", id) =>
           throw SmartcontractException(m, "Pay can be only used with a call to a payable method of a contract")
-
+          
         case e =>
           None
       }(body)
