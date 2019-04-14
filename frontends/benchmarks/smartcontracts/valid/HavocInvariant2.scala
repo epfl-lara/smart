@@ -36,7 +36,6 @@ trait HavocInvariant2A extends Contract {
     // true here.
     Environment.contractAt(target).asInstanceOf[HavocInvariant2B].emptyContract()
     assert(Environment.contractAt(target).asInstanceOf[HavocInvariant2B].invariant())
-    ghost { havoc() }
     assert(Environment.contractAt(target).asInstanceOf[HavocInvariant2B].invariant())
   }
 

@@ -20,7 +20,6 @@ trait HavocInvariant1 extends Contract {
 
     assert( invariant() )
     Msg.sender.transfer(Uint256.ONE)
-    ghost { havoc() }
     assert( invariant() )
   }
 

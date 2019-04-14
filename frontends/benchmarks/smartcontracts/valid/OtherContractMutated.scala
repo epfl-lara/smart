@@ -26,7 +26,6 @@ trait OCMA extends Contract {
 
     val oldTestField1 = Environment.contractAt(target).asInstanceOf[OCMB].testField1
     val oldTestField2 = Environment.contractAt(target).asInstanceOf[OCMB].testField2
-    ghost { havoc() }
     assert(oldTestField1 == Environment.contractAt(target).asInstanceOf[OCMB].testField1)
     assert(oldTestField2 == Environment.contractAt(target).asInstanceOf[OCMB].testField2)
   }

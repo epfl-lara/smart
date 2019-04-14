@@ -42,9 +42,6 @@ trait EVKB extends Contract {
     Environment.contractAt(target).asInstanceOf[EVKA].increase()
     decrease()
 
-    ghost {
-      havoc()
-    }
     true
   }
 }
