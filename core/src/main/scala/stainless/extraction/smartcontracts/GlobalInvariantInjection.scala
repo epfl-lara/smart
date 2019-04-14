@@ -46,7 +46,7 @@ trait GlobalInvariantInjection extends oo.SimplePhase
 
     // We collect all contracts
     val contracts = symbols.classes.values.filter(_.isContract)
-    val invariants: Map[Identifier, Identifier] = contracts.map { cd =>
+    val existingInvariants: Map[Identifier, Identifier] = contracts.map { cd =>
       symbols.functions.values.collectFirst {
         case fd if (fd.isInClass(cd.id) && fd.id.name == "invariant") =>
           checkInvariantForm(cd.id, fd)
@@ -54,6 +54,21 @@ trait GlobalInvariantInjection extends oo.SimplePhase
           (cd.id, fd.id)
       }
     }.flatten.toMap
+
+    val implicitInvariant = contracts.filterNot(c => existingInvariants.contains(c.id)).map { case cd =>
+      context.reporter.info(s"No invariant was found for contract ${cd.id}. Implicite invariant() = true has been generated")
+      val inv = new FunDef(
+        ast.SymbolIdentifier("invariant"),
+        Seq(),
+        Seq(),
+        BooleanType(),
+        BooleanLiteral(true),
+        Seq(Synthetic, IsPure, IsMethodOf(cd.id))
+      )
+      (cd, inv)
+    }
+
+    val invariants = existingInvariants ++ implicitInvariant.map{ case (cd, inv) => cd.id -> inv.id }.toMap
 
     // We make sure that contracts are not extended
     contracts.find { cd => !cd.children.isEmpty } match {
@@ -152,7 +167,7 @@ trait GlobalInvariantInjection extends oo.SimplePhase
 
     val envInvariantFuns = Seq(environmentInvariant) ++ addressOfs
 
-    val newFuns = envInvariantFuns
+    val newFuns = envInvariantFuns ++ implicitInvariant.map{ case (cd, inv) => inv }
   }
 
   /* ====================================
