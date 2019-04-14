@@ -21,40 +21,47 @@ object SolidityPrinter {
       out.write(tab + code)
     }
 
-    def printFunModifiers(mod: Seq[SFlag])(implicit out: Writer) = {
+    def printFlags(mod: Seq[SFlag])(implicit out: Writer) = {
       mod.foreach{
         case SPayable => out.write("payable ")
         case SPure => out.write("pure ")
         case SPrivate => out.write("private ")
         case SPublic => out.write("public ")
         case SView => out.write("view ")
+        case SConstant => out.write("constant ")
       }
     }
 
-    def typeToString(tpe: SolidityType): String = tpe match {
-        case SBooleanType() => "bool"
-        case SAddressType() => "address"
+    def typeToString(tpe: SolidityType, printMemory: Boolean = false): String = {
+      val mem = if (printMemory) " memory" else ""
+      tpe match {
+        case SBooleanType => "bool"
+        case SAddressType => "address"
+        case SPayableAddressType => "address payable"
         case SUIntType(size) => "uint" + size
         case SIntType(size) => "int" + size
-        case SStringType() => "string"
+        case SStringType => "string" + mem
         case SEnumType(id) => id
         case SContractType(id) => id
-        case SUnitType() => ""
-        case SArrayType(tp) => typeToString(tp) + "[]"
+        case SUnitType => ""
+        case SArrayType(tp) => typeToString(tp) + "[]" + mem
         case SMapping(tp1, tp2) => "mapping(" + typeToString(tp1) + " => " + typeToString(tp2) + ")"
         case _ => ctx.reporter.fatalError("Type " + tpe  + " is not supported by the SolidityPrinter.")
+      }
     }
 
 
     def writeParamsWithComma(ls: Seq[SParamDef])(implicit out: Writer, indentLvl: Int): Unit = ls match {
       case Nil =>
-      case SParamDef(_, name, tpe) +: Nil => writeWithIndent(typeToString(tpe) + " " + name)
-      case SParamDef(_, name, tpe) +: xs  => writeWithIndent(typeToString(tpe) + " " + name)
-                        out.write(", ")
-                        writeParamsWithComma(xs)(out, 0)
+      case SParamDef(name, tpe, _) +: Nil =>
+        writeWithIndent(typeToString(tpe, true) + " " + name)
+      case SParamDef(name, tpe, _) +: xs  =>
+        writeWithIndent(typeToString(tpe, true) + " " + name)
+        out.write(", ")
+        writeParamsWithComma(xs)(out, 0)
     }
 
-    def isUnitType(tpe: SolidityType) = tpe == SUnitType()
+    def isUnitType(tpe: SolidityType) = tpe == SUnitType
 
     def ppOperatorExpr(left: SolidityExpr, right: SolidityExpr, operator: String)(implicit out: Writer, indentLvl: Int) = {
       ppCode(left)
@@ -200,6 +207,8 @@ object SolidityPrinter {
         if(expr != SThis()) {
           ppCode(expr)
           out.write("." + id)
+          if (id != "balance" && id != "sender" && id != "value")
+            out.write("()")
         } else writeWithIndent(id)
 
       case SLiteral(value) =>
@@ -208,9 +217,9 @@ object SolidityPrinter {
         }
 
       case SLet(vd, value, body) =>
-        val SParamDef(_, name, tpe) = vd
-        writeWithIndent(typeToString(tpe) + " " + name)
-        out.write(" = ")
+        val SParamDef(name, tpe, _) = vd // flags are ignored here
+        writeWithIndent(typeToString(tpe) + " ")
+        out.write(name + " = ")
         ppCode(value)(out, 0)
         out.write(";\n")
         ppCode(body)
@@ -287,25 +296,24 @@ object SolidityPrinter {
       case _ => ctx.reporter.fatalError("Solidity printer is not implemented for: " + code)
     }
 
-    def ppMethod(method: SFunDef)(implicit out: Writer, indentLvl: Int) = method match {
-      case SFunDef(name, params, rteType, body, modifiers) =>
-        writeWithIndent("function " + name + " (")
-        writeParamsWithComma(params)(out, 0)
+    def ppMethod(method: SFunDef)(implicit out: Writer, indentLvl: Int) = {
+      val SFunDef(name, params, rteType, body, flags) = method
+      writeWithIndent("function " + name + " (")
+      writeParamsWithComma(params)(out, 0)
 
-        out.write(") ")
+      out.write(") ")
 
-        // the private keyword is printed here
-        printFunModifiers(modifiers)
-        if(!isUnitType(rteType)) {
-          out.write("returns (" + typeToString(rteType) + ") ")
-        }
-        out.write("{\n")
-        if(body != STerminal()) {
-          ppCode(body)(out, indentLvl + 1)
-          shouldAddColon(body)
-          out.write("\n")
-        }
-        writeWithIndent("}\n\n")
+      printFlags(flags)
+      if(!isUnitType(rteType)) {
+        out.write("returns (" + typeToString(rteType) + ") ")
+      }
+      out.write("{\n")
+      if(body != STerminal()) {
+        ppCode(body)(out, indentLvl + 1)
+        shouldAddColon(body)
+        out.write("\n")
+      }
+      writeWithIndent("}\n\n")
     }
 
     def ppEventDef(deff: SEventDef)(implicit out: Writer, indentLvl: Int) = {
@@ -334,9 +342,14 @@ object SolidityPrinter {
 
       if (!fields.isEmpty) {
         writeWithIndent("// Fields\n")(out,1)
-        fields.foreach{
-          case SParamDef(false, name, tpe) => writeWithIndent(typeToString(tpe) + " " + name + ";\n")(out, 1)
-          case SParamDef(true, name, tpe) => writeWithIndent(typeToString(tpe) + " " + name + ";\n")(out, 1)
+        fields.foreach {
+          case SParamDef(name, tpe, flags) =>
+            writeWithIndent(typeToString(tpe) + " ")(out, 1)
+            // FIXME: We ignore the SConstant flag because uninitialized "val"'s in the
+            // source cannot be compiled to uninitialized "constant"'s
+            printFlags(flags.filterNot(_ == SConstant))
+            out.write(name)
+            out.write(";\n")
         }
         out.write("\n")
       }
@@ -377,11 +390,11 @@ object SolidityPrinter {
       out.write("\n")
 
       methods.foreach{
-        case SAbstractFunDef(name, params, returnType, modifiers) =>
+        case SAbstractFunDef(name, params, returnType, flags) =>
           writeWithIndent("function " + name + "(")(out, 1)
           writeParamsWithComma(params)(out, 0)
           out.write(") external ")
-          printFunModifiers(modifiers)
+          printFlags(flags)
           if(!isUnitType(returnType))
             out.write("returns (" + typeToString(returnType) + ")")
           out.write(";\n")

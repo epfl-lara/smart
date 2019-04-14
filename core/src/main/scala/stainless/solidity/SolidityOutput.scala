@@ -63,7 +63,7 @@ trait SolidityOutput {
       case Payable :: xs  => SPayable +: process(xs)
       case Annotation("solidityPure", _) :: xs  => SPure +: process(xs)
       case Annotation("solidityView", _) :: xs  => SView +: process(xs)
-      case Annotation("solidityPrivate", _) :: xs  => SPure +: process(xs)
+      case Annotation("solidityPrivate", _) :: xs  => SPrivate +: process(xs)
       case Annotation("solidityPublic", _) :: xs  => SPublic +: process(xs)
       case x :: xs => process(xs)
     }
@@ -76,10 +76,10 @@ trait SolidityOutput {
       case IntegerType() =>
         ctx.reporter.warning("The BigInt type was translated to int256 during compilation. Overflows might occur.")
         SIntType(256)
-      case BooleanType() => SBooleanType()
-      case StringType() => SStringType()
+      case BooleanType() => SBooleanType
+      case StringType() => SStringType
       case Int32Type() => SIntType(32)
-      case UnitType() => SUnitType()
+      case UnitType() => SUnitType
       case BVType(false, size) => SUIntType(size)
       case BVType(true, size) => SIntType(size)
       case MutableMapType(tp1, tp2) =>
@@ -87,7 +87,9 @@ trait SolidityOutput {
       case ClassType(id, Seq(tp)) if isIdentifier("stainless.collection.List", id) =>
         SArrayType(transformType(tp))
       case ClassType(id, Seq()) if isIdentifier("stainless.smartcontracts.Address", id) =>
-        SAddressType()
+        SAddressType
+      case ClassType(id, Seq()) if isIdentifier("stainless.smartcontracts.PayableAddress", id) =>
+        SPayableAddressType
       case ct:ClassType if enumTypeMap.isDefinedAt(ct) => SEnumType(enumTypeMap(ct).toString)
       case ClassType(id, Seq()) => SContractType(id.toString)
 
@@ -105,7 +107,8 @@ trait SolidityOutput {
       val name = fd.id.name
       // a field is variable (non-constant) if there exists a setter for it
       val isVar = setters.exists { fd2 => fd2.id.name == name + "_=" }
-      SParamDef(isVar, name, transformType(fd.returnType))
+      val constantFlag: Option[SFlag] = if (isVar) None else Some(SConstant)
+      SParamDef(name, transformType(fd.returnType), transformFlags(fd.flags) ++ constantFlag)
     }
   }
 
@@ -169,10 +172,10 @@ trait SolidityOutput {
           ctx.reporter.fatalError(rcv.getPos, "Unknown operator: " + id.name)
       }
 
-    // Converting calls to accessors to a class selector
+    // Converting calls to getters to a class selector
     case MethodInvocation(rcv, id, _, Seq()) if
         symbols.functions.contains(id) &&
-        symbols.functions(id).flags.exists{case IsAccessor(_) => true case _ => false} =>
+        symbols.functions(id).isAccessor =>
       val srcv = transformExpr(rcv)
 
       SClassSelector(srcv, id.name)
@@ -180,7 +183,7 @@ trait SolidityOutput {
     // Converting calls to setters to an assignment
     case MethodInvocation(rcv, id, _, Seq(v)) if
         symbols.functions.contains(id) &&
-        symbols.functions(id).flags.exists{case IsAccessor(_) => true case _ => false} =>
+        symbols.functions(id).isAccessor =>
       val srcv = transformExpr(rcv)
       val sv = transformExpr(v)
 
@@ -197,28 +200,20 @@ trait SolidityOutput {
 
       SMethodInvocation(srcv, id.name, newArgs, None)
 
-    case FunctionInvocation(id, _, args) if isIdentifier("stainless.smartcontracts.get", id) =>
-      val Seq(array,index) = args
-      val newArray = transformExpr(array)
-      val newIndex = transformExpr(index)
-      SArrayRef(newArray, newIndex)
+    case FunctionInvocation(id, _, Seq(array,index)) if isIdentifier("stainless.smartcontracts.get", id) =>
+      SArrayRef(transformExpr(array), transformExpr(index))
 
-    case FunctionInvocation(id, _, args) if isIdentifier("stainless.smartcontracts.length", id) =>
-      val Seq(array) = args
-      val newArray = transformExpr(array)
-      SArrayLength(newArray)
+    case FunctionInvocation(id, _, Seq(array)) if isIdentifier("stainless.smartcontracts.length", id) =>
+      SArrayLength(transformExpr(array))
 
-    case fi@FunctionInvocation(id, _, args) if isIdentifier("stainless.smartcontracts.dynRequire", id) =>
-      val Seq(cond:Expr) = args
+    case fi@FunctionInvocation(id, _, Seq(cond)) if isIdentifier("stainless.smartcontracts.dynRequire", id) =>
       SRequire(transformExpr(cond), "error")
 
-    case fi@FunctionInvocation(id, _, args) if isIdentifier("stainless.smartcontracts.dynAssert", id) =>
-      val Seq(cond:Expr) = args
+    case fi@FunctionInvocation(id, _, Seq(cond)) if isIdentifier("stainless.smartcontracts.dynAssert", id) =>
       SAssert(transformExpr(cond), "error")
 
     // Desugar pay function
-    case fi@FunctionInvocation(id, _, args) if isIdentifier("stainless.smartcontracts.pay",id) =>
-      val Seq(m:MethodInvocation, amount: Expr) = args
+    case fi@FunctionInvocation(id, _, Seq(m: MethodInvocation, amount)) if isIdentifier("stainless.smartcontracts.pay",id) =>
       if(!symbols.functions(m.id).isPayable) {
         ctx.reporter.fatalError(fi.getPos, "The method pay can only be used on a payable function.")
       }
@@ -227,12 +222,16 @@ trait SolidityOutput {
         case SMethodInvocation(rcv, method, args, _) =>
           SMethodInvocation(rcv, method, args, Some(transformExpr(amount)))
         case _ =>
-          ctx.reporter.fatalError(fi.getPos, "The compiler to Solidity should only return SMethodInvocation's for this invocation.")
+          ctx.reporter.internalError(fi.getPos, "The compiler to Solidity should only return SMethodInvocation's for this invocation.")
       }
 
     // Desugar call to the function 'address' of the library
     case fi@FunctionInvocation(id, _, Seq(arg)) if isIdentifier("stainless.smartcontracts.address", id) =>
       SAddress(transformExpr(arg))
+
+    // Remove the implicit cast 'payableAddressToAddress'
+    case fi@FunctionInvocation(id, _, Seq(a)) if isIdentifier("stainless.smartcontracts.payableAddressToAddress", id) =>
+      transformExpr(a)
 
     // Desugar call to the function 'now' of the library
     case FunctionInvocation(id, _, _) if isIdentifier("stainless.smartcontracts.now", id) =>
@@ -246,16 +245,24 @@ trait SolidityOutput {
     case FunctionInvocation(id, _, _) if isIdentifier("stainless.smartcontracts.Msg.value", id) =>
       SClassSelector(SVariable("msg"), "value")
 
-    case FunctionInvocation(id, _, Seq(lhs, rhs)) if isIdentifier("stainless.smartcontracts.unsafe_$plus", id) =>
+    case FunctionInvocation(id, _, Seq(lhs, rhs))
+      if isIdentifier("stainless.smartcontracts.unsafe_$plus", id) ||
+         isIdentifier("stainless.smartcontracts.unsafe_+", id) =>
       SPlus(transformExpr(lhs), transformExpr(rhs))
 
-    case FunctionInvocation(id, _, Seq(lhs, rhs)) if isIdentifier("stainless.smartcontracts.unsafe_$minus", id) =>
+    case FunctionInvocation(id, _, Seq(lhs, rhs))
+      if isIdentifier("stainless.smartcontracts.unsafe_$minus", id) ||
+         isIdentifier("stainless.smartcontracts.unsafe_-", id) =>
       SMinus(transformExpr(lhs), transformExpr(rhs))
 
-    case FunctionInvocation(id, _, Seq(lhs, rhs)) if isIdentifier("stainless.smartcontracts.unsafe_$times", id) =>
+    case FunctionInvocation(id, _, Seq(lhs, rhs))
+      if isIdentifier("stainless.smartcontracts.unsafe_$times", id) ||
+         isIdentifier("stainless.smartcontracts.unsafe_*", id) =>
       SMult(transformExpr(lhs), transformExpr(rhs))
 
-    case FunctionInvocation(id, _, Seq(lhs, rhs)) if isIdentifier("stainless.smartcontracts.unsafe_$div", id) =>
+    case FunctionInvocation(id, _, Seq(lhs, rhs))
+      if isIdentifier("stainless.smartcontracts.unsafe_$div", id) ||
+         isIdentifier("stainless.smartcontracts.unsafe_/", id) =>
       SDivision(transformExpr(lhs), transformExpr(rhs))
 
     case FunctionInvocation(id, _, _) if isIdentifier("stainless.lang.ghost", id) =>
@@ -289,8 +296,7 @@ trait SolidityOutput {
               sel.name,
               transformExpr(expr))
 
-    case ClassConstructor(tpe, args) if isIdentifier("stainless.smartcontracts.Address", tpe.id) =>
-      val Seq(x) = args
+    case ClassConstructor(tpe, Seq(x)) if isIdentifier("stainless.smartcontracts.Address", tpe.id) =>
       SAddress(transformExpr(x))
 
     case ClassConstructor(tpe, args) if(enumTypeMap.isDefinedAt(tpe)) =>
@@ -298,12 +304,10 @@ trait SolidityOutput {
       SEnumValue(id.toString, tpe.toString)
 
     case ClassConstructor(tpe, args) =>
-      val newArgs = args.map(transformExpr)
-      SClassConstructor(transformType(tpe), newArgs)
+      SClassConstructor(transformType(tpe), args.map(transformExpr))
 
     case ClassSelector(expr, id) =>
-      val se = transformExpr(expr)
-      SClassSelector(se, id.name)
+      SClassSelector(transformExpr(expr), id.name)
 
     case While(cond, body, pred) => SWhile(transformExpr(cond), transformExpr(body))
 
@@ -319,7 +323,7 @@ trait SolidityOutput {
       transformExpr(body)
 
     case Let(vd, value, body) =>
-      val p = SParamDef(true, vd.id.name, transformType(vd.tpe))
+      val p = SParamDef(vd.id.name, transformType(vd.tpe), Seq(SConstant))
       val v = transformExpr(value)
       val b = transformExpr(body)
       SLet(p,v,b)
@@ -347,7 +351,7 @@ trait SolidityOutput {
     case Remainder(l, r) => SRemainder(transformExpr(l), transformExpr(r))
 
     case LetVar(vd, value, body) =>
-      val p = SParamDef(false, vd.id.name, transformType(vd.tpe))
+      val p = SParamDef(vd.id.name, transformType(vd.tpe), Seq())
       val v = transformExpr(value)
       val b = transformExpr(body)
       SLet(p,v,b)
@@ -371,7 +375,7 @@ trait SolidityOutput {
   }
 
   def transformAbstractMethods(fd: FunDef) = {
-    val newParams = fd.params.map(p => SParamDef(false, p.id.name, transformType(p.tpe)))
+    val newParams = fd.params.map(p => SParamDef(p.id.name, transformType(p.tpe), Seq()))
     val rteType = transformType(fd.returnType)
     val sflags = transformFlags(fd.flags)
     SAbstractFunDef(fd.id.name, newParams, rteType, sflags)
@@ -383,7 +387,7 @@ trait SolidityOutput {
 
     val newParams = fd.params
                       .filterNot(_.flags.contains(Ghost))
-                      .map(p => SParamDef(false, p.id.name, transformType(p.tpe)))
+                      .map(p => SParamDef(p.id.name, transformType(p.tpe), Seq()))
 
     val rteType = transformType(fd.returnType)
     val sflags = transformFlags(fd.flags)

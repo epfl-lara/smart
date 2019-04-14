@@ -33,8 +33,10 @@ trait VotingToken extends Contract {
   var participants: List[Address]
 
   @solidityView
+  @solidityPublic
   def balanceOf(_owner: Address) = balances(_owner)
   @solidityView
+  @solidityPublic
   def allowance(_owner: Address, _spender: Address) = allowed(_owner)(_spender)
 
   @ghost
@@ -43,6 +45,7 @@ trait VotingToken extends Contract {
       participants = p :: participants
   }
 
+  @solidityPublic
   final def approve(_spender: Address, _value: Uint256) = {
     require( standardTokenInvariant(this) )
     allowed(Msg.sender)(_spender) = _value
@@ -92,6 +95,7 @@ trait VotingToken extends Contract {
     assert(standardTokenInvariant(this))
   }
 
+  @solidityPublic
   final def transfer(_to: Address, _value: Uint256) = {
     require(votingTokenInvariant(this))
 
@@ -136,6 +140,7 @@ trait VotingToken extends Contract {
     votingTokenInvariant(this)
   }
 
+  @solidityPublic
   final def transferFrom(_from: Address, _to: Address, _value: Uint256) = {
     require(votingTokenInvariant(this))
 
@@ -183,8 +188,10 @@ trait VotingToken extends Contract {
   }
 
   @solidityView
+  @solidityPublic
   final def onlyOwner: Boolean = Msg.sender == owner
 
+  @solidityPublic
   final def transferOwnership(newOwner: Address) = {
     dynRequire(onlyOwner && newOwner != Address(0))
 
@@ -193,6 +200,7 @@ trait VotingToken extends Contract {
     _ => newOwner != Address(0)
   }
 
+  @solidityPublic
   final def mint(_to: Address, _amount: Uint256) = {
     require(votingTokenInvariant(this))
     dynRequire(onlyOwner)
@@ -230,6 +238,7 @@ trait VotingToken extends Contract {
     old(this).owner == this.owner
   }
 
+  @solidityPublic
   final def open() = {
     require(votingTokenInvariant(this))
     dynRequire(onlyOwner)
@@ -241,6 +250,7 @@ trait VotingToken extends Contract {
     old(this).owner == this.owner
   }
 
+  @solidityPublic
   final def close() = {
     require(votingTokenInvariant(this))
     dynRequire(onlyOwner)
@@ -276,7 +286,8 @@ trait VotingToken extends Contract {
   //   old(this).owner == this.owner
   // }
 
-  private final def _rewardVote(_from: Address, _to: Address, _value: Uint256): Unit = {
+  @solidityPrivate
+  final def _rewardVote(_from: Address, _to: Address, _value: Uint256): Unit = {
     require(votingTokenInvariant(this))
 
     if(_isVotingAddress(_to)) {
@@ -292,7 +303,8 @@ trait VotingToken extends Contract {
   }
 
   @solidityView
-  private final def _isVotingAddressFrom(i: Uint256, votingAddress: Address): Boolean = {
+  @solidityPrivate
+  final def _isVotingAddressFrom(i: Uint256, votingAddress: Address): Boolean = {
     // decreases(max(length(votingAddresses) - i, Uint256.ZERO))
 
     if (i >= length(votingAddresses)) false
@@ -301,6 +313,7 @@ trait VotingToken extends Contract {
   }
 
   @solidityView
+  @solidityPrivate
   private final def _isVotingAddress(votingAddress: Address) = {
     require(votingTokenInvariant(this))
 

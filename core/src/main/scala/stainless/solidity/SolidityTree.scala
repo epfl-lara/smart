@@ -4,38 +4,37 @@ package solidity
 trait SolidityDef
 
 case class SContractDefinition(
-    name: String,
-    parents: Seq[String],
-    constructor: SConstructorDef,
-    events: Seq[SEventDef],
-    enums: Seq[SEnumDefinition],
-    fields: Seq[SParamDef],
-    methods: Seq[SFunDef]
+  name: String,
+  parents: Seq[String],
+  constructor: SConstructorDef,
+  events: Seq[SEventDef],
+  enums: Seq[SEnumDefinition],
+  fields: Seq[SParamDef],
+  methods: Seq[SFunDef]
 ) extends SolidityDef
 
 case class SContractInterface(
-    name: String,
-    events: Seq[SEventDef],
-    methods: Seq[SAbstractFunDef]
+  name: String,
+  events: Seq[SEventDef],
+  methods: Seq[SAbstractFunDef]
 ) extends SolidityDef
 
 case class SLibrary(
-    name: String,
-    functions: Seq[SFunDef]
+  name: String,
+  functions: Seq[SFunDef]
 ) extends SolidityDef
 
 case class SolidityImport(path: String)
 
-case class SParamDef(constant: Boolean, name: String, tpe: SolidityType) extends SolidityDef
+case class SParamDef(name: String, tpe: SolidityType, flags: Seq[SFlag]) extends SolidityDef
 case class SEnumDefinition(name: String, values: Seq[String]) extends SolidityDef
 case class SEventDef(name: String, args: Seq[SParamDef]) extends SolidityDef
 case class SConstructorDef(params: Seq[SParamDef], body: SolidityExpr) extends SolidityDef
-case class SFunDef(name: String,params: Seq[SParamDef], returnType: SolidityType, body: SolidityExpr, flags: Seq[SFlag]) extends SolidityDef
+case class SFunDef(name: String, params: Seq[SParamDef], returnType: SolidityType, body: SolidityExpr, flags: Seq[SFlag]) extends SolidityDef
 case class SAbstractFunDef(name: String, params: Seq[SParamDef], returnType: SolidityType, flags: Seq[SFlag]) extends SolidityDef
 
 sealed trait SolidityExpr
 
-//case class SParamDef(name: String, tpe: SolidityType) extends SolidityExpr
 case class SEnumValue(id: String, value: String) extends SolidityExpr
 case class SVariable(name: String) extends SolidityExpr
 case class SMethodInvocation(rcv: SolidityExpr, method: String, args: Seq[SolidityExpr], ether: Option[SolidityExpr]) extends SolidityExpr
@@ -90,11 +89,11 @@ case class SAssert(cond: SolidityExpr, errorMessage: String) extends SolidityExp
 sealed trait SolidityType
 case class SUIntType(size: Int) extends SolidityType
 case class SIntType(size: Int) extends SolidityType
-case class SAddressType() extends SolidityType
-case class SBooleanType() extends SolidityType
-case class SStringType() extends SolidityType
-// case class SInt32Type() extends SolidityType
-case class SUnitType() extends SolidityType
+case object SAddressType extends SolidityType
+case object SPayableAddressType extends SolidityType
+case object SBooleanType extends SolidityType
+case object SStringType extends SolidityType
+case object SUnitType extends SolidityType
 case class SEnumType(id: String) extends SolidityType
 case class SContractType(id: String) extends SolidityType
 case class SMapping(key: SolidityType, vvalue: SolidityType) extends SolidityType
@@ -102,48 +101,49 @@ case class SEventType(id: String) extends SolidityType
 case class SArrayType(underlying: SolidityType) extends SolidityType
 
 sealed trait SFlag
-case object SPayable                  extends SFlag
-case object SPure                     extends SFlag
-case object SView                     extends SFlag
-case object SPrivate                  extends SFlag
-case object SPublic                   extends SFlag
+case object SPayable          extends SFlag
+case object SPure             extends SFlag
+case object SView             extends SFlag
+case object SPrivate          extends SFlag
+case object SPublic           extends SFlag
+case object SConstant         extends SFlag
 
 object SolidityTreeOps {
-    def transform(f: PartialFunction[SolidityExpr, SolidityExpr], expr: SolidityExpr) = {
-        def process(expr: SolidityExpr): SolidityExpr = expr match {
-            case e if f.isDefinedAt(e) => f(e)
-            case SMethodInvocation(rcv, method, args, ether) => SMethodInvocation(process(rcv), method, args.map(process), ether.map(process))
-            case SClassConstructor(tpe, args) => SClassConstructor(tpe, args.map(process))
-            case SClassSelector(expr, sel) => SClassSelector(process(expr), sel)
-            case SLet(vd, value, body) => SLet(vd, process(value), process(body))
-            case SAddress(value) => SAddress(process(value))
-            case SArrayRef(rcv, index) => SArrayRef(process(rcv),process(index))
-            case SAssignment(rcv, value) => SAssignment(process(rcv), process(value))
-            case SWhile(cond, body) => SWhile(process(cond), process(body))
-            case SFieldAssignment(obj, sel, expr) => SFieldAssignment(process(obj), sel, process(expr))
-            case SFunctionInvocation(name, args) => SFunctionInvocation(name, args.map(process))
-            case SIfExpr(cond, thenn, elze) => SIfExpr(process(cond), process(thenn), process(elze))
-            case SBlock(exprs, last) => SBlock(exprs.map(process), process(last))
-            case SReturn(expr) => SReturn(process(expr))
+  def transform(f: PartialFunction[SolidityExpr, SolidityExpr], expr: SolidityExpr) = {
+    def process(expr: SolidityExpr): SolidityExpr = expr match {
+      case e if f.isDefinedAt(e) => f(e)
+      case SMethodInvocation(rcv, method, args, ether) => SMethodInvocation(process(rcv), method, args.map(process), ether.map(process))
+      case SClassConstructor(tpe, args) => SClassConstructor(tpe, args.map(process))
+      case SClassSelector(expr, sel) => SClassSelector(process(expr), sel)
+      case SLet(vd, value, body) => SLet(vd, process(value), process(body))
+      case SAddress(value) => SAddress(process(value))
+      case SArrayRef(rcv, index) => SArrayRef(process(rcv),process(index))
+      case SAssignment(rcv, value) => SAssignment(process(rcv), process(value))
+      case SWhile(cond, body) => SWhile(process(cond), process(body))
+      case SFieldAssignment(obj, sel, expr) => SFieldAssignment(process(obj), sel, process(expr))
+      case SFunctionInvocation(name, args) => SFunctionInvocation(name, args.map(process))
+      case SIfExpr(cond, thenn, elze) => SIfExpr(process(cond), process(thenn), process(elze))
+      case SBlock(exprs, last) => SBlock(exprs.map(process), process(last))
+      case SReturn(expr) => SReturn(process(expr))
 
-            case SAnd(exprs) => SAnd(exprs.map(process))
-            case SOr(exprs) => SOr(exprs.map(process))
-            case SNot(expr) => SNot(process(expr))
+      case SAnd(exprs) => SAnd(exprs.map(process))
+      case SOr(exprs) => SOr(exprs.map(process))
+      case SNot(expr) => SNot(process(expr))
 
-            case SEquals(left, right) => SEquals(process(left), process(right))
-            case SGreaterThan(left, right) => SGreaterThan(process(left), process(right))
-            case SGreaterEquals(left, right) => SGreaterEquals(process(left), process(right))
-            case SLessThan(left, right) => SLessThan(process(left), process(right))
-            case SLessEquals(left, right) => SLessEquals(process(left), process(right))
+      case SEquals(left, right) => SEquals(process(left), process(right))
+      case SGreaterThan(left, right) => SGreaterThan(process(left), process(right))
+      case SGreaterEquals(left, right) => SGreaterEquals(process(left), process(right))
+      case SLessThan(left, right) => SLessThan(process(left), process(right))
+      case SLessEquals(left, right) => SLessEquals(process(left), process(right))
 
-            case SPlus(left, right) => SPlus(process(left), process(right))
-            case SMinus(left, right) => SMinus(process(left), process(right))
-            case SDivision(left, right) => SDivision(process(left), process(right))
-            case SMult(left, right) => SMult(process(left), process(right))
+      case SPlus(left, right) => SPlus(process(left), process(right))
+      case SMinus(left, right) => SMinus(process(left), process(right))
+      case SDivision(left, right) => SDivision(process(left), process(right))
+      case SMult(left, right) => SMult(process(left), process(right))
 
-            case e => e
-        }
-
-        process(expr)
+      case e => e
     }
+
+    process(expr)
+  }
 }

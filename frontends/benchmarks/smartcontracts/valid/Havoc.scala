@@ -1,11 +1,14 @@
 import stainless.smartcontracts._
 import stainless.lang._
+import stainless.annotation._
 
 trait Havoc extends Contract {
   var x: BigInt
 
-  override final def invariant() = x == 0
+  @ghost
+  final def invariant() = x == 0
 
+  @solidityPublic
   def f() = {
     ghost {
       havoc()

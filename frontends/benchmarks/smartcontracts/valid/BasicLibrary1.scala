@@ -3,9 +3,11 @@ import stainless.annotation._
 
 @solidityLibrary("BasicLibrary1")
 trait BasicLibrary1 {
-    @solidityPure
-    def foo() = true
+  @solidityPure
+  @solidityPublic
+  def foo() = true
 
-    @solidityPure
-    def bar() = false
+  @solidityPure
+  @solidityPublic
+  def bar() = false
 }

@@ -23,7 +23,7 @@ case object Finished extends State
 case object Default extends State
 
 trait LoanContract extends Contract {
-  val borrower: Address     // Amount of ether to borrow
+  val borrower: PayableAddress  // Amount of ether to borrow
   val wantedAmount: Uint256   // Interest in ether
   val premiumAmount: Uint256  // The amount of digital token guaranteed
   val tokenAmount: Uint256  // Name of the digital token
@@ -32,7 +32,7 @@ trait LoanContract extends Contract {
   val daysToLend: Uint256
   var currentState: State
   var start: Uint256
-  var lender: Address
+  var lender: PayableAddress
 
   @ghost
   var visitedStates: List[State]
@@ -97,6 +97,7 @@ trait LoanContract extends Contract {
       assert(visitedStates == List(WaitingForPayback, WaitingForLender, WaitingForData))
       lender.transfer(Msg.value)
       // Transfer all the guarantee back to the borrower
+      @ghost
       val balance = tokenContractAddress.balanceOf(addr)
       assert(addr != tokenContractAddress.addr)
       // FIXME: uncomment that call after we implement calls to external contracts
@@ -133,7 +134,8 @@ trait LoanContract extends Contract {
       assert(visitedStates == List(WaitingForPayback, WaitingForLender, WaitingForData))
 
       // Transfer all the guarantee to the lender
-      var balance = tokenContractAddress.balanceOf(addr)
+      @ghost
+      val balance = tokenContractAddress.balanceOf(addr)
 
       // FIXME: uncomment that call after we implement calls to external contracts
       // tokenContractAddress.transfer(lender, balance)

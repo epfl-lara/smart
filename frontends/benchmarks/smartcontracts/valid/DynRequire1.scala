@@ -3,6 +3,7 @@ import stainless.annotation._
 
 trait DynRequire1 extends Contract {
   @solidityView
+  @solidityPublic
   def foo() = {
     // Solidity require
     dynRequire(addr.balance == Uint256("42"))

@@ -5,6 +5,7 @@ import stainless.annotation._
 import stainless.collection._
 import stainless.lang.StaticChecks._
 import stainless.lang.ghost
+import stainless.lang.MutableMap
 import scala.language.postfixOps
 
 import scala.annotation.meta.field
@@ -18,6 +19,7 @@ trait MinimumToken extends Contract {
   @ghost
   var participants: List[Address]
 
+  @solidityPublic
   def transferFrom(from: Address, to: Address, amount: Uint256): Unit = {
     require(contractInvariant(balanceOf, total, participants))
 
@@ -33,13 +35,13 @@ trait MinimumToken extends Contract {
     }
 
     // balanceOf mapping before any update
-    @ghost val b0 = Mapping.duplicate(balanceOf)
+    @ghost val b0 = balanceOf.duplicate()
 
     // code to remove balance from `from` address
     balanceOf(from) = balanceOf(from) - amount
 
     // balanceOf mapping before after the first update, before the second update
-    @ghost val b1 = Mapping.duplicate(balanceOf)
+    @ghost val b1 = balanceOf.duplicate()
 
     // code to add balance to recipient `to`
     balanceOf(to) = balanceOf(to) + amount

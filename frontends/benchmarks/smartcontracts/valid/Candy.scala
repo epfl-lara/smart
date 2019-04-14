@@ -11,21 +11,17 @@ trait Candy extends Contract {
     initialCandies = _candies
     remainingCandies = _candies
     eatenCandies = Uint256.ZERO
-
-    assert(invariant)
   }
 
+  @solidityPublic
   def eatCandy(candies: Uint256) = {
-    require(invariant)
     dynRequire(candies <= remainingCandies)
 
     remainingCandies -= candies
     eatenCandies += candies
-
-    assert(invariant)
   }
 
-  @solidityView
+  @ghost
   final private def invariant: Boolean = {
     eatenCandies <= initialCandies &&
     remainingCandies <= initialCandies &&

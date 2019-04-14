@@ -6,6 +6,7 @@ trait OwnedContract extends Contract {
   var owner: PayableAddress
 
   @solidityPayable
+  @solidityPublic
   def sendBalance() = {
     require (owner != addr)
     if(Msg.sender == owner) {

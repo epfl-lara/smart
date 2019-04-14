@@ -7,5 +7,6 @@ trait FalseInvariant extends Contract {
     x = x + 1
   }
 
+  @ghost
   final def invariant: Boolean = false
 }

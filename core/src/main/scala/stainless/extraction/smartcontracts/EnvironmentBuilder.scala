@@ -136,11 +136,6 @@ trait EnvironmentBuilder extends oo.SimplePhase
       }
     }
 
-    def isThis(e: Expr) = e match {
-      case This(_) => true
-      case _ => false
-    }
-
     def bodyPostProcessing(fd: FunDef, body: s.Expr, msg: Expr, env: Expr) = {
       val newBody = postMap {
         // Changes the `msg` parameter by putting the address of `this`

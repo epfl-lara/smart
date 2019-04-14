@@ -1,15 +1,18 @@
 import stainless.smartcontracts._
 import stainless.lang._
 import stainless.annotation._
-import stainless.lang._
+import stainless.lang.StaticChecks._
+import stainless.lang.ghost
 
 trait HavocInvariant2B extends Contract {
-  var isEmpty:Boolean
-  var balance:Uint256
+  var isEmpty: Boolean
+  var balance: Uint256
 
+  @ghost
   final def invariant() = (!isEmpty && (balance > Uint256.ZERO)) ||
               (isEmpty && (balance == Uint256.ZERO))
 
+  @solidityPublic
   def emptyContract() = {
     balance = Uint256.ZERO
     isEmpty = true
@@ -19,8 +22,10 @@ trait HavocInvariant2B extends Contract {
 trait HavocInvariant2A extends Contract {
   val target:Address
 
-  final def invariant():Boolean = true
+  @ghost
+  final def invariant(): Boolean = true
 
+  @solidityPublic
   final def withdrawBalance() = {
     require(
       Environment.contractAt(target).isInstanceOf[HavocInvariant2B]

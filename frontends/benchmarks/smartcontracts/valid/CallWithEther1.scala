@@ -5,6 +5,7 @@ trait CallWithEther1 extends Contract {
 
   val other: CallWithEther1
 
+  @solidityPublic
   def foo() = {
     require(
       this.addr.balance == Uint256("50") &&
@@ -18,6 +19,7 @@ trait CallWithEther1 extends Contract {
   }
 
   @solidityPayable
+  @solidityPublic
   final def bar() = {
 
   }

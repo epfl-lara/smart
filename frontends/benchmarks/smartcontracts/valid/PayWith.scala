@@ -3,12 +3,14 @@ import stainless.annotation._
 
 trait Target extends Contract {
   @solidityPayable
+  @solidityPublic
   final def receiveMoney() = { }
 }
 
 trait Source extends Contract {
   val targetContract: Target
 
+  @solidityPublic
   def send() = {
     require (
       this.addr.balance >= Uint256("50") &&
