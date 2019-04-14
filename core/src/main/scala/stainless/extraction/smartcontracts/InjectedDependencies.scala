@@ -2,13 +2,13 @@ package stainless
 package extraction
 package smartcontracts
 
-object InjectedDependencies {
+/*object InjectedDependencies {*/
 
   /* ================================================
    *   Construction of Smart Contract Dependencies
    * ================================================ */
 
-  import trees._
+ /* import trees._
 
   val uint256 = BVType(false, 256)
   val uzero = BVLiteral(false, 0, 256)
@@ -143,4 +143,4 @@ object InjectedDependencies {
 
   val newClasses = Seq(addressCd, contractInterfaceCd, msgCd, envCd)
   val newFunctions = Seq(balanceFd, addressAccessor, transferBalanceFd, transferFd)
-}
+}*/
