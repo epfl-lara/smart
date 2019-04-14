@@ -167,7 +167,11 @@ trait GlobalInvariantInjection extends oo.SimplePhase
 
     val envInvariantFuns = Seq(environmentInvariant) ++ addressOfs
 
+<<<<<<< HEAD
     val newFuns = envInvariantFuns ++ implicitInvariant.map{ case (cd, inv) => inv }
+=======
+    val newFuns = envInvariantFuns
+>>>>>>> Update class to use symbols from library and not from InjectedDependencies.
   }
 
   /* ====================================
