@@ -5,8 +5,6 @@ package extraction
 package smartcontracts
 import scala.collection.mutable.{Map => MutableMap, Set => MutableSet}
 
-import InjectedDependencies._
-
 trait GlobalInvariantInjection extends oo.SimplePhase
   with oo.SimplyCachedClasses
   with SimplyCachedSorts
@@ -26,6 +24,14 @@ trait GlobalInvariantInjection extends oo.SimplePhase
     val t: self.t.type = self.t
 
     import s.exprOps._
+
+    val addressCd: ClassDef = symbols.lookup[ClassDef]("stainless.smartcontracts.Address")
+    val addressType: ClassType = addressCd.typed.toType
+    val envCd: ClassDef = symbols.lookup[ClassDef]("stainless.smartcontracts.Environment")
+    val envType: ClassType = envCd.typed.toType
+    val contractAtAccessor: Identifier = envCd.fields.find(vd => isIdentifier("stainless.smartcontracts.Environment.contractAt", vd.id)).get.id
+    val contractInterfaceCd: ClassDef = symbols.lookup[ClassDef]("stainless.smartcontracts.ContractInterface")
+    val contractInterfaceType: ClassType = contractInterfaceCd.typed.toType
 
     def checkInvariantForm(cid: Identifier, fd: FunDef) = {
       if (
@@ -62,7 +68,7 @@ trait GlobalInvariantInjection extends oo.SimplePhase
         Seq(),
         addressType,
         NoTree(addressType),
-        Seq(Synthetic, IsPure, IsAbstract)
+        Seq(Synthetic, IsPure, Extern, IsAbstract)
       )
     }).toSeq
 
@@ -88,13 +94,13 @@ trait GlobalInvariantInjection extends oo.SimplePhase
         And(
           IsInstanceOf(
             MutableMapApply(
-              ClassSelector(envGIEnv.toVariable, contractAtField.id), 
+              ClassSelector(envGIEnv.toVariable, contractAtAccessor), 
                 FunctionInvocation(addressOf.id, Nil, Nil)),
             contractType),
           MethodInvocation(
             AsInstanceOf(
               MutableMapApply(
-                ClassSelector(envGIEnv.toVariable, contractAtField.id), 
+                ClassSelector(envGIEnv.toVariable, contractAtAccessor), 
                   FunctionInvocation(addressOf.id, Nil, Nil)),
               contractType),
             invariants(contract.id),
@@ -130,7 +136,7 @@ trait GlobalInvariantInjection extends oo.SimplePhase
         val contractId = fd.flags.collectFirst{ case IsMethodOf(id) => id}.get
         val addrExpr = Equals(
                           MutableMapApply(
-                            ClassSelector(envVar, contractAtField.id), 
+                            ClassSelector(envVar, contractAtAccessor), 
                               FunctionInvocation(addressOfMap(contract).id, Nil, Nil)),
                           This(contractInterfaceType))
 
@@ -147,7 +153,6 @@ trait GlobalInvariantInjection extends oo.SimplePhase
     val envInvariantFuns = Seq(environmentInvariant) ++ addressOfs
 
     val newFuns = envInvariantFuns
-    val newCds = Seq(addressCd, envCd, contractInterfaceCd) ++ symbols.classes.values
   }
 
   /* ====================================
@@ -155,12 +160,7 @@ trait GlobalInvariantInjection extends oo.SimplePhase
    * ==================================== */
 
   override def extractSymbols(context: TransformerContext, symbols: Symbols): Symbols = {
-    val newSymbols = super.extractSymbols(context, symbols.withFunctions(context.newFuns.toSeq).withClasses(context.newCds.toSeq))
-    NoSymbols.withFunctions(
-      newSymbols.functions.values.toSeq
-    ).withClasses(
-      newSymbols.classes.values.toSeq
-    )
+    super.extractSymbols(context, symbols.withFunctions(context.newFuns.toSeq))
   }
 }
 
