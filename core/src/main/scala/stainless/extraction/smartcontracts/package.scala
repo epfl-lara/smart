@@ -27,7 +27,7 @@ package object smartcontracts {
   }
 
   val contractID = "stainless.smartcontracts.Contract"
-
+  
   def isIdentifier(name: String, id: Identifier) = id match {
     case ast.SymbolIdentifier(`name`) => true
     case _ => false
@@ -42,9 +42,9 @@ package object smartcontracts {
 
     if (ctx.options.findOptionOrDefault(frontend.optSmartContracts)) {
       utils.DebugPipeline("HavocInjection", HavocInjection()) andThen
-      //utils.DebugPipeline("SmartContractInvariant", SmartContractInvariant()) andThen
       utils.DebugPipeline("EnvironmentBuilder", EnvironmentBuilder()) andThen
       utils.DebugPipeline("GlobalInvariantInjection", GlobalInvariantInjection()) andThen
+      utils.DebugPipeline("EtherUpdateInjection", EtherUpdateInjection()) andThen
       lowering
     } else {
       lowering
