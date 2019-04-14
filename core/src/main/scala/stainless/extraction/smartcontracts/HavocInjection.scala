@@ -91,7 +91,7 @@ trait HavocInjection extends oo.SimplePhase
                         Block(Seq(call),
                         FunctionInvocation(havocFd.id, Seq(), Seq(envVar, This(ownerType)))).setPos(call.getPos)))
 
-          case call@MethodInvocation(receiver, id, tps, args) if isIdentifier("stainless.smartcontracts.Msg.transfer", id) =>
+          case call@MethodInvocation(receiver, id, tps, args) if isIdentifier("stainless.smartcontracts.PayableAddress.transfer", id) =>
             context.reporter.info(s"Add havoc call at ${call.getPos}")
             Some(Assert(FunctionInvocation(globalInvariant.id, Seq(), Seq(envVar)), None,
                         Block(Seq(call),
