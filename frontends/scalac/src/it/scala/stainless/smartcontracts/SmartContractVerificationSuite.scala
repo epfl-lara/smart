@@ -8,7 +8,7 @@ import utils._
 import org.scalatest._
 
 class SmartContractVerificationSuite extends SmartContractSuite {
-  val defaultArgs = Array("--solvers=smt-z3,smt-cvc4", "--vc-cache=false")
+  val defaultArgs = Array("--smart-contracts", "--solvers=smt-z3,smt-cvc4", "--vc-cache=false")
 
   for (args <- validArgs) {
     test("stainless " + args.mkString(" ")) {
