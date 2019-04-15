@@ -35,8 +35,8 @@ trait EnvironmentBuilder extends oo.SimplePhase
     val envType: ClassType = envCd.typed.toType
     val addressCd: ClassDef = symbols.lookup[ClassDef]("stainless.smartcontracts.Address")
     val addressType: ClassType = addressCd.typed.toType
-    val senderAccessor: FunDef = symbols.lookup[FunDef]("stainless.smartcontracts.Msg.sender")
-    val amountAccessor: FunDef = symbols.lookup[FunDef]("stainless.smartcontracts.Msg.amount")
+    val senderAccessorId: Identifier = msgCd.methods.find(id => isIdentifier("stainless.smartcontracts.Msg.sender", id)).get
+    val amountAccessorId: Identifier = msgCd.methods.find(id => isIdentifier("stainless.smartcontracts.Msg.amount", id)).get
     val balancesAccessor: ValDef = envCd.fields.find(vd => isIdentifier("stainless.smartcontracts.Environment.balances", vd.id)).get
     val envUpdateBalance: FunDef = envCd.methods.map(symbols.functions).find(fd => isIdentifier("stainless.smartcontracts.Environment.updateBalance", fd.id)).get
     val contractAtAccessor: ValDef = envCd.fields.find(vd => isIdentifier("stainless.smartcontracts.Environment.contractAt", vd.id)).get
@@ -87,8 +87,8 @@ trait EnvironmentBuilder extends oo.SimplePhase
     }
 
     def bodyPreProcessing(body: s.Expr, msg: Variable, env: Variable, contractType: Option[ClassType]) = {
-      val msgSender = MethodInvocation(msg, senderAccessor.id, Seq(), Seq())
-      val msgAmount = MethodInvocation(msg, amountAccessor.id, Seq(), Seq())
+      val msgSender = MethodInvocation(msg, senderAccessorId, Seq(), Seq())
+      val msgAmount = MethodInvocation(msg, amountAccessorId, Seq(), Seq())
       val newBody = postMap {
         // Msg.sender -> msg.sender
         case fi: FunctionInvocation if isIdentifier("stainless.smartcontracts.Msg.sender", fi.id) => Some(msgSender.setPos(fi))
