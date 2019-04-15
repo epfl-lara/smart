@@ -87,6 +87,8 @@ package object smartcontracts {
 
     @library @extern @pure
     def contractAt(a: Address): ContractInterface = ???
+
+    def invariant(): Boolean = true
   }
 
   @library
