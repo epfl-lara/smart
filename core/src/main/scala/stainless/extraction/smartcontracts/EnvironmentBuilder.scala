@@ -72,7 +72,7 @@ trait EnvironmentBuilder extends oo.SimplePhase
             case _ => Set()
           }(fd.fullBody) ++
           (if (fd.flags.exists(_ == Payable)) Some(MsgImplicit) else None)
-        }  
+        }
       }.toMap
     }
 
