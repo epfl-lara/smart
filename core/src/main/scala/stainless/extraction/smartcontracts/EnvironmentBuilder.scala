@@ -125,10 +125,10 @@ trait EnvironmentBuilder extends oo.SimplePhase
           val sendCall = t.MethodInvocation(receiverAddress, transferFd.id, Seq(), Seq(transform(amount), env, newMsg)).setPos(fi)
 
           Some(t.Block(Seq(sendCall), transform(method)).setPos(fi))
-
+        
         case FunctionInvocation(id, _, Seq(m, _)) if isIdentifier("stainless.smartcontracts.pay", id) =>
           throw SmartcontractException(m, "Pay can be only used with a call to a payable method of a contract")
-          
+
         case e =>
           None
       }(body)
