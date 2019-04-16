@@ -25,11 +25,11 @@ trait EtherUpdateInjection extends oo.SimplePhase
 
     import s.exprOps._
 
-    val globalInvariant = symbols.lookup[FunDef]("environmentInvariant")
     val addressCd: ClassDef = symbols.lookup[ClassDef]("stainless.smartcontracts.Address")
     val addressType: ClassType = addressCd.typed.toType
     val envCd: ClassDef = symbols.lookup[ClassDef]("stainless.smartcontracts.Environment")
     val envType: ClassType = envCd.typed.toType
+    val envInvId = envCd.methods.find{ case id => isIdentifier("invariant", id) }.get
     val balanceAccessor: Identifier = envCd.fields.find(vd => isIdentifier("stainless.smartcontracts.Environment.balances", vd.id)).get.id
 
     val envVd = ValDef.fresh("env", envType)
@@ -45,8 +45,8 @@ trait EtherUpdateInjection extends oo.SimplePhase
                                 uone
                             ))), NoTree(UnitType()))
 
-    val preCondition = Precondition(FunctionInvocation(globalInvariant.id, Nil, Seq(envVd.toVariable)))
-    val postCondition = Postcondition(Lambda(Seq(ValDef.fresh("res", UnitType())), FunctionInvocation(globalInvariant.id, Nil, Seq(envVd.toVariable))))
+    val preCondition = Precondition(MethodInvocation(envVd.toVariable, envInvId, Seq(), Seq()))
+    val postCondition = Postcondition(Lambda(Seq(ValDef.fresh("res", UnitType())), MethodInvocation(envVd.toVariable, envInvId, Seq(), Seq())))
     val fdBody = reconstructSpecs(Seq(preCondition, postCondition), Some(etherUpdateBody), UnitType())
 
     val fd = new FunDef(
