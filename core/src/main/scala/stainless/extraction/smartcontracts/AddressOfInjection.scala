@@ -41,7 +41,7 @@ trait AddressOfInjection extends oo.SimplePhase
           Seq(),
           addressType,
           NoTree(addressType),
-          Seq(Synthetic, IsPure, Final)
+          Seq(Synthetic, IsPure)
         )
       }).toSeq
 
@@ -51,9 +51,9 @@ trait AddressOfInjection extends oo.SimplePhase
         if(fd.isContractMethod || fd.isInvariant) {
             val contract = fd.findClass.get
             val contractType = symbols.classes(contract).typed.toType
-    
-            val envVar = fd.params.collectFirst{ 
-              case v@ValDef(_, tpe, _) if tpe == envType => v.toVariable 
+
+            val envVar = fd.params.collectFirst{
+              case v@ValDef(_, tpe, _) if tpe == envType => v.toVariable
             }.get
 
             val newBody = postMap {
@@ -61,13 +61,13 @@ trait AddressOfInjection extends oo.SimplePhase
                     Some(MethodInvocation(
                             AsInstanceOf(
                                 MutableMapApply(
-                                    ClassSelector(envVar, contractAtId), 
+                                    ClassSelector(envVar, contractAtId),
                                     FunctionInvocation(addressOfMap(contract).id, Seq(), Seq()))
                             , contractType).copiedFrom(m)
                             , id, Seq(), args).copiedFrom(m))
 
                 case e => None
-                
+
             }(fd.fullBody)
 
             super.transform(fd.copy(fullBody = newBody))

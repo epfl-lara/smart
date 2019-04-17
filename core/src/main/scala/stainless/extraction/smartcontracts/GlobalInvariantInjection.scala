@@ -54,7 +54,7 @@ trait GlobalInvariantInjection extends oo.SimplePhase
     }.flatten.toMap
 
     val implicitInvariant = contracts.filterNot(c => existingInvariants.contains(c.id)).map { case cd =>
-      context.reporter.info(s"No invariant was found for contract ${cd.id}. Implicite invariant() = true has been generated")
+      context.reporter.info(s"No invariant was found for contract ${cd.id}. Implicit invariant() = true has been generated")
       val inv = new FunDef(
         ast.SymbolIdentifier("invariant"),
         Seq(),
@@ -74,15 +74,15 @@ trait GlobalInvariantInjection extends oo.SimplePhase
       case None => ()
     }
 
-    val addressOfMap = contracts.map{ case cd => 
+    val addressOfMap = contracts.map{ case cd =>
       cd.id -> symbols.lookup[FunDef](s"addressOf${cd.id}")
     }.toMap
 
     val envGIEnv = ValDef.fresh("env", envType)
-    
+
     /*def buildAddressOfDiffExpr(l: Seq[FunDef]):Expr = l match {
       case Nil => BooleanLiteral(true)
-      case x :: xs => 
+      case x :: xs =>
         val eqs = xs.map( fd => Not(Equals(FunctionInvocation(x.id, Nil, Nil), FunctionInvocation(fd.id, Nil, Nil))))
         if(eqs.isEmpty)
           buildAddressOfDiffExpr(xs)
@@ -98,14 +98,14 @@ trait GlobalInvariantInjection extends oo.SimplePhase
       And(
         IsInstanceOf(
           MutableMapApply(
-            ClassSelector(This(envCd.typed.toType), contractAtAccessor), 
+            ClassSelector(This(envCd.typed.toType), contractAtAccessor),
               FunctionInvocation(addressOf.id, Nil, Nil)),
           contractType),
         FunctionInvocation(invariants(contract.id), Seq(), Seq(This(envType)))
         /*MethodInvocation(
           AsInstanceOf(
             MutableMapApply(
-              ClassSelector(This(envCd.typed.toType), contractAtAccessor), 
+              ClassSelector(This(envCd.typed.toType), contractAtAccessor),
                 FunctionInvocation(addressOf.id, Nil, Nil)),
             contractType),
           invariants(contract.id),
@@ -114,13 +114,13 @@ trait GlobalInvariantInjection extends oo.SimplePhase
       )
     }.foldLeft[Expr](BooleanLiteral(true))(And(_, _))
 
-    val environmentInvariant = new FunDef (      
+    val environmentInvariant = new FunDef (
       ast.SymbolIdentifier("invariant"),
       Seq(),
       Seq(),
       BooleanType(),
       giInvariantAndExpr,
-      Seq(Synthetic, IsPure, Final, Extern, Ghost, IsMethodOf(envCd.id))
+      Seq(Synthetic, Final, Ghost, IsMethodOf(envCd.id))
     )
 
     context.reporter.info(s"Environment invariant : \n${environmentInvariant.fullBody}")
@@ -128,12 +128,13 @@ trait GlobalInvariantInjection extends oo.SimplePhase
     override def transform(fd: FunDef): FunDef = {
       if(fd.isInvariant) {
         super.transform(fd.copy(flags = fd.flags.filterNot{ case IsMethodOf(_) => true
+                                                            case Final => true
                                                             case _ => false } ))
       } else if(fd.isContractMethod) {
         val contract = fd.findClass.get
 
-        val envVar = fd.params.collectFirst{ 
-          case v@ValDef(_, tpe, _) if tpe == envType => v.toVariable 
+        val envVar = fd.params.collectFirst{
+          case v@ValDef(_, tpe, _) if tpe == envType => v.toVariable
         }.get
 
         val currentPre:Expr = preconditionOf(fd.fullBody).getOrElse(BooleanLiteral(true))
@@ -142,14 +143,14 @@ trait GlobalInvariantInjection extends oo.SimplePhase
         val contractId = fd.flags.collectFirst{ case IsMethodOf(id) => id}.get
         /*val addrExpr = Equals(
                           MutableMapApply(
-                            ClassSelector(envVar, contractAtAccessor), 
+                            ClassSelector(envVar, contractAtAccessor),
                               FunctionInvocation(addressOfMap(contract).id, Nil, Nil)),
                           This(contractInterfaceType))*/
 
         val newBody = postMap {
           case FunctionInvocation(id, Seq(), Seq()) if isIdentifier("stainless.smartcontracts.Environment.invariant", id) =>
             Some(MethodInvocation(envVar, environmentInvariant.id, Seq(), Seq()))
-          
+
           case _ => None
         }(withoutSpecs(fd.fullBody).getOrElse(NoTree(UnitType())))
 
@@ -162,6 +163,13 @@ trait GlobalInvariantInjection extends oo.SimplePhase
       } else {
         super.transform(fd)
       }
+    }
+
+    override def transform(e: Expr): Expr = e match {
+      case MethodInvocation(This(_), invariantId, Seq(), Seq(env))
+          if existingInvariants.values.toSeq.contains(invariantId) =>
+        FunctionInvocation(transform(invariantId), Seq(), Seq(transform(env)))
+      case _ => super.transform(e)
     }
 
     val newFuns = Seq(environmentInvariant) ++

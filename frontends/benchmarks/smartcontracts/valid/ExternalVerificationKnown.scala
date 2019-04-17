@@ -28,7 +28,7 @@ trait EVKB extends Contract {
 
   @solidityPublic
   final def decrease() = {
-    //assert(invariant())
+    assert(invariant())
     if(balance > Uint256.ZERO)
       balance = balance - Uint256.ONE
   }
