@@ -8,6 +8,7 @@ import scala.collection.mutable.{Map => MutableMap, Set => MutableSet}
 trait EnvironmentBuilder extends oo.SimplePhase
   with oo.SimplyCachedClasses
   with SimplyCachedSorts
+  with SimplyCachedFunctions
   { self =>
   val s: trees.type
   val t: s.type
@@ -17,9 +18,9 @@ trait EnvironmentBuilder extends oo.SimplePhase
    *       Context and caches setup
    * ==================================== */
 
-  override protected final val funCache = new ExtractionCache[s.FunDef, FunctionResult]((fd, context) => {
+  /*override protected final val funCache = new ExtractionCache[s.FunDef, FunctionResult]((fd, context) => {
     getDependencyKey(fd.id)(context.symbols) + ValueKey(context.requiredParameters(fd.id))
-  })
+  })*/
 
   override protected def getContext(symbols: s.Symbols) = new TransformerContext()(symbols)
   protected class TransformerContext(implicit val symbols: s.Symbols) extends oo.TreeTransformer {
@@ -55,7 +56,20 @@ trait EnvironmentBuilder extends oo.SimplePhase
 
     val allFunctions = symbols.functions.values
 
-    val directParameters: Map[Identifier, Set[ImplicitParams]] = {
+    val implicitParameters:FunDef => Set[ImplicitParams] = fd => fd match {
+      case fd if fd.isContractMethod                                                       => Set(EnvImplicit, MsgImplicit)
+      case fd if fd.isInvariant                                                            => Set(EnvImplicit)
+      case fd if isIdentifier("stainless.smartcontracts.PayableAddress.transfer", fd.id)   => Set(EnvImplicit)
+      case fd if isIdentifier("stainless.smartcontracts.PayableAddress.balance", fd.id)    => Set(EnvImplicit)
+      case fd if isIdentifier("stainless.smartcontracts.Address.balance", fd.id)           => Set(EnvImplicit)
+      //case fd if isIdentifier("stainless.smartcontracts.Environment.balanceOf", fd.id)     => Set(EnvImplicit)
+      //case fd if isIdentifier("stainless.smartcontracts.Environment.updateBalance", fd.id) => Set(EnvImplicit)
+      //case fd if isIdentifier("stainless.smartcontracts.Environment.contractAt", fd.id)    => Set(EnvImplicit)
+      case fd if isIdentifier("stainless.smartcontracts.pay", fd.id)                       => Set(EnvImplicit)
+      case _                                                                               => Set.empty
+    }
+
+    /*val directParameters: Map[Identifier, Set[ImplicitParams]] = {
       allFunctions.map { fd =>
         fd.id -> {
           collect[ImplicitParams] {
@@ -84,7 +98,7 @@ trait EnvironmentBuilder extends oo.SimplePhase
           fd.id -> ((symbols.dependencies(fd.id) + fd.id).flatMap(directParameters.getOrElse(_, Set())) ++
                    (if(fd.isContractMethod) Set(EnvImplicit) else Set()))
       }.toMap
-    }
+    }*/
 
     def bodyPreProcessing(body: s.Expr, msg: Variable, env: Variable, contractType: Option[ClassType]) = {
       val msgSender = MethodInvocation(msg, senderAccessorId, Seq(), Seq())
@@ -160,12 +174,12 @@ trait EnvironmentBuilder extends oo.SimplePhase
 
         // Forwards to the previous message
         case v: MethodInvocation =>
-          val newArgs = v.args ++ paramsMapper(msg, env, requiredParameters(v.id))
+          val newArgs = v.args ++ paramsMapper(msg, env, implicitParameters(symbols.functions(v.id)))
           Some(v.copy(args = newArgs).setPos(v))
 
         // Forwards to the previous message
         case v: FunctionInvocation =>
-          val newArgs = v.args ++ paramsMapper(msg, env, requiredParameters(v.id))
+          val newArgs = v.args ++ paramsMapper(msg, env, implicitParameters(symbols.functions(v.id)))
           Some(v.copy(args = newArgs).setPos(v))
 
         case _ => None
@@ -175,29 +189,26 @@ trait EnvironmentBuilder extends oo.SimplePhase
     }
 
     override def transform(fd: FunDef): FunDef = {
-      val nfd = super.transform(fd)
-      if (requiredParameters(fd.id).isEmpty) {
-        nfd
+      if (implicitParameters(fd).isEmpty) {
+        super.transform(fd)
       } else {
         val msgValDef = ValDef.fresh("msg", msgType)
         val envValDef = ValDef.fresh("env", envType)
 
-        val newParams =
-          if (fd.isInvariant) fd.params
-          else paramsMapper(msgValDef, envValDef, requiredParameters(fd.id))
+        val newParams = paramsMapper(msgValDef, envValDef, implicitParameters(fd))
 
         val contractType: Option[ClassType] = fd.flags.collectFirst {
           case IsMethodOf(cid) => symbols.getClass(cid).typed.toType
         }
 
-        val body1 = bodyPreProcessing(nfd.fullBody, msgValDef.toVariable, envValDef.toVariable, contractType)
-        val body2 = bodyPostProcessing(nfd, body1, msgValDef.toVariable, envValDef.toVariable)
+        val body1 = bodyPreProcessing(fd.fullBody, msgValDef.toVariable, envValDef.toVariable, contractType)
+        val body2 = bodyPostProcessing(fd, body1, msgValDef.toVariable, envValDef.toVariable)
 
-        nfd.copy(
-          params = nfd.params ++ newParams,
+        super.transform(fd.copy(
+          params = fd.params ++ newParams,
           fullBody = body2,
           flags = fd.flags.filterNot(_ == Payable)
-        ).setPos(fd)
+        ).setPos(fd))
       }
     }
   }
