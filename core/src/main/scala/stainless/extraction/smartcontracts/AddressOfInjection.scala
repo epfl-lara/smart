@@ -48,7 +48,7 @@ trait AddressOfInjection extends oo.SimplePhase
     val addressOfMap = contracts.map(_.id).zip(addressOfs).toMap
 
     override def transform(fd: FunDef): FunDef = {
-        if(fd.isContractMethod) {
+        if(fd.isContractMethod || fd.isInvariant) {
             val contract = fd.findClass.get
             val contractType = symbols.classes(contract).typed.toType
     

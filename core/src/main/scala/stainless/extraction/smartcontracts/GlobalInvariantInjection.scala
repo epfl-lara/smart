@@ -34,7 +34,7 @@ trait GlobalInvariantInjection extends oo.SimplePhase
     def checkInvariantForm(cid: Identifier, fd: FunDef) = {
       if (
         fd.typeArgs.isEmpty &&
-        fd.params.isEmpty &&
+        fd.params.forall(p => p.getType == envType) &&
         fd.returnType == BooleanType()
       ) ()
       else {
@@ -58,7 +58,7 @@ trait GlobalInvariantInjection extends oo.SimplePhase
       val inv = new FunDef(
         ast.SymbolIdentifier("invariant"),
         Seq(),
-        Seq(),
+        Seq(ValDef.fresh("env", envType)),
         BooleanType(),
         BooleanLiteral(true),
         Seq(Synthetic, IsPure, IsMethodOf(cd.id))
@@ -109,7 +109,7 @@ trait GlobalInvariantInjection extends oo.SimplePhase
             contractType),
           invariants(contract.id),
           Seq(),
-          Seq())
+          Seq(This(envType)))
       )
     }.foldLeft[Expr](BooleanLiteral(true))(And(_, _))
 
