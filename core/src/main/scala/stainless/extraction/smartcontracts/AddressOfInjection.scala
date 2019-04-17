@@ -41,7 +41,7 @@ trait AddressOfInjection extends oo.SimplePhase
           Seq(),
           addressType,
           NoTree(addressType),
-          Seq(Synthetic, IsPure, Final, Extern, IsAbstract)
+          Seq(Synthetic, IsPure, Final)
         )
       }).toSeq
 
