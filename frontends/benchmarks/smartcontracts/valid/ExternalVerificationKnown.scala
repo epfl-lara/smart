@@ -22,13 +22,13 @@ trait EVKB extends Contract {
   var balance:Uint256
   var target:Address
 
-  @ghost
   final def invariant() = {
     balance <= Uint256("120")
   }
 
   @solidityPublic
   final def decrease() = {
+    assert(invariant())
     if(balance > Uint256.ZERO)
       balance = balance - Uint256.ONE
   }
