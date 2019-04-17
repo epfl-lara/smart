@@ -9,8 +9,8 @@ import utils._
 
 class SmartContractSolidityOutputSuite extends SmartContractSuite {
   for (args <- validArgs) {
-    test(s"stainless --solidity ${args.mkString(" ")}") {
-      runMainWithArgs(args :+ "--solidity")
+    test(s"stainless --solidity --overwrite-sol ${args.mkString(" ")}") {
+      runMainWithArgs(args :+ "--solidity" :+ "--overwrite-sol")
     }
   }
 
@@ -27,7 +27,7 @@ class SmartContractSolidityOutputSuite extends SmartContractSuite {
 }
 
 class SmartContractSolcSuite extends SmartContractSuite {
-  if (solcAvailable) {
+  if (solcAvailable()) {
     val validSolidityFiles = validFiles.map(_.replaceAll("\\.scala", ".sol"))
     val validSolidityArgs = validSolidityFiles.map(Array(_)) ++ validDirs.map(d => files(d, _.endsWith(".sol")).toArray).filterNot(_.isEmpty)
     for (args <- validSolidityArgs) {

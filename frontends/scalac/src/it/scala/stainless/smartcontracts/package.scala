@@ -12,7 +12,7 @@ package object utils {
     (std.toList, exitCode)
   }
 
-  val solcAvailable = try {
+  def solcAvailable() = try {
     "solc" ! ProcessLogger(s => Unit)
     true
   } catch {
