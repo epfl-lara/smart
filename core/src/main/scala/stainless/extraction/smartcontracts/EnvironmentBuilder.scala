@@ -44,6 +44,8 @@ trait EnvironmentBuilder extends oo.SimplePhase
     val addressAccessor: FunDef = symbols.lookup[FunDef]("stainless.smartcontracts.ContractInterface.addr")
     val transferFd: FunDef = symbols.lookup[FunDef]("stainless.smartcontracts.PayableAddress.transfer")
 
+    val toPayableAddressFd: FunDef = symbols.lookup[FunDef]("stainless.smartcontracts.toPayableAddress")
+
 
     // Useful shorthands
     val uint256 = BVType(false, 256)
@@ -59,7 +61,7 @@ trait EnvironmentBuilder extends oo.SimplePhase
     val implicitParameters:FunDef => Set[ImplicitParams] = fd => fd match {
       case fd if fd.isContractMethod                                                       => Set(EnvImplicit, MsgImplicit)
       case fd if fd.isInvariant                                                            => Set(EnvImplicit)
-      case fd if isIdentifier("stainless.smartcontracts.PayableAddress.transfer", fd.id)   => Set(EnvImplicit)
+      case fd if isIdentifier("stainless.smartcontracts.PayableAddress.transfer", fd.id)   => Set(EnvImplicit, MsgImplicit)
       case fd if isIdentifier("stainless.smartcontracts.PayableAddress.balance", fd.id)    => Set(EnvImplicit)
       case fd if isIdentifier("stainless.smartcontracts.Address.balance", fd.id)           => Set(EnvImplicit)
       //case fd if isIdentifier("stainless.smartcontracts.Environment.balanceOf", fd.id)     => Set(EnvImplicit)
@@ -68,37 +70,6 @@ trait EnvironmentBuilder extends oo.SimplePhase
       case fd if isIdentifier("stainless.smartcontracts.pay", fd.id)                       => Set(EnvImplicit)
       case _                                                                               => Set.empty
     }
-
-    /*val directParameters: Map[Identifier, Set[ImplicitParams]] = {
-      allFunctions.map { fd =>
-        fd.id -> {
-          collect[ImplicitParams] {
-            case mi: MethodInvocation if isIdentifier("stainless.smartcontracts.PayableAddress.transfer", mi.id) => Set(MsgImplicit, EnvImplicit)
-            case mi: MethodInvocation if isIdentifier("stainless.smartcontracts.PayableAddress.balance", mi.id) => Set(EnvImplicit)
-            case mi: MethodInvocation if isIdentifier("stainless.smartcontracts.Address.balance", mi.id) => Set(EnvImplicit)
-            case mi: MethodInvocation if symbols.functions(mi.id).isContractMethod => Set(EnvImplicit)
-            case fi: FunctionInvocation if isIdentifier("stainless.smartcontracts.Msg.sender", fi.id) => Set(EnvImplicit, MsgImplicit)
-            case fi: FunctionInvocation if isIdentifier("stainless.smartcontracts.Msg.value", fi.id) => Set(EnvImplicit, MsgImplicit)
-            case fi: FunctionInvocation if isIdentifier("stainless.smartcontracts.Environment.balanceOf", fi.id) => Set(EnvImplicit)
-            case fi: FunctionInvocation if isIdentifier("stainless.smartcontracts.Environment.updateBalance", fi.id) => Set(EnvImplicit)
-            case fi: FunctionInvocation if isIdentifier("stainless.smartcontracts.Environment.contractAt", fi.id) => Set(EnvImplicit)
-            case fi: FunctionInvocation if isIdentifier("stainless.smartcontracts.pay", fi.id) => Set(EnvImplicit)
-            case _ => Set()
-          }(fd.fullBody) ++
-          (if (fd.flags.exists(_ == Payable)) Some(MsgImplicit) else None)
-        }  
-      }.toMap
-    }
-
-    val requiredParameters: Map[Identifier, Set[ImplicitParams]] = {
-      allFunctions.map { fd  =>
-        if (fd.isAccessor)
-          fd.id -> Set.empty[ImplicitParams]
-        else
-          fd.id -> ((symbols.dependencies(fd.id) + fd.id).flatMap(directParameters.getOrElse(_, Set())) ++
-                   (if(fd.isContractMethod) Set(EnvImplicit) else Set()))
-      }.toMap
-    }*/
 
     def bodyPreProcessing(body: s.Expr, msg: Variable, env: Variable, contractType: Option[ClassType]) = {
       val msgSender = MethodInvocation(msg, senderAccessorId, Seq(), Seq())
@@ -126,23 +97,6 @@ trait EnvironmentBuilder extends oo.SimplePhase
         case fi@FunctionInvocation(id, Seq(), args) if isIdentifier("stainless.smartcontracts.Environment.updateBalance", id) =>
           Some(MethodInvocation(env, envUpdateBalance.id, Seq(), args).setPos(fi))
 
-        case fi@FunctionInvocation(id, _, Seq(method: MethodInvocation, amount)) if isIdentifier("stainless.smartcontracts.pay", id) =>
-          if(!symbols.getFunction(method.id).isPayable)
-            throw SmartcontractException(method, "The function must be annotated as payable")
-
-          if(!symbols.getFunction(method.id).isInSmartContract)
-            throw SmartcontractException(method, "The function must be a method of a contract class or interface")
-
-          val addr = MethodInvocation(This(contractType.get), addressAccessor.id, Seq(), Seq()).setPos(fi)
-          val newMsg = ClassConstructor(msgType, Seq(addr, uzero))
-          val receiverAddress = t.MethodInvocation(transform(method.receiver), addressAccessor.id, Seq(), Seq()).setPos(fi)
-          val sendCall = t.MethodInvocation(receiverAddress, transferFd.id, Seq(), Seq(transform(amount), env, newMsg)).setPos(fi)
-
-          Some(t.Block(Seq(sendCall), transform(method)).setPos(fi))
-        
-        case FunctionInvocation(id, _, Seq(m, _)) if isIdentifier("stainless.smartcontracts.pay", id) =>
-          throw SmartcontractException(m, "Pay can be only used with a call to a payable method of a contract")
-
         case e =>
           None
       }(body)
@@ -159,25 +113,47 @@ trait EnvironmentBuilder extends oo.SimplePhase
 
     def bodyPostProcessing(fd: FunDef, body: s.Expr, msg: Expr, env: Expr) = {
       val newBody = postMap {
-        // Changes the `msg` parameter by putting the address of `this`
-        /*case mi@MethodInvocation(receiver, id, tps, args) if fd.isInSmartContract && !isThis(receiver) =>
+        case fi@FunctionInvocation(id, _, Seq(method: MethodInvocation, amount)) if isIdentifier("stainless.smartcontracts.pay", id) =>
+          if(!symbols.getFunction(method.id).isPayable)
+            throw SmartcontractException(method, "The function must be annotated as payable")
+
+          if(!symbols.getFunction(method.id).isInSmartContract)
+            throw SmartcontractException(method, "The function must be a method of a contract class or interface")
+
           val cd = fd.flags.collectFirst {
             case IsMethodOf(cid) => symbols.getClass(cid)
           }.get
           val thisRef = This(cd.typed.toType)
+
+          val senderAddress = MethodInvocation(thisRef, addressAccessor.id, Seq(), Seq()).setPos(fi)
+          val AsInstanceOf(MutableMapApply(_, receiverAddress), _) = method.receiver
+          val envUpdateCall = MethodInvocation(env, envUpdateBalance.id, Seq(), Seq(senderAddress, receiverAddress, amount))
+
+          val newMsg = ClassConstructor(msgType, Seq(FunctionInvocation(toPayableAddressFd.id, Seq(), Seq(senderAddress)), amount))
+          val newArgs = method.args.filterNot(arg => arg.getType == envType || arg.getType == msgType)
+          val newMethodCall = MethodInvocation(method.receiver, method.id, Seq(), newArgs ++ Seq(env, newMsg))
+
+          Some(t.Block(Seq(envUpdateCall), newMethodCall).setPos(fi))
+
+        // Changes the `msg` parameter by putting the address of `this`
+        case mi@MethodInvocation(receiver, id, tps, args) if fd.isInSmartContract && !isThis(receiver) =>
+          val cd = fd.flags.collectFirst {
+            case IsMethodOf(cid) => symbols.getClass(cid)
+          }.get
+
+          val thisRef = This(cd.typed.toType)
           val addr = MethodInvocation(thisRef, addressAccessor.id, Seq(), Seq()).setPos(mi)
-          val newMsg = ClassConstructor(msgType, Seq(addr, uzero))
+          val newMsg = ClassConstructor(msgType, Seq(FunctionInvocation(toPayableAddressFd.id, Seq(), Seq(addr)), uzero))
 
-          println(requiredParameters contains id)
-          val newArgs = args ++ paramsMapper(newMsg, env, requiredParameters(id))
-          Some(MethodInvocation(receiver, id, tps, newArgs).setPos(mi))*/
+          val newArgs = args ++ paramsMapper(newMsg, env, implicitParameters(symbols.functions(mi.id)))
+          Some(MethodInvocation(receiver, id, tps, newArgs).setPos(mi))
 
-        // Forwards to the previous message
+        // Forwards the previous message
         case v: MethodInvocation =>
           val newArgs = v.args ++ paramsMapper(msg, env, implicitParameters(symbols.functions(v.id)))
           Some(v.copy(args = newArgs).setPos(v))
 
-        // Forwards to the previous message
+        // Forwards the previous message
         case v: FunctionInvocation =>
           val newArgs = v.args ++ paramsMapper(msg, env, implicitParameters(symbols.functions(v.id)))
           Some(v.copy(args = newArgs).setPos(v))

@@ -4,20 +4,22 @@ import stainless.annotation._
 trait C1 extends Contract {
   @solidityPure
   @solidityPublic
-  def f() = {
-    require(Msg.sender == Address(10))
-
+  final def f() = {
+    require(Msg.sender.equals(Address(10)))
   }
 }
 
 trait C2 extends Contract {
-  val a: C1
+  val a: Address
+
+  @ghost
+  final def invariant() = Environment.contractAt(a).isInstanceOf[C1]
 
   @solidityView
   @solidityPublic
-  def g() = {
-    require(addr == Address(10))
+  final def g() = {
+    require(addr.equals(Address(10)))
 
-    a.f()
+    Environment.contractAt(a).asInstanceOf[C1].f()
   }
 }

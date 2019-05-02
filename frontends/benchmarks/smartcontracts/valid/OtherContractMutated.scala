@@ -9,24 +9,30 @@ trait OCMB extends Contract {
 
   @solidityPublic
   val testField2: Uint256
+
+  final def invariant() = testField2 == Uint256.ONE
+
+  final def doNothing() = {
+    // Do Nothing
+  }
 }
 
 trait OCMA extends Contract {
   val target:Address
 
   @ghost
-  final def invariant() = true
+  final def invariant() = Environment.contractAt(target).isInstanceOf[OCMB] &&
+                          Environment.contractAt(target).asInstanceOf[OCMB].invariant()
 
   @solidityPublic
   @solidityView
   final def foo() = {
-    require(
-      Environment.contractAt(target).isInstanceOf[OCMB]
-    )
 
     val oldTestField1 = Environment.contractAt(target).asInstanceOf[OCMB].testField1
     val oldTestField2 = Environment.contractAt(target).asInstanceOf[OCMB].testField2
-    assert(oldTestField1 == Environment.contractAt(target).asInstanceOf[OCMB].testField1)
+
+    Environment.contractAt(target).asInstanceOf[OCMB].doNothing
+
     assert(oldTestField2 == Environment.contractAt(target).asInstanceOf[OCMB].testField2)
   }
 

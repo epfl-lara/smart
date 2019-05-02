@@ -99,7 +99,7 @@ trait ComponentRun { self =>
 
     val toCheck = inox.utils.fixpoint { (ids: Set[Identifier]) =>
       ids ++ exSymbols.functions.values.toSeq
-        .filter(_.flags.exists { case trees.Derived(id) => ids(id) case _ => false })
+        .filter(_.flags.exists { case trees.Derived(id) => ids(id) case trees.ForceVC => true case _ => false })
         .filter(extractionFilter.shouldBeChecked)
         .map(_.id)
     } (ids.flatMap(id => exSymbols.lookupFunction(id).toSeq).filter(extractionFilter.shouldBeChecked).map(_.id).toSet)

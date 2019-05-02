@@ -55,7 +55,7 @@ trait EtherUpdateInjection extends oo.SimplePhase
         Seq(envVd, addrVd),
         UnitType(),
         fdBody,
-        Seq(Synthetic, Extern)
+        Seq(Synthetic, Final, ForceVC)
     )
     
     val newFds = Seq(fd)

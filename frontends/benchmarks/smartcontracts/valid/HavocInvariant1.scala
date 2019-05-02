@@ -8,6 +8,7 @@ trait HavocInvariant1 extends Contract {
   var empty: Boolean
 
   @ghost
+  @library
   final def invariant():Boolean = {
     ((balance == Uint256.ZERO) && empty) ||
     ((balance > Uint256.ZERO) && !empty)
@@ -15,6 +16,7 @@ trait HavocInvariant1 extends Contract {
 
   @solidityPublic
   final def withdrawBalance() = {
+    dynRequire(balance >= Uint256.ONE)
     balance = Uint256.ZERO
     empty = true
 

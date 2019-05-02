@@ -33,20 +33,26 @@ trait Trees extends methods.Trees { self =>
       fd.flags.exists {
         case IsMethodOf(cid) =>
           val cd = symbols.getClass(cid)
-          val ancestorsIds = cd.ancestors.map(_.id) :+ cid
-          ancestorsIds.exists { id => isIdentifier("stainless.smartcontracts.ContractInterface", id) ||
-                                      isIdentifier("ContractInterface", id)}
+          cd.isContract
+
         case _ => false
       }
     }
+
+    def isConstructor(implicit symbols: self.Symbols): Boolean = fd.isContractMethod && fd.id.name == "constructor"
 
     def isInvariant(implicit symbols: self.Symbols): Boolean = fd.isInSmartContract && fd.id.name == "invariant"
     def isContractMethod(implicit symbols: self.Symbols): Boolean = !fd.isInvariant && fd.isInSmartContract && !fd.isAccessor
   }
 
   implicit class SmartContractsClassDefWrapper(cd: ClassDef) {
-    def isContract: Boolean = cd.parents.exists { acd =>
-      isIdentifier(contractID, acd.id)
+    def isContract: Boolean = {
+      !isIdentifier(contractID, cd.id) &&
+      !isIdentifier(contractInterfaceID, cd.id) &&
+      cd.parents.exists { acd =>
+        isIdentifier(contractID, acd.id) ||
+        isIdentifier(contractInterfaceID, acd.id)
+      }
     }
   }
 

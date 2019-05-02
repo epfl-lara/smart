@@ -11,9 +11,8 @@ trait Types extends Contract {
   val a: Address
   val uiint: BigInt
   val intt: Int
-  val map: MutableMap[Address,BigInt]
+  var map: MutableMap[Address,BigInt]
   val booll: Boolean
   val str: String
-  val interfaceType: InterfaceType
   val enumType: EnumType
 }

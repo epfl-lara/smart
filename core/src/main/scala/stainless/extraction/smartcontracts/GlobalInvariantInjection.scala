@@ -61,119 +61,37 @@ trait GlobalInvariantInjection extends oo.SimplePhase
         Seq(ValDef.fresh("env", envType)),
         BooleanType(),
         BooleanLiteral(true),
-        Seq(Synthetic, IsPure, IsMethodOf(cd.id))
+        Seq(Synthetic, IsPure, Final, IsMethodOf(cd.id))
       )
-      (cd, inv)
-    }
-
-    val invariants = existingInvariants ++ implicitInvariant.map{ case (cd, inv) => cd.id -> inv.id }.toMap
-
-    // We make sure that contracts are not extended
-    contracts.find { cd => !cd.children.isEmpty } match {
-      case Some(cd) => context.reporter.fatalError("A contract cannot be extended: ${cd.id.asString}.")
-      case None => ()
-    }
-
-    val addressOfMap = contracts.map{ case cd =>
-      cd.id -> symbols.lookup[FunDef](s"addressOf${cd.id}")
+      (cd.id, inv)
     }.toMap
 
-    val envGIEnv = ValDef.fresh("env", envType)
+    val invariants = existingInvariants ++ implicitInvariant.map { case (id, inv) => id -> inv.id}.toMap
 
-    /*def buildAddressOfDiffExpr(l: Seq[FunDef]):Expr = l match {
-      case Nil => BooleanLiteral(true)
-      case x :: xs =>
-        val eqs = xs.map( fd => Not(Equals(FunctionInvocation(x.id, Nil, Nil), FunctionInvocation(fd.id, Nil, Nil))))
-        if(eqs.isEmpty)
-          buildAddressOfDiffExpr(xs)
-        else
-          eqs.reduce[Expr]( And(_, _))
-    }*/
-
-    //val giAddressOfDiffExpr = buildAddressOfDiffExpr(addressOfs)
-
-    val giInvariantAndExpr = contracts.map{ case contract =>
-      val contractType = contract.typed.toType
-      val addressOf = symbols.lookup[FunDef](s"addressOf${contract.id}")
-      And(
-        IsInstanceOf(
-          MutableMapApply(
-            ClassSelector(This(envCd.typed.toType), contractAtAccessor),
-              FunctionInvocation(addressOf.id, Nil, Nil)),
-          contractType),
-        FunctionInvocation(invariants(contract.id), Seq(), Seq(This(envType)))
-        /*MethodInvocation(
-          AsInstanceOf(
-            MutableMapApply(
-              ClassSelector(This(envCd.typed.toType), contractAtAccessor),
-                FunctionInvocation(addressOf.id, Nil, Nil)),
-            contractType),
-          invariants(contract.id),
-          Seq(),
-          Seq(This(envType)))*/
-      )
-    }.foldLeft[Expr](BooleanLiteral(true))(And(_, _))
-
-    val environmentInvariant = new FunDef (
-      ast.SymbolIdentifier("invariant"),
-      Seq(),
-      Seq(),
-      BooleanType(),
-      giInvariantAndExpr,
-      Seq(Synthetic, Final, Ghost, IsMethodOf(envCd.id))
-    )
-
-    context.reporter.info(s"Environment invariant : \n${environmentInvariant.fullBody}")
-
-    override def transform(fd: FunDef): FunDef = {
-      if(fd.isInvariant) {
-        super.transform(fd.copy(flags = fd.flags.filterNot{ case IsMethodOf(_) => true
-                                                            case Final => true
-                                                            case _ => false } ))
-      } else if(fd.isContractMethod) {
-        val contract = fd.findClass.get
+    override def transform(fd: FunDef): FunDef = fd match {
+      case fd if fd.isContractMethod =>
+        val contract = symbols.classes(fd.findClass.get)
+        val contractType = contract.typed.toType
 
         val envVar = fd.params.collectFirst{
           case v@ValDef(_, tpe, _) if tpe == envType => v.toVariable
         }.get
 
-        val currentPre:Expr = preconditionOf(fd.fullBody).getOrElse(BooleanLiteral(true))
-        val Lambda(vds, bdy) = postconditionOf(fd.fullBody).getOrElse(Lambda(Seq(ValDef.fresh("res", fd.returnType)), BooleanLiteral(true)))
+        val currPre = preconditionOf(fd.fullBody).getOrElse(BooleanLiteral(true))
+        val Lambda(vds, currPost) = postconditionOf(fd.fullBody).getOrElse(Lambda(Seq(ValDef.fresh("res", fd.returnType)), BooleanLiteral(true)))
 
-        val contractId = fd.flags.collectFirst{ case IsMethodOf(id) => id}.get
-        /*val addrExpr = Equals(
-                          MutableMapApply(
-                            ClassSelector(envVar, contractAtAccessor),
-                              FunctionInvocation(addressOfMap(contract).id, Nil, Nil)),
-                          This(contractInterfaceType))*/
+        val invCall = MethodInvocation(This(contractType), invariants(contract.id), Seq(), Seq(envVar))
+        val newPre = Precondition(And(invCall, currPre))
+        val newPost = Postcondition(Lambda(vds, And(invCall, currPost)))
 
-        val newBody = postMap {
-          case FunctionInvocation(id, Seq(), Seq()) if isIdentifier("stainless.smartcontracts.Environment.invariant", id) =>
-            Some(MethodInvocation(envVar, environmentInvariant.id, Seq(), Seq()))
+        super.transform(fd.copy(
+          fullBody = reconstructSpecs(Seq(newPre, newPost), withoutSpecs(fd.fullBody), fd.returnType)
+        ).copiedFrom(fd))
 
-          case _ => None
-        }(withoutSpecs(fd.fullBody).getOrElse(NoTree(UnitType())))
-
-        val callEnvInvariant = MethodInvocation(envVar, environmentInvariant.id, Seq(), Seq())
-        val newPre = Precondition(And(currentPre, callEnvInvariant))
-        val newPost = Postcondition(Lambda(vds, And(bdy, callEnvInvariant)))
-        super.transform(fd.copy(fullBody = reconstructSpecs(Seq(newPre, newPost), Some(newBody), fd.returnType))
-                                .copiedFrom(fd))
-
-      } else {
-        super.transform(fd)
-      }
+      case fd => super.transform(fd)
     }
 
-    override def transform(e: Expr): Expr = e match {
-      case MethodInvocation(This(_), invariantId, Seq(), Seq(env))
-          if existingInvariants.values.toSeq.contains(invariantId) =>
-        FunctionInvocation(transform(invariantId), Seq(), Seq(transform(env)))
-      case _ => super.transform(e)
-    }
-
-    val newFuns = Seq(environmentInvariant) ++
-                  implicitInvariant.map{ case (cd, inv) => inv }
+    val newFuns = implicitInvariant.values.toSeq
   }
 
   /* ====================================

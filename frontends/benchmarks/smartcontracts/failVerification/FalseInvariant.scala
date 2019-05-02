@@ -1,4 +1,5 @@
 import stainless.smartcontracts._
+import stainless.annotation._
 
 trait FalseInvariant extends Contract {
   var x: BigInt
@@ -7,6 +8,6 @@ trait FalseInvariant extends Contract {
     x = x + 1
   }
 
-  @ghost
-  final def invariant: Boolean = false
+  @library
+  final def invariant(): Boolean = false
 }

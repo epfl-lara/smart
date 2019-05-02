@@ -8,13 +8,16 @@ trait OwnedContract extends Contract {
   @solidityPayable
   @solidityPublic
   def sendBalance() = {
-    require (owner != addr)
+    require(
+      !(addr.equals(Msg.sender)) &&
+      addr.balance == Uint256("20")
+    )
+
     if(Msg.sender == owner) {
       owner.transfer(addr.balance)
     }
   } ensuring { _ =>
-    owner != addr &&
-    (Msg.sender == owner ==> (addr.balance == Uint256.ZERO)) &&
-    (Msg.sender != owner ==> (addr.balance == old(this).addr.balance))
+    ((Msg.sender.equals(owner)) ==> (addr.balance == Uint256.ZERO)) &&
+    (!(Msg.sender.equals(owner)) ==> (addr.balance == Uint256("20")))
   }
 }
