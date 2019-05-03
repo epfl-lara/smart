@@ -27,7 +27,7 @@ class SolidityCallBack(implicit val context: inox.Context)
   def beginExtractions() = {}
 
   // We start the compilation at the end of the extraction to ensure that
-  // we have all the dependancies stored in the registry
+  // we have all the dependencies stored in the registry
   final override def endExtractions(): Unit = {
     context.reporter.info("Begin Compilation")
     val symbols = xt.NoSymbols.withClasses(allClasses).withFunctions(allFunctions)
