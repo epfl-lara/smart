@@ -30,10 +30,11 @@ trait ContractMethodLifting extends oo.SimplePhase
     val envCd = symbols.lookup[ClassDef]("stainless.smartcontracts.Environment")
     val envType = envCd.typed.toType
     val contractAtId = envCd.fields.find(vd => isIdentifier("stainless.smartcontracts.Environment.contractAt", vd.id)).get.id
+    val addrFieldId = symbols.lookup[FunDef]("stainless.smartcontracts.ContractInterface.addr").id
 
     def processBody(body: Expr, env: Variable, callee: Variable): Expr = {
       postMap {
-        case This(tp) => 
+         case This(tp) => 
           Some(AsInstanceOf(MutableMapApply(ClassSelector(env, contractAtId), callee), tp))
 
         case MethodInvocation(This(receiverType), id, tps, args) if symbols.functions(id).isContractMethod || symbols.functions(id).isInvariant =>
@@ -60,39 +61,20 @@ trait ContractMethodLifting extends oo.SimplePhase
         val newParams = fd.params :+ calleeVd
 
         val (Seq(pre,post), bodyOpt) = deconstructSpecs(processBody(fd.fullBody, envVar, calleeVd.toVariable))
-        val calleeIsInstanceOf = IsInstanceOf(MutableMapApply(ClassSelector(envVar, contractAtId), calleeVd.toVariable), contractType)
+        
+        val calleeContract = MutableMapApply(ClassSelector(envVar, contractAtId), calleeVd.toVariable)
+        val calleeIsInstanceOf = IsInstanceOf(calleeContract, contractType)
+        val calleeAddrEquality = Equals(calleeVd.toVariable,
+                                 MethodInvocation(AsInstanceOf(calleeContract, contractType), addrFieldId, Seq(), Seq()))
+
         val newBodyOpt = bodyOpt.map(body =>
-          if (fd.isContractMethod) body else And(calleeIsInstanceOf, body)
+          if (fd.isContractMethod) body else And(And(calleeIsInstanceOf, calleeAddrEquality), body)
         )
 
         super.transform(fd.copy(
           flags = fd.flags.filterNot{ case IsMethodOf(_) => true case _ => false},
           params = newParams,
           fullBody = reconstructSpecs(Seq(pre, post), newBodyOpt, fd.returnType)
-        ).copiedFrom(fd))
-
-      case fd if fd.isInvariant =>
-        val contract = symbols.classes(fd.findClass.get)
-        val contractType = contract.typed.toType
-
-        val envVar = fd.params.collectFirst{
-          case v@ValDef(_, tpe, _) if tpe == envType => v.toVariable
-        }.get
-
-        val calleeVd = ValDef.fresh("callee", addressType)
-        val newParams = fd.params :+ calleeVd
-
-        val calleeIsInstanceOf = IsInstanceOf(MutableMapApply(ClassSelector(envVar, contractAtId), calleeVd.toVariable), contractType)
-        val newBody =
-          And(
-            calleeIsInstanceOf,
-            processBody(fd.fullBody, envVar, calleeVd.toVariable)
-          )
-
-        super.transform(fd.copy(
-          flags = fd.flags.filterNot{ case IsMethodOf(_) => true case _ => false},
-          params = newParams,
-          fullBody = newBody
         ).copiedFrom(fd))
 
       case fd => super.transform(fd)
