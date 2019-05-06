@@ -52,6 +52,20 @@ trait HavocInjection extends oo.SimplePhase
       )
       (contract.id, fd)
     }.toMap
+    
+    val isFullyKnownMethod = symbols.functions.values.filter(_.isContractMethod).map( fd => {
+      val methodCalls = collect[FunDef] {
+        case m: MethodInvocation => Set(symbols.functions(m.id))
+        case _ => Set()
+      }(fd.fullBody)
+
+      val hasExternalUnknownCall = methodCalls.exists {
+        case fd if fd.isContractMethod && fd.isAbstract => true
+        case _ => false
+      }
+
+      (fd.id, hasExternalUnknownCall)
+    }).toMap
 
     override def transform(fd: FunDef): FunDef = {
       if(fd.isContractMethod) {
@@ -62,13 +76,15 @@ trait HavocInjection extends oo.SimplePhase
           case v@ValDef(_, tpe, _) if tpe == envType => v.toVariable
         }.get
 
-        val newBody = postMap {
-          case MethodInvocation(receiver, id, tps, args) if symbols.functions(id).isContractMethod && !isThis(receiver) =>
-            val fdReturnType = symbols.functions(id).returnType
-            Some(MethodInvocation(This(contractType), havocs(contract.id).id, Seq(fdReturnType), Seq(envVar)))
+        val newBody = if(isFullyKnownMethod(fd.id)) {
+          postMap {
+            case MethodInvocation(receiver, id, tps, args) if symbols.functions(id).isContractMethod && !isThis(receiver) =>
+              val fdReturnType = symbols.functions(id).returnType
+              Some(MethodInvocation(This(contractType), havocs(contract.id).id, Seq(fdReturnType), Seq(envVar)))
 
-          case _ => None
-        }(fd.fullBody)
+            case _ => None
+          }(fd.fullBody)
+        } else fd.fullBody
 
         super.transform(fd.copy(
           fullBody = newBody
@@ -86,7 +102,7 @@ trait HavocInjection extends oo.SimplePhase
    * ==================================== */
 
   override def extractSymbols(context: TransformerContext, symbols: Symbols): Symbols = {
-    super.extractSymbols(context, symbols.withFunctions(context.newFds.toSeq))
+    super.extractSymbols(context, symbols).withFunctions(context.newFds.toSeq)
   }
 }
 
