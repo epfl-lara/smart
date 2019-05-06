@@ -108,6 +108,13 @@ trait MainHelpers extends inox.MainHelpers {
       compiler.join()
 
       compiler.getReport foreach { _.emit(ctx) }
+
+      // Export results to JSON if asked to.
+      ctx.options.findOption(optJson) foreach { file =>
+        val output = if (file.isEmpty) optJson.default else file
+        reporter.info(s"Printing JSON summary to $output")
+        exportJson(compiler.getReport, output)
+      }
     }
 
     def watchRunCycle() = try {
@@ -137,13 +144,6 @@ trait MainHelpers extends inox.MainHelpers {
       watcher.run()   // subsequent runs on changes
     } else {
       regularRunCycle()
-    }
-
-    // Export final results to JSON if asked to.
-    ctx.options.findOption(optJson) foreach { file =>
-      val output = if (file.isEmpty) optJson.default else file
-      reporter.info(s"Printing JSON summary to $output")
-      exportJson(compiler.getReport, output)
     }
 
     reporter.whenDebug(inox.utils.DebugSectionTimers) { debug =>
