@@ -32,7 +32,7 @@ trait HavocInjection extends oo.SimplePhase
     val contracts = symbols.classes.values.filter(_.isContract)
     val invariants: Map[Identifier, Identifier] = contracts.map { cd =>
       symbols.functions.values.collectFirst {
-        case fd if (fd.isInClass(cd.id) && fd.id.name == "invariant") =>
+        case fd if (fd.isInClass(cd.id) && fd.id.name == "contractInvariant") =>
           (cd.id, fd.id)
       }
     }.flatten.toMap
@@ -52,20 +52,23 @@ trait HavocInjection extends oo.SimplePhase
       )
       (contract.id, fd)
     }.toMap
-    
-    val isFullyKnownMethod = symbols.functions.values.filter(_.isContractMethod).map( fd => {
-      val methodCalls = collect[FunDef] {
-        case m: MethodInvocation => Set(symbols.functions(m.id))
-        case _ => Set()
-      }(fd.fullBody)
 
-      val hasExternalUnknownCall = methodCalls.exists {
-        case fd if fd.isContractMethod && fd.isAbstract => true
-        case _ => false
-      }
+    val contractMethods = symbols.functions.values.filter(_.isContractMethod).toSet
+    val isAbstractContractMethod = contractMethods.filter(_.isAbstract).map(_.id).toSet
+    val contractMethodToCallees = contractMethods.map(fd => 
+      fd.id -> symbols.callees(fd).filter(_.isContractMethod).map(_.id)).toMap
 
-      (fd.id, hasExternalUnknownCall)
-    }).toMap
+    def fixpoint(callees: Set[Identifier]):Set[Identifier] = {
+      val neww = callees ++ callees.flatMap(contractMethodToCallees)
+      if(neww == callees) neww
+      else fixpoint(neww)
+    }
+
+    val isFullyKnownMethod = contractMethodToCallees.map{ case (id, callees) => 
+      val recCallee = fixpoint(callees)
+      val isFullyKnown = recCallee.exists{ case id if isAbstractContractMethod(id) => true case _ => false}
+      (id, isFullyKnown)
+    }.toMap
 
     override def transform(fd: FunDef): FunDef = {
       if(fd.isContractMethod) {
