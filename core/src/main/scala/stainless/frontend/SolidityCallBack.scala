@@ -33,7 +33,7 @@ class SolidityCallBack(implicit val context: inox.Context)
     val symbols = xt.NoSymbols.withClasses(allClasses).withFunctions(allFunctions)
     symbols.ensureWellFormed
 
-    files.foreach{ file =>
+    files.foreach { file =>
       solidity.SolidityOutput(file)(symbols, context)
     }
 
@@ -41,7 +41,10 @@ class SolidityCallBack(implicit val context: inox.Context)
   }
 
   def failed() = {}
-  def getReport: Option[AbstractReport[_]] = None
+  def getReport: Option[AbstractReport[_]] = {
+    if (!files.isEmpty) Some(new NoReport())
+    else None
+  }
   def join() = {}
   def stop() = {}
 }
