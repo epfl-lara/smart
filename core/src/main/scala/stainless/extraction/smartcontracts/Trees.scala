@@ -41,7 +41,7 @@ trait Trees extends methods.Trees { self =>
 
     def isConstructor(implicit symbols: self.Symbols): Boolean = fd.isContractMethod && fd.id.name == "constructor"
 
-    def isInvariant(implicit symbols: self.Symbols): Boolean = fd.isInSmartContract && fd.id.name == "invariant"
+    def isInvariant(implicit symbols: self.Symbols): Boolean = fd.isInSmartContract && (fd.id.name == "invariant" || fd.id.name == "contractInvariant")
     def isContractMethod(implicit symbols: self.Symbols): Boolean = !fd.isInvariant && fd.isInSmartContract && !fd.isAccessor
   }
 
