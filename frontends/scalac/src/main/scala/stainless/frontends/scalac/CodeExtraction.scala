@@ -802,6 +802,7 @@ trait CodeExtraction extends ASTExtractors {
     case ExTwo() => xt.BVLiteral(false, 2, 256)
     case ExUint256Literal(b) => xt.BVLiteral(false, b, 256)
     case ExUint8Literal(b) => xt.BVLiteral(false, b, 8)
+
     case ExObjectDef(_, _) => xt.UnitLiteral()
     case ExCaseClassSyntheticJunk() => xt.UnitLiteral()
     case md: ModuleDef if md.symbol.isSynthetic => xt.UnitLiteral()
@@ -1393,6 +1394,7 @@ trait CodeExtraction extends ASTExtractors {
 
     val (lctor, rctor) = (ltpe, rtpe) match {
       case (xt.BVType(false, 256), xt.BVType(false, 256))      => (id, id)
+      case (xt.BVType(false, 8), xt.BVType(false, 8))          => (id, id)
       case (xt.BVType(true, 64), xt.BVType(true, 64))          => (id, id)
       case (xt.BVType(true, 64), xt.BVType(true, _))           => (id, widen64)
       case (xt.BVType(true, _),  xt.BVType(true, 64)) if shift => outOfSubsetError(rhs0, s"Unsupported shift")

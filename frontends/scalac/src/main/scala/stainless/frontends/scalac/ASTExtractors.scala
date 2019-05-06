@@ -94,7 +94,7 @@ trait ASTExtractors {
   def isTuple(sym: Symbol, size: Int): Boolean = (size > 0 && size <= 22) && (sym == classFromName(s"scala.Tuple$size"))
 
   def isBigIntSym(sym: Symbol) : Boolean = getResolvedTypeSym(sym) == bigIntSym
-  
+
   def isUint8Sym(sym: Symbol) : Boolean = getResolvedTypeSym(sym) == uint8Sym
   def isUint256Sym(sym: Symbol) : Boolean = getResolvedTypeSym(sym) == uint256Sym
 

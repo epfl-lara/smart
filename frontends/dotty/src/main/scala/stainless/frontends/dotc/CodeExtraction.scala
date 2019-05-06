@@ -869,6 +869,12 @@ class CodeExtraction(inoxCtx: inox.Context, cache: SymbolsContext)(implicit val 
   }
 
   private def extractTree(tr: tpd.Tree)(implicit dctx: DefContext): xt.Expr = (tr match {
+    case ExZero() => xt.BVLiteral(false, 0, 256)
+    case ExOne() => xt.BVLiteral(false, 1, 256)
+    case ExTwo() => xt.BVLiteral(false, 2, 256)
+    case ExUint256Literal(b) => xt.BVLiteral(false, b, 256)
+    case ExUint8Literal(b) => xt.BVLiteral(false, b, 8)
+
     case SingletonTypeTree(tree) => extractTree(tree)
 
     case Block(Seq(dd @ DefDef(_, _, Seq(vparams), _, _)), ExUnwrapped(Closure(Nil, call, targetTpt))) if call.symbol == dd.symbol =>
@@ -1514,6 +1520,7 @@ class CodeExtraction(inoxCtx: inox.Context, cache: SymbolsContext)(implicit val 
                              (implicit dctx: DefContext): xt.Expr = {
     def checkBits(tr: tpd.Tree, tpe: xt.Type) = tpe match {
       case xt.BVType(_, 8 | 16 | 32 | 64) => // Byte, Short, Int or Long are ok
+      case xt.BVType(false, 256) => // Uint256 for Solidity is ok
       case xt.BVType(_, s) => outOfSubsetError(tr, s"Unexpected integer of $s bits")
       case _ => // non-bitvector types are ok too
     }
@@ -1531,6 +1538,8 @@ class CodeExtraction(inoxCtx: inox.Context, cache: SymbolsContext)(implicit val 
     val widen64 = { (e: xt.Expr) => xt.BVWideningCast(e, xt.BVType(true, 64).copiedFrom(e)).copiedFrom(e) }
 
     val (lctor, rctor) = (ltpe, rtpe) match {
+      case (xt.BVType(false, 256), xt.BVType(false, 256))      => (id, id)
+      case (xt.BVType(false, 8), xt.BVType(false, 8))          => (id, id)
       case (xt.BVType(true, 64), xt.BVType(true, 64))          => (id, id)
       case (xt.BVType(true, 64), xt.BVType(true, _))           => (id, widen64)
       case (xt.BVType(true, _),  xt.BVType(true, 64)) if shift => outOfSubsetError(rhs0, s"Unsupported shift")
@@ -1609,6 +1618,8 @@ class CodeExtraction(inoxCtx: inox.Context, cache: SymbolsContext)(implicit val 
       case tpe if isBigIntSym(tpe.typeSymbol) => xt.IntegerType()
       case tpe if isRealSym(tpe.typeSymbol)   => xt.RealType()
       case tpe if isStringSym(tpe.typeSymbol) => xt.StringType()
+      case tpe if isUint8Sym(tpe.typeSymbol) => xt.BVType(false, 8)
+      case tpe if isUint256Sym(tpe.typeSymbol) => xt.BVType(false, 256)
 
       case ct: ConstantType => extractType(ct.value.tpe)
       case cet: CachedExprType => extractType(cet.resultType)
