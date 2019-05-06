@@ -15,12 +15,13 @@ trait UnknownInterfaceA extends Contract {
 
 trait TCIB extends Contract {
   var balance: Uint256
+
+  @addressOfContract("UnknownInterfaceA")
   var target: Address
 
   @ghost
   final def invariant() =
-    balance >= Uint256.ONE &&
-    Environment.contractAt(target).isInstanceOf[UnknownInterfaceA]
+    balance >= Uint256.ONE
 
   @solidityPublic
   final def transfer(to: Address, amount: Uint256):Unit = {
@@ -42,11 +43,8 @@ trait TCIB extends Contract {
 }
 
 trait TCIA extends Contract {
+  @addressOfContract("TCIB")
   val target:Address
-
-  @ghost
-  final def invariant() = Environment.contractAt(target).isInstanceOf[TCIB] &&
-                          Environment.contractAt(target).asInstanceOf[TCIB].invariant()
 
   @solidityPublic
   final def foo() = {

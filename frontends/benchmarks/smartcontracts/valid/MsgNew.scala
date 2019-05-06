@@ -10,10 +10,8 @@ trait C1 extends Contract {
 }
 
 trait C2 extends Contract {
+  @addressOfContract("C1")
   val a: Address
-
-  @ghost
-  final def invariant() = Environment.contractAt(a).isInstanceOf[C1]
 
   @solidityView
   @solidityPublic

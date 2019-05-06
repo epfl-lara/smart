@@ -8,6 +8,6 @@ trait FalseInvariant extends Contract {
     x = x + 1
   }
 
-  @library
+  @ghost
   final def invariant(): Boolean = false
 }

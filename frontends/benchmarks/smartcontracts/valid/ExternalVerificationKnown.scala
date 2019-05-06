@@ -21,6 +21,7 @@ trait EVKA extends Contract {
 
 trait EVKB extends Contract {
   var balance:Uint256
+  @addressOfContract("EVKA")
   var target:Address
 
   @ghost
@@ -37,10 +38,6 @@ trait EVKB extends Contract {
 
   @solidityPublic
   final def exchange() = {
-    require(
-      Environment.contractAt(target).isInstanceOf[EVKA]
-    )
-
     Environment.contractAt(target).asInstanceOf[EVKA].increase()
     decrease()
 
