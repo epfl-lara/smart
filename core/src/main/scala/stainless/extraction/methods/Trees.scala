@@ -163,6 +163,13 @@ trait Trees extends throwing.Trees { self =>
     }
   }
 
+  object AddressOfContract {
+    def unapply(f: Flag): Option[String] = f match {
+      case Annotation("addressOfContract", Seq(StringLiteral(name))) => Some(name)
+      case _ => None
+    }
+  }
+
   implicit class FunDefWrapper(fd: FunDef) {
     def isAccessor: Boolean =
       fd.flags exists { case IsAccessor(_) => true case _ => false }

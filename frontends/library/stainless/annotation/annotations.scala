@@ -101,3 +101,6 @@ class keep(g: String)      extends Annotation
  */
 @ignore @field @getter @setter @param
 class ghost extends StaticAnnotation
+
+@ignore @field
+class addressOfContract(tp: String) extends Annotation
