@@ -260,11 +260,6 @@ trait SolidityOutput {
          isIdentifier("stainless.smartcontracts.unsafe_*", id) =>
       SMult(transformExpr(lhs), transformExpr(rhs))
 
-    case FunctionInvocation(id, _, Seq(lhs, rhs))
-      if isIdentifier("stainless.smartcontracts.unsafe_$div", id) ||
-         isIdentifier("stainless.smartcontracts.unsafe_/", id) =>
-      SDivision(transformExpr(lhs), transformExpr(rhs))
-
     case FunctionInvocation(id, _, _) if isIdentifier("stainless.lang.ghost", id) =>
       STerminal()
 
@@ -567,11 +562,7 @@ trait SolidityOutput {
       transformedImports.foreach( i => ctx.reporter.info(i.path))
     }
 
-    if(!allDefs.isEmpty)
-      SolidityPrinter.writeFile(ctx, solFilename, transformedImports, allDefs)
-    else {
-      ctx.reporter.warning("The file " + filename + " has been discarded since it does not contain smart contract code")
-    }
+    SolidityPrinter.writeFile(ctx, solFilename, transformedImports, allDefs)
   }
 }
 

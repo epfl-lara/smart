@@ -21,7 +21,7 @@ trait UnsignedOperation extends Contract {
 	def safe_times(x: Uint256, y: Uint256) = {
 		dynRequire(
 			x == Uint256.ZERO ||
-			y == unsafe_/(unsafe_*(x,y),x)
+			y == unsafe_*(x,y) / x
 		)
 		x * y
 	}

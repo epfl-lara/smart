@@ -10,8 +10,11 @@ trait OCMB extends Contract {
   @solidityPublic
   val testField2: Uint256
 
+  @ghost
   final def invariant() = testField2 == Uint256.ONE
 
+  @solidityPublic
+  @solidityView
   final def doNothing() = {
     // Do Nothing
   }

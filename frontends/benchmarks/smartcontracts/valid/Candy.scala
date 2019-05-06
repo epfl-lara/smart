@@ -21,7 +21,7 @@ trait Candy extends Contract {
     eatenCandies += candies
   }
 
-  @library
+  @ghost
   final def invariant(): Boolean = {
     eatenCandies <= initialCandies &&
     remainingCandies <= initialCandies &&

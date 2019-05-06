@@ -29,21 +29,18 @@ package object smartcontracts {
     x * y
   }
 
-  @library @inline
-  def unsafe_/(x: Uint256, y: Uint256) = {
-    x / y
-  }
-
   @library
+  @extern
   @keep("smart-contracts")
   def dynRequire(cond: Boolean): Unit = {
-    ()
+    (??? : Unit)
   } ensuring(cond)
 
   @library
+  @extern
   @keep("smart-contracts")
   def dynAssert(cond: Boolean): Unit = {
-    ()
+    (??? : Unit)
   } ensuring(cond)
 
   @library
