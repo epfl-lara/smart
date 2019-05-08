@@ -4,7 +4,8 @@ import stainless.annotation._
 trait AddressEquality extends Contract {
   val other: Address
 
-  def invariant() = 
+  @ghost
+  def invariant() =
     other == Address(0) && addr == Address(1) &&
     Environment.contractAt(other).isInstanceOf[AddressEquality] &&
     Environment.contractAt(other).asInstanceOf[AddressEquality].addr == other

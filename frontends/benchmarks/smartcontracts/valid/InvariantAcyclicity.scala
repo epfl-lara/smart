@@ -6,14 +6,16 @@ import stainless.lang.ghost
 
 trait InvariantAcyclicity1 extends Contract {
   var balance:Uint256
-  
+
   @addressOfContract("InvariantAcyclicity2")
   val target: Address
 
+  @solidityPublic
   def f(): Unit = {
     assert(balance >= Uint256.ONE)
   }
 
+  @ghost
   def invariant() =
     balance >= Uint256.ONE
 }

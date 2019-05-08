@@ -3,7 +3,7 @@ import stainless.lang._
 import stainless.collection._
 import stainless.annotation._
 
-trait VRB extends Contract {
+trait VRB extends ContractInterface {
   def doSomething(): Unit
 }
 
@@ -15,8 +15,10 @@ trait VRA extends Contract {
   @addressOfContract("VRB")
   val target: Address
 
+  @ghost
   final def invariant() = userBalance + contractBalance == totalCoins
 
+  @solidityPublic
   final def withdrawBalance() = {
     val amount = userBalance
 
