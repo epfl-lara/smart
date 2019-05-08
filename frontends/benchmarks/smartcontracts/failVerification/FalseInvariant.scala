@@ -4,6 +4,8 @@ import stainless.annotation._
 trait FalseInvariant extends Contract {
   var x: BigInt
 
+  def constructor() = ()
+
   final def increment() = {
     x = x + 1
   }
