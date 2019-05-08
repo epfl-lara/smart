@@ -10,7 +10,7 @@ import org.scalatest._
 class SmartContractVerificationSuite extends SmartContractSuite {
   val defaultArgs = Array("--smart-contracts", "--solvers=smt-z3,smt-cvc4", "--vc-cache=false", "--timeout=200")
 
-  for (args <- validArgs) {
+  for (args <- validArgs if !args.isEmpty) {
     test("stainless " + args.mkString(" ")) {
       val report = runMainWithArgs(defaultArgs ++ args)
       assert(report.get.stats.invalid == 0)
