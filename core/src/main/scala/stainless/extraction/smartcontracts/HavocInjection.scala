@@ -54,7 +54,10 @@ trait HavocInjection extends oo.SimplePhase
     }.toMap
 
     val contractMethods = symbols.functions.values.filter(_.isContractMethod).toSet
-    val isAbstractContractMethod = contractMethods.filter(_.isAbstract).map(_.id).toSet
+    val isImpureContractMethod = contractMethods.filter(fd => 
+      (fd.isAbstract || fd.flags.contains(Extern)) && !fd.flags.contains(IsPure)
+    ).map(_.id).toSet
+
     val contractMethodToCallees = contractMethods.map(fd => 
       fd.id -> symbols.callees(fd).filter(_.isContractMethod).map(_.id)).toMap
 
@@ -66,7 +69,7 @@ trait HavocInjection extends oo.SimplePhase
 
     val isFullyKnownMethod = contractMethodToCallees.map{ case (id, callees) => 
       val recCallee = fixpoint(callees)
-      val isFullyKnown = recCallee.exists{ case id if isAbstractContractMethod(id) => true case _ => false}
+      val isFullyKnown = recCallee.exists{ case id if isImpureContractMethod(id) => true case _ => false}
       (id, isFullyKnown)
     }.toMap
 
