@@ -67,6 +67,10 @@ trait ContractMethodLifting extends oo.SimplePhase
         val calleeAddrEquality = Equals(calleeVd.toVariable,
                                  MethodInvocation(AsInstanceOf(calleeContract, contractType), addrFieldId, Seq(), Seq()))
 
+        // If fd is the constructor we still need to add the require on the callee as the constructor will be lifted out.
+        val newPre = if(fd.isConstructor) Precondition(And(calleeIsInstanceOf, calleeAddrEquality))
+                     else pre
+
         val newBodyOpt = bodyOpt.map(body =>
           if (fd.isContractMethod) body else And(And(calleeIsInstanceOf, calleeAddrEquality), body)
         )
@@ -74,7 +78,7 @@ trait ContractMethodLifting extends oo.SimplePhase
         super.transform(fd.copy(
           flags = fd.flags.filterNot{ case IsMethodOf(_) => true case _ => false},
           params = newParams,
-          fullBody = reconstructSpecs(Seq(pre, post), newBodyOpt, fd.returnType)
+          fullBody = reconstructSpecs(Seq(newPre, post), newBodyOpt, fd.returnType)
         ).copiedFrom(fd))
 
       case fd => super.transform(fd)
