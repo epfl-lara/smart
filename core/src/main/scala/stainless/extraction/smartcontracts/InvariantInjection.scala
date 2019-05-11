@@ -170,12 +170,15 @@ trait InvariantInjection extends oo.SimplePhase
                       else
                         MethodInvocation(This(contractType), transformedInvariantDefs(contract.id).id, Seq(), Seq(envVar))
 
-        val newPre = Precondition(And(invCall, currPre))
+        // If the method is the constructor we only add the new postcondition as nothing can be required
+        // at the instanciation of the contract. 
+        val newPre = if(fd.isConstructor) Precondition(currPre)
+                     else Precondition(And(invCall, currPre))
         val newPost = Postcondition(Lambda(vds, And(invCall, currPost)))
 
         super.transform(fd.copy(
           fullBody = reconstructSpecs(Seq(newPre, newPost), withoutSpecs(fd.fullBody), fd.returnType)
-        ).copiedFrom(fd))
+        ).copiedFrom(fd))        
 
       case fd => super.transform(fd)
     }
