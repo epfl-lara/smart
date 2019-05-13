@@ -7,6 +7,7 @@ trait SRDA extends Contract {
   @addressOfContract("SRDA")
   val other: Address
 
+  @solidityPublic
   def foo() = {
     val old = x
     Environment.contractAt(other).asInstanceOf[SRDA].increment()

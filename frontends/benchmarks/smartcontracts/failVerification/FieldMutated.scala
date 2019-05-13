@@ -11,9 +11,10 @@ trait FieldMutated extends Contract {
     val target: Address
     var testField:Uint256
 
-    @library
+    @ghost
     final def invariant() = Environment.contractAt(target).isInstanceOf[UnknownInterface]
 
+    @solidityPublic
     final def foo() = {
         val oldTestField = testField
         Environment.contractAt(target).asInstanceOf[UnknownInterface].doSomething()

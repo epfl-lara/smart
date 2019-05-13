@@ -8,7 +8,6 @@ trait HavocInvariant1 extends Contract {
   var empty: Boolean
 
   @ghost
-  @library
   final def invariant():Boolean = {
     ((balance == Uint256.ZERO) && empty) ||
     ((balance > Uint256.ZERO) && !empty)

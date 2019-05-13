@@ -8,9 +8,9 @@ trait ConstructorGlobalInvariant extends Contract {
   var balance:Uint256
 
   @ghost
-  @library
   final def invariant() = balance >= Uint256.ONE
 
+  @solidityPublic
   final def constructor() = {
     balance = Uint256.ONE
   }

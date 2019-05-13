@@ -4,6 +4,7 @@ import stainless.annotation._
 trait PositiveEvolution extends Contract {
   var x: BigInt
 
+  @solidityPublic
   final def constructor() = {
     x = 2
   }
