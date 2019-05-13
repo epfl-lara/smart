@@ -4,6 +4,7 @@ import stainless.collection._
 import stainless.annotation._
 
 trait RB extends Contract {
+  @solidityPublic
   def doSomething(): Unit
 }
 
@@ -15,8 +16,10 @@ trait RA extends Contract {
   @addressOfContract("RB")
   val target: Address
 
+  @ghost
   final def invariant() = userBalance + contractBalance == totalCoins
 
+  @solidityPublic
   final def withdrawBalance() = {
     val amount = userBalance
 

@@ -7,7 +7,6 @@ trait EVKA extends Contract {
   var balance:Uint256
 
   @ghost
-  @library
   final def invariant() = {
     balance >= Uint256("120")
   }
@@ -25,7 +24,6 @@ trait EVKB extends Contract {
   var target:Address
 
   @ghost
-  @library
   final def invariant() = {
     balance <= Uint256("120")
   }

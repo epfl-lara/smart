@@ -9,7 +9,6 @@ trait HavocInvariant2B extends Contract {
   var balance: Uint256
 
   @ghost
-  @library
   final def invariant() = (!isEmpty && (balance > Uint256.ZERO)) ||
               (isEmpty && (balance == Uint256.ZERO))
 
@@ -24,7 +23,6 @@ trait HavocInvariant2A extends Contract {
   val target:Address
 
   @ghost
-  @library
   final def invariant(): Boolean = {
     Environment.contractAt(target).isInstanceOf[HavocInvariant2B] &&
     Environment.contractAt(target).asInstanceOf[HavocInvariant2B].invariant()
