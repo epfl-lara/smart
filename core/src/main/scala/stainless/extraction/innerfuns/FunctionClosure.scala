@@ -121,7 +121,7 @@ trait FunctionClosure
 
       // All free variables one should include.
       // Contains free vars of the function itself plus of all transitively called functions.
-      // Also contains free vars from PC if the PC is relevant to the fundef.
+      // Also contains free vars from PC if the PC is relevant to the FunDef.
       // Also contains the open and closed vars of the PC, these will be filtered out at some
       // later point when computing the relevant arguments (see `closeFd`).
       val transFreeWithBindings: Map[Identifier, Set[Variable]] = {
@@ -137,7 +137,7 @@ trait FunctionClosure
         inox.utils.fixpoint(step)(init)
       }
 
-      val transFree: Map[Identifier, Seq[Variable]] = 
+      val transFree: Map[Identifier, Seq[Variable]] =
         //transFreeWithBindings.map(p => (p._1, p._2 -- nestedWithPaths(p._1).bindings.map(_._1))).map(p => (p._1, p._2.toSeq))
         transFreeWithBindings.map(p => (p._1, p._2.toSeq.sortBy(_.id.name)))
 

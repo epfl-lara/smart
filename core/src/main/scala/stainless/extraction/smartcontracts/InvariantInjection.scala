@@ -47,12 +47,12 @@ trait InvariantInjection extends oo.SimplePhase
     // We collect all contracts
     val contracts = symbols.classes.values.filter(_.isContract)
 
-    // Here we compute a mapping from a contract C to a pair (C', F) of type (contract , funDef). 
-    // The pair represents the fundef of a an address field of C for which the annotation @addressOfContract
+    // Here we compute a mapping from a contract C to a pair (C', F) of type (contract , funDef).
+    // The pair represents the FunDef of an address field of C for which the annotation @addressOfContract
     // is defined. C' is the class of the contract referenced by the field.
-    val contractKnownAddrFields = contracts.map (cd => { 
+    val contractKnownAddrFields = contracts.map (cd => {
       val addressFields = cd.methods.map(symbols.functions).filter{ case fd => fd.returnType == addressType }
-      
+
       val addresses = addressFields.flatMap( fd => {
         fd.flags.collectFirst{ case AddressOfContract(name) => name } match {
           case Some(name) => Seq((fd, name))
@@ -100,21 +100,21 @@ trait InvariantInjection extends oo.SimplePhase
 
       val newBody = contractKnownAddrFields(contract.id).map { case (fd, cd) =>
         val addrCall = MethodInvocation(This(contract.typed.toType), fd.id, Seq(), Seq())
-        val addrEquality = Equals(addrCall, 
-            MethodInvocation(  
+        val addrEquality = Equals(addrCall,
+            MethodInvocation(
               AsInstanceOf(MutableMapApply(ClassSelector(envVar, contractAtAccessor), addrCall), cd.typed.toType),
               addressAccessorId, Seq(), Seq()))
         val isInstanceOff = IsInstanceOf(MutableMapApply(ClassSelector(envVar, contractAtAccessor), addrCall), cd.typed.toType)
 
         And(isInstanceOff, addrEquality)
       }.foldRight(invBody)(And(_,_))
-      
+
       (contract.id -> inv.copy(fullBody = newBody).copiedFrom(inv))
     }.toMap
 
     val invariants = transformedInvariantDefs.map{ case (contract, fd) => contract -> fd.id }.toMap
 
-    // Build the contractInvariant of each contract. The contract invariant only assert the local invariant of
+    // Build the contractInvariant of each contract. The contract invariant only asserts the local invariant of
     // the contract + the local invariant of the contract's address fields annotated by @addressOfContract
     val contractInvariant = symbols.classes.values.filter(_.isContract).map( contract => {
       val envVd = ValDef.fresh("env", envType)
@@ -139,7 +139,7 @@ trait InvariantInjection extends oo.SimplePhase
         body,
         Seq(Synthetic, IsPure, Final, IsMethodOf(contract.id))
       )
-      
+
       (contract.id, invDef)
     }).toMap
 
@@ -171,14 +171,14 @@ trait InvariantInjection extends oo.SimplePhase
                         MethodInvocation(This(contractType), transformedInvariantDefs(contract.id).id, Seq(), Seq(envVar))
 
         // If the method is the constructor we only add the new postcondition as nothing can be required
-        // at the instanciation of the contract. 
+        // at the instanciation of the contract.
         val newPre = if(fd.isConstructor) Precondition(currPre)
                      else Precondition(And(invCall, currPre))
         val newPost = Postcondition(Lambda(vds, And(invCall, currPost)))
 
         super.transform(fd.copy(
           fullBody = reconstructSpecs(Seq(newPre, newPost), withoutSpecs(fd.fullBody), fd.returnType)
-        ).copiedFrom(fd))        
+        ).copiedFrom(fd))
 
       case fd => super.transform(fd)
     }
