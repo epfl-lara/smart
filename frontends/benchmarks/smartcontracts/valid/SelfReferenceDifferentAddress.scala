@@ -7,7 +7,8 @@ trait SRDA extends Contract {
   @addressOfContract("SRDA")
   val other: Address
 
-  def foo() = {
+  @solidityPublic
+  final def foo() = {
     require(other != addr)
 
     val old = x
@@ -15,5 +16,6 @@ trait SRDA extends Contract {
     assert(old == x)
   }
 
-  def increment() = x = x + Uint256.ONE
+  @solidityPublic
+  final def increment() = x = x + Uint256.ONE
 }
