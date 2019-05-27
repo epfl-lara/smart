@@ -33,7 +33,7 @@ trait HavocInjection extends oo.SimplePhase
     val contracts = symbols.classes.values.filter(_.isContract)
     val invariants: Map[Identifier, Identifier] = contracts.map { cd =>
       symbols.functions.values.collectFirst {
-        case fd if (fd.isInClass(cd.id) && fd.id.name == "contractInvariant") =>
+        case fd if (fd.isInClass(cd.id) && fd.id.name == "invariant") =>
           (cd.id, fd.id)
       }
     }.flatten.toMap
