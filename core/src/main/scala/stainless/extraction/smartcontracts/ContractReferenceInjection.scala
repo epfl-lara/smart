@@ -76,14 +76,12 @@ trait ContractReferenceInjection extends oo.SimplePhase
           val refs = hasRef(contract.name)
           val invCalls = refs.map{ case ref =>
             val refCall = FunctionInvocation(contractReferences(ref.id).id, Seq(), Seq())
-            And(
-              IsInstanceOf(refCall, ref.typed.toType),
-              MethodInvocation(refCall, invariants(ref.id), Seq(), Seq(envVar))
-            )
+            MethodInvocation(refCall, invariants(ref.id), Seq(), Seq(envVar))
           }.reduce[Expr](And(_, _))
 
           val body = withoutSpecs(fd.fullBody).getOrElse(NoTree(fd.returnType))
-          val newAssume = FunctionInvocation(assumeFunId, Seq(), Seq(invCalls))
+
+          val newAssume = FunctionInvocation(assumeFunId, Seq(), Seq(invCalls)) 
           val Lambda(vds, post) = postconditionOf(fd.fullBody).getOrElse(Lambda(Seq(ValDef.fresh("res", fd.returnType)), BooleanLiteral(true)))
 
           val newBody = withPostcondition(Block(Seq(newAssume), body), Some(Lambda(vds, And(post, invCalls))))
