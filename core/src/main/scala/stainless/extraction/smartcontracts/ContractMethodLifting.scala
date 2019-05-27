@@ -35,11 +35,14 @@ trait ContractMethodLifting extends oo.SimplePhase
 
     def processBody(body: Expr, env: Variable, callee: Variable): Expr = {
       postMap {
-         case This(tp) => 
+        case This(tp) => 
           Some(AsInstanceOf(MutableMapApply(ClassSelector(env, contractAtId), callee), tp))
 
         case MethodInvocation(This(receiverType), id, tps, args) if symbols.functions(id).isContractMethod || symbols.functions(id).isInvariant =>
           Some(FunctionInvocation(id, tps, args :+ callee))
+
+        case MethodInvocation(recv@FunctionInvocation(recvId, _, _), id, tps, args) if symbols.functions(id).isInvariant && recvId.name.contains("addressOf") =>
+          Some(FunctionInvocation(id, tps, args ++ Seq(recv)))
 
         case MethodInvocation(receiver, id, tps, args) if symbols.functions(id).isContractMethod || symbols.functions(id).isInvariant =>
           val AsInstanceOf(MutableMapApply(ClassSelector(_, _), calleeAddr), _) = receiver 

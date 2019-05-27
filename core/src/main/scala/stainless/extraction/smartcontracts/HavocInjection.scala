@@ -48,7 +48,7 @@ trait HavocInjection extends oo.SimplePhase
         Seq(paramType),
         Seq(envVd),
         paramType.tp,
-        reconstructSpecs(Seq(Precondition(invCall), Postcondition(Lambda(Seq(ValDef.fresh("res", paramType.tp)), invCall))), Some(NoTree(paramType.tp)), paramType.tp),
+        reconstructSpecs(Seq(Postcondition(Lambda(Seq(ValDef.fresh("res", paramType.tp)), invCall))), Some(NoTree(paramType.tp)), paramType.tp),
         Seq(Synthetic, Extern, IsMethodOf(contract.id))
       )
       (contract.id, fd)

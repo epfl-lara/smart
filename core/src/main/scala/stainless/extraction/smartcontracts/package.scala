@@ -41,9 +41,9 @@ package object smartcontracts {
       override val t: innerclasses.trees.type = innerclasses.trees
     })
 
-
     if (ctx.options.findOptionOrDefault(frontend.optSmartContracts)) {
       utils.DebugPipeline("EnvironmentBuilder", EnvironmentBuilder()) andThen
+      utils.DebugPipeline("ContractReferenceInjection", ContractReferenceInjection()) andThen
       utils.DebugPipeline("InvariantInjection", InvariantInjection()) andThen
       utils.DebugPipeline("HavocInjection", HavocInjection()) andThen
       utils.DebugPipeline("ContractMethodLifting", ContractMethodLifting()) andThen

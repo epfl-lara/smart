@@ -35,6 +35,8 @@ trait InvariantInjection extends oo.SimplePhase
     val addressType = symbols.lookup[ClassDef]("stainless.smartcontracts.Address").typed.toType
     val addressAccessorId = symbols.lookup[FunDef]("stainless.smartcontracts.ContractInterface.addr").id
 
+    val assumeFunId = symbols.lookup[FunDef]("stainless.smartcontracts.assume").id
+
     def checkInvariantForm(cid: Identifier, fd: FunDef) = {
       if (
         fd.typeArgs.isEmpty &&
@@ -68,7 +70,6 @@ trait InvariantInjection extends oo.SimplePhase
       symbols.functions.values.collectFirst {
         case fd if (fd.isInClass(cd.id) && fd.id.name == "invariant") =>
           checkInvariantForm(cd.id, fd)
-          context.reporter.info(s"Found invariant for ${cd.id.asString}:\n${fd.fullBody.asString}")
           (cd, fd)
       }
     }.flatten.toMap
@@ -76,20 +77,7 @@ trait InvariantInjection extends oo.SimplePhase
     // Used to remove old symbols
     val existingInvariantToRemove = existingInvariants.values.map(_.id).toSet
 
-    val implicitInvariant = contracts.filterNot(c => existingInvariants.contains(c)).map { case cd =>
-      context.reporter.info(s"No invariant was found for contract ${cd.id}. Implicit invariant() = true has been generated")
-      val inv = new FunDef(
-        ast.SymbolIdentifier("invariant"),
-        Seq(),
-        Seq(ValDef.fresh("env", envType)),
-        BooleanType(),
-        BooleanLiteral(true),
-        Seq(Synthetic, IsPure, Final, IsMethodOf(cd.id))
-      )
-      (cd, inv)
-    }.toMap
-
-    val invariantsDefs = existingInvariants ++ implicitInvariant
+    val invariantsDefs = existingInvariants
     // Here we transform the local invariant to include the isInstanceOf/asInstanceOf implied by the
     // the contracts' address fields annotated by @addressOfContract.
     val transformedInvariantDefs = invariantsDefs.map{ case (contract, inv) =>
@@ -156,29 +144,19 @@ trait InvariantInjection extends oo.SimplePhase
         val currPre = preconditionOf(fd.fullBody).getOrElse(BooleanLiteral(true))
         val Lambda(vds, currPost) = postconditionOf(fd.fullBody).getOrElse(Lambda(Seq(ValDef.fresh("res", fd.returnType)), BooleanLiteral(true)))
 
-        // Here to improve the precision of the verification we check if the method has external calls. If it does then
-        // we assert the contractInvariant which is about the whole target contract structure (itself + the address fields it contains)
-        // Otherwise we only assert its local invariant. This allow for exemple like CallWithEther1 to pass. This might not be a definitive
-        // implementation as it can still lead to cyclic reference.
-        val hasExternalCall = !collect[MethodInvocation] {
-          case mi@MethodInvocation(receiver, id, _, _) if !isThis(receiver) && symbols.functions(id).isContractMethod =>
-            Set(mi)
-          case _ => Set()
-        }(fd.fullBody).isEmpty
-
-        val invCall = if(hasExternalCall)
-                        MethodInvocation(This(contractType), contractInvariant(contract.id).id, Seq(), Seq(envVar))
-                      else
-                        MethodInvocation(This(contractType), transformedInvariantDefs(contract.id).id, Seq(), Seq(envVar))
+        val invCall = MethodInvocation(This(contractType), transformedInvariantDefs(contract.id).id, Seq(), Seq(envVar))
 
         // If the method is the constructor we only add the new postcondition as nothing can be required
         // at the instanciation of the contract.
-        val newPre = if(fd.isConstructor) Precondition(currPre)
-                     else Precondition(And(invCall, currPre))
+        val bodyWithoutSpecs = withoutSpecs(fd.fullBody).getOrElse(NoTree(fd.returnType))
+
+        val bodyWithAssume = if(fd.isConstructor) bodyWithoutSpecs
+                             else Block(Seq(FunctionInvocation(assumeFunId, Seq(), Seq(And(invCall, currPre)))), bodyWithoutSpecs)
+
         val newPost = Postcondition(Lambda(vds, And(invCall, currPost)))
 
         super.transform(fd.copy(
-          fullBody = reconstructSpecs(Seq(newPre, newPost), withoutSpecs(fd.fullBody), fd.returnType)
+          fullBody = reconstructSpecs(Seq(newPost), Some(bodyWithAssume), fd.returnType)
         ).copiedFrom(fd))
 
       case fd => super.transform(fd)

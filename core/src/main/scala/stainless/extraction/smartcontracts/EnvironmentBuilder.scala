@@ -57,7 +57,29 @@ trait EnvironmentBuilder extends oo.SimplePhase
     case object MsgImplicit extends ImplicitParams
     case object EnvImplicit extends ImplicitParams
 
+    val contracts = symbols.classes.values.filter(_.isContract)
+
     val allFunctions = symbols.functions.values
+
+    val existingInvariants = contracts.map { cd =>
+      symbols.functions.values.collectFirst {
+        case fd if (fd.isInClass(cd.id) && fd.id.name == "invariant") =>
+          context.reporter.info(s"Found invariant for ${cd.id.asString}:\n${fd.fullBody.asString}")
+          (cd, fd)
+      }
+    }.flatten.toMap
+
+    val implicitInvariants = contracts.filterNot(c => existingInvariants.contains(c)).map { case cd =>
+      context.reporter.info(s"No invariant was found for contract ${cd.id}. Implicit invariant() = true has been generated")
+      new FunDef(
+        ast.SymbolIdentifier("invariant"),
+        Seq(),
+        Seq(ValDef.fresh("env", envType)),
+        BooleanType(),
+        BooleanLiteral(true),
+        Seq(Synthetic, IsPure, Final, IsMethodOf(cd.id))
+      )
+    }.toSeq
 
     val implicitParameters:FunDef => Set[ImplicitParams] = fd => fd match {
       case fd if fd.isContractMethod                                                       => Set(EnvImplicit, MsgImplicit)
@@ -188,6 +210,13 @@ trait EnvironmentBuilder extends oo.SimplePhase
         ).setPos(fd))
       }
     }
+  } 
+  /* ====================================
+   *             Extraction
+   * ==================================== */
+
+  override def extractSymbols(context: TransformerContext, symbols: Symbols): Symbols = {
+    super.extractSymbols(context, symbols).withFunctions(context.implicitInvariants)
   }
 }
 
