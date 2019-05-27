@@ -8,15 +8,17 @@ trait CallWithEther1 extends Contract {
 
   @solidityPublic
   def foo() = {
-    require(
+    dynRequire(
       this.addr.balance == Uint256("50") &&
       other.balance == Uint256("0")
     )
 
     pay(contractAt(other).asInstanceOf[CallWithEther1].bar, Uint256("50"))
-  } ensuring { _ =>
-    other.balance == Uint256("50")
-    this.addr.balance == Uint256("0")
+
+    assert(
+      other.balance == Uint256("50") &&
+      this.addr.balance == Uint256("0")
+    )
   }
 
   @solidityPayable

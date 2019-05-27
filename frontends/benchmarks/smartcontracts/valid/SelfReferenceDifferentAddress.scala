@@ -7,10 +7,11 @@ trait SRDA extends Contract {
   @addressOfContract("SRDA")
   val other: Address
 
+  @ghost
+  final def invariant() = other != addr
+
   @solidityPublic
   final def foo() = {
-    require(other != addr)
-
     val old = x
     Environment.contractAt(other).asInstanceOf[SRDA].increment()
     assert(old == x)
