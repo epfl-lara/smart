@@ -43,9 +43,9 @@ package object smartcontracts {
 
     if (ctx.options.findOptionOrDefault(frontend.optSmartContracts)) {
       utils.DebugPipeline("EnvironmentBuilder", EnvironmentBuilder()) andThen
+      utils.DebugPipeline("HavocInjection", HavocInjection()) andThen
       utils.DebugPipeline("ContractReferenceInjection", ContractReferenceInjection()) andThen
       utils.DebugPipeline("InvariantInjection", InvariantInjection()) andThen
-      utils.DebugPipeline("HavocInjection", HavocInjection()) andThen
       utils.DebugPipeline("ContractMethodLifting", ContractMethodLifting()) andThen
       //utils.DebugPipeline("EtherUpdateInjection", EtherUpdateInjection()) andThen
       lowering
