@@ -23,5 +23,8 @@ trait CouplingInvariantB extends Contract {
   var balance: Uint256
 
   @solidityPublic
-  final def increment() = balance = balance + Uint256.ONE
+  final def increment() = {
+    if(balance <= Uint256("30"))
+      balance = balance + Uint256.ONE
+  }
 }
