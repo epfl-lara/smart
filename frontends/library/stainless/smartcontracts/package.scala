@@ -39,6 +39,13 @@ package object smartcontracts {
   @library
   @extern
   @keep("smart-contracts")
+  def assume(cond: Boolean): Unit = {
+    (??? : Unit)
+  } ensuring(cond)
+
+  @library
+  @extern
+  @keep("smart-contracts")
   def dynAssert(cond: Boolean): Unit = {
     (??? : Unit)
   } ensuring(cond)
