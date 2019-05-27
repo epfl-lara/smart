@@ -150,7 +150,7 @@ trait InvariantInjection extends oo.SimplePhase
         // at the instanciation of the contract.
         val bodyWithoutSpecs = withoutSpecs(fd.fullBody).getOrElse(NoTree(fd.returnType))
 
-        val bodyWithAssume = if(fd.isConstructor) bodyWithoutSpecs
+        val bodyWithAssume = if(fd.isConstructor || fd.id.name.contains(s"havoc${contract.id.name}")) bodyWithoutSpecs
                              else Block(Seq(FunctionInvocation(assumeFunId, Seq(), Seq(And(invCall, currPre)))), bodyWithoutSpecs)
 
         val newPost = Postcondition(Lambda(vds, And(invCall, currPost)))
