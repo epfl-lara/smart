@@ -5,7 +5,10 @@ package methods
 
 import inox.utils.Position
 
-trait MethodLifting extends oo.ExtractionContext with oo.ExtractionCaches { self =>
+trait MethodLifting
+  extends oo.ExtractionContext
+    with oo.ExtractionCaches { self =>
+
   val s: Trees
   val t: oo.Trees
   import s._
@@ -45,11 +48,15 @@ trait MethodLifting extends oo.ExtractionContext with oo.ExtractionCaches { self
       val ids = cd.descendants(symbols).map(_.id).toSet + cd.id
 
       val invariants = symbols.functions.values.filter { fd =>
-        (fd.flags contains s.IsInvariant) &&
+        // (fd.flags contains s.IsInvariant) &&
         (fd.flags exists { case s.IsMethodOf(id) => ids(id) case _ => false })
       }.map(FunctionKey(_)).toSet
 
       ClassKey(cd) + SetKey(invariants)
+  })
+
+  private[this] final val typeDefCache = new ExtractionCache[s.TypeDef, t.TypeDef]({
+    (td, symbols) => TypeDefKey(td)
   })
 
   private case class Override(cid: Identifier, fid: Option[Identifier], children: Seq[Override])
@@ -65,7 +72,7 @@ trait MethodLifting extends oo.ExtractionContext with oo.ExtractionCaches { self
 
     override def transform(e: s.Expr): t.Expr = e match {
       case s.MethodInvocation(rec, id, tps, args) =>
-        val ct @ s.ClassType(_, _) = rec.getType(symbols)
+        val ct = s.dealias(rec.getType(symbols))(symbols).asInstanceOf[s.ClassType]
         val cid = symbols.getFunction(id).flags.collectFirst { case s.IsMethodOf(cid) => cid }.get
         val tcd = (ct.tcd(symbols) +: ct.tcd(symbols).ancestors).find(_.id == cid).get
         t.FunctionInvocation(id, (tcd.tps ++ tps) map transform, (rec +: args) map transform).copiedFrom(e)
@@ -80,6 +87,7 @@ trait MethodLifting extends oo.ExtractionContext with oo.ExtractionCaches { self
 
     val classes = new scala.collection.mutable.ListBuffer[t.ClassDef]
     val functions = new scala.collection.mutable.ListBuffer[t.FunDef]
+    val typeDefs = new scala.collection.mutable.ListBuffer[t.TypeDef]
 
     val default = new BaseTransformer(symbols)
 
@@ -118,7 +126,11 @@ trait MethodLifting extends oo.ExtractionContext with oo.ExtractionCaches { self
         funCache.cached(fd, symbols)(default.transform(fd))
       }
 
-    t.NoSymbols.withFunctions(functions).withClasses(classes)
+    for (td <- symbols.typeDefs.values) {
+      typeDefs += typeDefCache.cached(td, symbols)(identity.transform(td))
+    }
+
+    t.NoSymbols.withFunctions(functions).withClasses(classes).withTypeDefs(typeDefs)
   }
 
   private[this] type Metadata = (Option[s.FunDef], Map[Identifier, Override])

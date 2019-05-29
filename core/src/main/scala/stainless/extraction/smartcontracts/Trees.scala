@@ -4,7 +4,7 @@ package stainless
 package extraction
 package smartcontracts
 
-trait Trees extends methods.Trees { self =>
+trait Trees extends innerclasses.Trees { self =>
 
   def isThis(e: Expr) = e match {
     case This(_) => true
@@ -67,11 +67,11 @@ trait Trees extends methods.Trees { self =>
   }
 }
 
-trait Printer extends methods.Printer {
+trait Printer extends innerclasses.Printer {
   protected val trees: Trees
 }
 
-trait TreeDeconstructor extends methods.TreeDeconstructor {
+trait TreeDeconstructor extends innerclasses.TreeDeconstructor {
   protected val s: Trees
   protected val t: Trees
 

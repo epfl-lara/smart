@@ -37,17 +37,23 @@ class SplitCallBack(components: Seq[Component])(override implicit val context: i
     assert(tasks.isEmpty)
   }
 
-  final override def apply(file: String, unit: xt.UnitDef,
-                           classes: Seq[xt.ClassDef], functions: Seq[xt.FunDef]): Unit = {
+  final override def apply(
+    file: String,
+    unit: xt.UnitDef,
+    classes: Seq[xt.ClassDef],
+    functions: Seq[xt.FunDef],
+    typeDefs: Seq[xt.TypeDef]
+  ): Unit = {
     reporter.debug(s"Got a unit for $file: ${unit.id} with:")
     reporter.debug(s"\tfunctions -> [${functions.map { _.id }.sorted mkString ", "}]")
     reporter.debug(s"\tclasses   -> [${classes.map { _.id }.sorted mkString ", "}]")
+    reporter.debug(s"\ttype defs -> [${typeDefs.map { _.id }.sorted mkString ", "}]")
 
     this.synchronized {
-      recentIdentifiers ++= (classes map (_.id)) ++ (functions map (_.id))
+      recentIdentifiers ++= (classes map (_.id)) ++ (functions map (_.id)) ++ (typeDefs map (_.id))
       toProcess ++= functions map (_.id)
 
-      symbols = symbols.withClasses(classes).withFunctions(functions)
+      symbols = symbols.withClasses(classes).withFunctions(functions).withTypeDefs(typeDefs)
     }
   }
 
@@ -134,7 +140,9 @@ class SplitCallBack(components: Seq[Component])(override implicit val context: i
     val deps = syms.dependencies(id)
     val clsDeps = syms.classes.values.filter(cd => deps(cd.id)).toSeq
     val funDeps = syms.functions.values.filter(fd => deps(fd.id)).toSeq
-    val funSyms = xt.NoSymbols.withClasses(clsDeps).withFunctions(fun +: funDeps)
+    val typeDeps = syms.typeDefs.values.filter(td => deps(td.id)).toSeq
+    val preSyms = xt.NoSymbols.withClasses(clsDeps).withFunctions(fun +: funDeps).withTypeDefs(typeDeps)
+    val funSyms = Recovery.recover(preSyms)
 
     val cf = serialize(Right(fun))(funSyms)
 
@@ -169,14 +177,16 @@ class SplitCallBack(components: Seq[Component])(override implicit val context: i
             val runReport = future map { a =>
               RunReport(run)(a.toReport): RunReport
             }
-            Some(runReport)
+            runReport
 
           case Failure(err) =>
-            context.reporter.error(s"Run has failed with error: $err")
-            None
+            val msg = s"Run has failed with error: $err\n\n" +
+                      err.getStackTrace.map(_.toString).mkString("\n")
+
+            reporter.fatalError(msg)
         }
       }
-    }.flatten
+    }
 
     val futureReport = Future.sequence(componentReports).map(Report)
     this.synchronized { tasks += futureReport }
@@ -203,6 +213,7 @@ class SplitCallBack(components: Seq[Component])(override implicit val context: i
     reporter.error(s"Symbols are:")
     reporter.error(s"functions -> [${syms.functions.keySet.toSeq.sorted mkString ", "}]")
     reporter.error(s"classes   -> [\n  ${syms.classes.values mkString "\n  "}\n]")
+    reporter.error(s"typedefs  -> [\n  ${syms.typeDefs.values mkString "\n  "}\n]")
     reporter.fatalError(s"Aborting from SplitCallBack")
   }
 }

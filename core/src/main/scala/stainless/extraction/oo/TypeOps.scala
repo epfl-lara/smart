@@ -13,6 +13,21 @@ trait TypeOps extends innerfuns.TypeOps {
     case (Untyped, _) => Some(Untyped)
     case (_, Untyped) => Some(Untyped)
 
+    // We need to disallow ? <: Any, otherwise it becomes possible to prove that A <: B for any A, B.
+    case (UnknownType(_), AnyType()) if upper => Some(Untyped)
+    case (AnyType(), UnknownType(_)) if !upper => Some(Untyped)
+
+    // Impure unknown type is not a subtype of pure unknown type
+    case (UnknownType(false), UnknownType(true)) =>
+      Some(Untyped)
+
+    case (UnknownType(true), UnknownType(false)) =>
+      if (upper) Some(UnknownType(false))
+      else Some(UnknownType(true))
+
+    case (tp, UnknownType(_)) if tp.getType.isTyped => Some(tp)
+    case (UnknownType(_), tp) if tp.getType.isTyped => Some(tp)
+
     case (ct: ClassType, _) if ct.lookupClass.isEmpty => Some(Untyped)
     case (_, ct: ClassType) if ct.lookupClass.isEmpty => Some(Untyped)
     case (ct1: ClassType, ct2: ClassType) =>
@@ -20,6 +35,23 @@ trait TypeOps extends innerfuns.TypeOps {
         leastUpperClassBound(ct1, ct2)
       } else {
         greatestLowerClassBound(ct1, ct2)
+      }
+
+    case (ta: TypeApply, _) if ta.lookupTypeDef.isEmpty => Some(Untyped)
+    case (_, ta: TypeApply) if ta.lookupTypeDef.isEmpty => Some(Untyped)
+
+    case (ta1: TypeApply, tp2) =>
+      typeBound(ta1.dealias, tp2, upper) match {
+        case Untyped    => Some(Untyped)
+        case _ if upper => Some(tp2)
+        case _          => Some(ta1)
+      }
+
+    case (tp1, ta2: TypeApply) =>
+      typeBound(tp1, ta2.dealias, upper) match {
+        case Untyped    => Some(Untyped)
+        case _ if upper => Some(ta2)
+        case _          => Some(tp1)
       }
 
     case (adt: ADTType, _) if adt.lookupSort.isEmpty => Some(Untyped)
@@ -81,6 +113,7 @@ trait TypeOps extends innerfuns.TypeOps {
     val cd2Ans = ct2.tcd.ancestors.map(_.id).toSet + ct2.id
     val ans1 = (ct1.tcd +: ct1.tcd.ancestors).find(tcd => cd2Ans contains tcd.id)
     val ans2 = (ct2.tcd +: ct2.tcd.ancestors).find(tcd => cd1Ans contains tcd.id)
+    // println((ct1, ct2, ans1, ans2))
     (ans1, ans2) match {
       case (Some(tcd1), Some(tcd2)) =>
         val tps = (tcd1.cd.typeArgs zip tcd1.tps zip tcd2.tps).map {
@@ -139,6 +172,9 @@ trait TypeOps extends innerfuns.TypeOps {
     case (ct: ClassType, _) if ct.lookupClass.isEmpty => unsolvable
     case (_, ct: ClassType) if ct.lookupClass.isEmpty => unsolvable
 
+    case (ta: TypeApply, _) if ta.lookupTypeDef.isEmpty => unsolvable
+    case (_, ta: TypeApply) if ta.lookupTypeDef.isEmpty => unsolvable
+
     case (adt: ADTType, _) if adt.lookupSort.isEmpty => unsolvable
     case (_, adt: ADTType) if adt.lookupSort.isEmpty => unsolvable
 
@@ -146,6 +182,12 @@ trait TypeOps extends innerfuns.TypeOps {
 
     case (ct1: ClassType, ct2: ClassType) if ct1.tcd.cd == ct2.tcd.cd =>
       (ct1.tps zip ct2.tps).toList flatMap (p => unificationConstraints(p._1, p._2, free))
+
+    case (ta1: TypeApply, tp2) =>
+      unificationConstraints(ta1.dealias, tp2, free)
+
+    case (tp1, ta2: TypeApply) =>
+      unificationConstraints(tp1, ta2.dealias, free)
 
     case (adt1: ADTType, adt2: ADTType) if adt1.id == adt2.id =>
       (adt1.tps zip adt2.tps).toList flatMap (p => unificationConstraints(p._1, p._2, free))

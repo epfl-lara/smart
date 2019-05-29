@@ -9,7 +9,7 @@ trait Printer extends inox.ast.Printer {
 
   protected object Operator {
     def unapply(id: Identifier): Option[String] = {
-      if (!id.name.forall(_.isLetterOrDigit))
+      if (id.name.forall(!_.isLetterOrDigit))
         Some(id.name)
       else
         None
@@ -131,6 +131,10 @@ trait Printer extends inox.ast.Printer {
     case ArrayLength(array) =>
       p"$array.length"
 
+    case Decreases(rank, body) =>
+      p"""|decreases($rank)
+          |$body"""
+
     case bv@BVLiteral(_, _, _) => p"${bv.toBigInt}"
 
     case _ => super.ppBody(tree)
@@ -138,6 +142,7 @@ trait Printer extends inox.ast.Printer {
 
   override protected def isSimpleExpr(e: Expr): Boolean = e match {
     case (_: Assert) | (_: Require) => false
+    case (_: Decreases) => false
     case _ => super.isSimpleExpr(e)
   }
 
@@ -145,12 +150,14 @@ trait Printer extends inox.ast.Printer {
     case Assert(_, _, bd) => Seq(bd)
     case Require(_, bd) => Seq(bd)
     case Ensuring(bd, pred) => Seq(bd, pred)
+    case Decreases(_, bd) => Seq(bd)
     case MatchCase(_, _, rhs) => Seq(rhs)
     case _ => super.noBracesSub(e)
   }
 
   override protected def requiresParentheses(ex: Tree, within: Option[Tree]): Boolean = (ex, within) match {
     case (_, Some(_: Ensuring | _: Require | _: Assert | _: MatchExpr | _: MatchCase)) => false
+    case (_, Some(_: Decreases)) => false
     case (_: Pattern, _) => false
     case (e1: Expr, Some(e2 @ FunctionOperator(_, _, _))) if precedence(e2) > precedence(e1) => true
     case _ => super.requiresParentheses(ex, within)

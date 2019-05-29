@@ -8,6 +8,7 @@ import scala.collection.mutable.{Map => MutableMap, Set => MutableSet}
 trait SmartContractInvariant extends oo.SimplePhase
   with oo.SimplyCachedClasses
   with SimplyCachedSorts
+  with oo.IdentityTypeDefs
   { self =>
   val s: trees.type
   val t: s.type

@@ -62,7 +62,9 @@ class SymbolsContext {
     })
   }
 
-  private def getPath(sym: Symbol)(implicit ctx: Context): String = sym.fullName + sym.id.toString
+  private def getPath(sym: Symbol)(implicit ctx: Context): String = {
+    sym.fullName.toString.trim.split("\\.").mkString(".") + sym.id.toString
+  }
 
   /** Mapping from [[Symbol]] (or rather: its path) and the stainless identifier. */
   private val s2i = MutableMap[String, SymbolIdentifier]()

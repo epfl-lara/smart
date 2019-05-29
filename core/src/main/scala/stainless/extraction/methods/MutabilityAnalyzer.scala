@@ -35,12 +35,19 @@ trait MutabilityAnalyzer extends oo.ExtractionPipeline { self =>
         case any: AnyType => true
         case arr: ArrayType => true
         case map: MutableMapType => true
+        case ta: TypeApply => rec(ta.dealias, seen)
+        case UnknownType(isPure) => !isPure
         case ClassType(cid, _) if mutableClasses(cid) => true
         case ClassType(cid, _) if seen(cid) => false
         // We don't need to check for mutable fields here, as at this point every
         // field still has a getter
         case ClassType(cid, tps) =>
-          symbols.getClass(cid).methods.exists{ fid =>
+          tps.exists(rec(_, seen)) ||
+          symbols.getClass(cid).fields.exists { vd =>
+            vd.flags.contains(IsVar) ||
+            rec(vd.getType, seen + cid)
+          } ||
+          symbols.getClass(cid).methods.exists { fid =>
             val fd = symbols.getFunction(fid)
             // note that setters and mutable flags are taken into account in the
             // initial state of the `mutableClasses` fixpoint
@@ -83,7 +90,7 @@ trait MutabilityAnalyzer extends oo.ExtractionPipeline { self =>
       ) {
         throw MethodsException(cd,
           s"""|A mutable class (${cd.id.asString}) cannot have a non-@mutable and non-sealed parent (${acd.cd.id.asString}).
-              |Please annotate ${acd.cd.id.asString} with @mutable."""
+              |Please annotate ${acd.cd.id.asString} with @mutable.""".stripMargin
         )
       }
 

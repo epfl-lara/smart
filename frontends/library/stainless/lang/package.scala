@@ -8,7 +8,7 @@ import scala.language.implicitConversions
 package object lang {
   import stainless.proof._
 
-  @inline @library
+  @library
   def ghost[A](@ghost value: A): Unit = ()
 
   @ignore
@@ -134,5 +134,4 @@ package object lang {
   def print(x: String): Unit = {
     scala.Predef.print(x)
   }
-
 }

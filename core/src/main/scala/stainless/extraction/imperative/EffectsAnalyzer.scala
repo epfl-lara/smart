@@ -4,6 +4,8 @@ package stainless
 package extraction
 package imperative
 
+import inox.FatalError
+
 /** Provides effect analysis for full Stainless language
   *
   * This holds state for caching the current state of the analysis, so if
@@ -62,6 +64,16 @@ trait EffectsAnalyzer extends oo.CachingPhase {
     locals: Map[Identifier, FunAbstraction]) {
 
     def merge(that: Result): Result = Result(effects ++ that.effects, locals ++ that.locals)
+
+    def asString(implicit printerOpts: PrinterOptions): String = {
+      val effectsString = effects.map(e => "  " + e._1.id.asString + " -> " + e._2.map(_.asString)).toList.sorted.mkString("\n")
+      val localsString = locals.map(p => "  " + p._1.asString + "," + p._2.asString).toList.sorted.mkString("\n")
+      s"""|effects:
+          |$effectsString
+          |
+          |locals:
+          |$localsString""".stripMargin
+    }
   }
 
   protected object Result {
@@ -77,9 +89,9 @@ trait EffectsAnalyzer extends oo.CachingPhase {
       exprOps.withoutSpecs(fd.fullBody) match {
         case Some(body) =>
           expressionEffects(body, current)
-        case None if !fd.flags.exists(_.name == "pure") =>
+        case None if !fd.flags.contains(IsPure) =>
           fd.params
-            .filter(vd => !vd.flags.exists(_.name == "pure") && symbols.isMutableType(vd.getType))
+            .filter(vd => symbols.isMutableType(vd.getType) && !vd.flags.contains(IsPure))
             .map(_.toVariable)
             .map(Effect(_, Path(Seq.empty)))
             .toSet
@@ -142,7 +154,7 @@ trait EffectsAnalyzer extends oo.CachingPhase {
     }
 
     def asString(implicit printerOpts: PrinterOptions): String =
-      s"EffectsAnalysis(effects: ${result.effects.map(e => e._1.id -> e._2)}, locals: ${result.locals})"
+      s"EffectsAnalysis(\n${result.asString}\n)"
 
     override def toString: String = asString
   }
@@ -187,11 +199,11 @@ trait EffectsAnalyzer extends oo.CachingPhase {
         case (Seq(), _) => true
         case (ArrayAccessor(_) +: xs1, ArrayAccessor(_) +: xs2) =>
           rec(xs1, xs2)
-        case (MutableMapAccessor(_) +: xs1, MutableMapAccessor(_) +: xs2) =>
-          rec(xs1, xs2)
         case (ADTFieldAccessor(id1) +: xs1, ADTFieldAccessor(id2) +: xs2) if id1 == id2 =>
           rec(xs1, xs2)
         case (ClassFieldAccessor(id1) +: xs1, ClassFieldAccessor(id2) +: xs2) if id1 == id2 =>
+          rec(xs1, xs2)
+        case (MutableMapAccessor(_) +: xs1, MutableMapAccessor(_) +: xs2) =>
           rec(xs1, xs2)
         case _ => false
       }
@@ -251,8 +263,11 @@ trait EffectsAnalyzer extends oo.CachingPhase {
 
     def toTarget: Target = Target(receiver, None, path)
 
+    def targetString(implicit printerOpts: PrinterOptions): String =
+      s"${receiver.asString}${path.asString}"
+
     def asString(implicit printerOpts: PrinterOptions): String =
-      s"Effect(${receiver.asString}${path.asString})"
+      s"Effect($targetString)"
 
     override def toString: String = asString
   }
@@ -265,6 +280,7 @@ trait EffectsAnalyzer extends oo.CachingPhase {
       case ClassSelector(e, id) => rec(e, ClassFieldAccessor(id) +: path)
       case ArraySelect(a, idx) => rec(a, ArrayAccessor(idx) +: path)
       case MutableMapApply(a, idx) => rec(a, MutableMapAccessor(idx) +: path)
+      case MutableMapDuplicate(m) => rec(m, path)
 
       case ADT(id, _, args) => path match {
         case ADTFieldAccessor(fid) +: rest =>
@@ -341,6 +357,13 @@ trait EffectsAnalyzer extends oo.CachingPhase {
     case _: MalformedStainlessCode => Set.empty
   }
 
+  protected def typeToAccessor(tpe: Type, id: Identifier)(implicit s: Symbols): Accessor = tpe match {
+    case at: ADTType   => ADTFieldAccessor(id)
+    case ct: ClassType => ClassFieldAccessor(id)
+    case ta: TypeApply => typeToAccessor(ta.dealias, id)
+    case _ => throw FatalError(s"Cannot have accessors over type $tpe")
+  }
+
   /** Return all effects of expr
     *
     * Effects of expr are any free variables in scope (either local vars
@@ -392,12 +415,8 @@ trait EffectsAnalyzer extends oo.CachingPhase {
       case MutableMapDuplicate(map) =>
         rec(map, env)
 
-      case FieldAssignment(o, id, v) =>
-        val accessor = o.getType match {
-          case _: ADTType => ADTFieldAccessor(id)
-          case _: ClassType => ClassFieldAccessor(id)
-        }
-
+      case fa @ FieldAssignment(o, id, v) =>
+        val accessor = typeToAccessor(o.getType, id)
         rec(o, env) ++ rec(v, env) ++ effect(o, env).map(_ + accessor)
 
       case Application(callee, args) =>

@@ -118,7 +118,6 @@ trait EffectsChecker { self: EffectsAnalyzer =>
 
               super.traverse(adt)
 
-            // TODO : Keep ?
             case MutableMapUpdated(m, k, v) =>
               m.getType match {
                 case MutableMapType(_, to) if !isMutableType(to) => ()
@@ -216,7 +215,12 @@ trait EffectsChecker { self: EffectsAnalyzer =>
       val effs = effects(fd.fullBody)
 
       if ((fd.flags contains IsPure) && !effs.isEmpty)
-        throw ImperativeEliminationException(fd, s"Function marked @pure cannot have side-effects")
+        throw ImperativeEliminationException(fd, s"Functions marked @pure cannot have side-effects")
+
+      effs filter (_.receiver.flags.contains(IsPure)) foreach { eff =>
+        throw ImperativeEliminationException(fd,
+          s"Function `${fd.id.asString}` has effect on @pure parameter `${eff.receiver.asString}`")
+      }
     }
 
     /* A fresh expression is an expression that is newly created

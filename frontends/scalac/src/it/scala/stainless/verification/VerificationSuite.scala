@@ -78,6 +78,9 @@ class CodeGenVerificationSuite extends VerificationSuite {
     case "verification/valid/MergeSort2" => Ignore
     case "verification/valid/IntSetInv" => Ignore
 
+    // Does not work with --feeling-lucky. See #490
+    case "verification/valid/MsgQueue" => Skip
+
     case _ => super.filter(ctx, name)
   }
 }
@@ -96,7 +99,11 @@ class SMTCVC4VerificationSuite extends VerificationSuite {
     case "verification/valid/Overrides" => Ignore
     case "verification/valid/TestPartialFunction" => Ignore
     case "verification/valid/TestPartialFunction3" => Ignore
-    case "verification/valid/BigIntMonoidLaws" => Ignore
+    case "verification/valid/BigIntRing" => Ignore
+    case "verification/valid/InnerClasses4" => Ignore
+
+    // Requires map with non-default values, unsupported by CVC4
+    case "verification/valid/ArraySlice" => Ignore
 
     // These tests are too slow on CVC4 and make the regression unstable
     case "verification/valid/ConcRope" => Ignore
@@ -108,6 +115,7 @@ class SMTCVC4VerificationSuite extends VerificationSuite {
     // These tests make CVC4 crash
     case "verification/valid/PartialCompiler" => Ignore
     case "verification/valid/PartialKVTrace" => Ignore
+
     case _ => super.filter(ctx, name)
   }
 }

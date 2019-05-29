@@ -13,14 +13,14 @@ object MainHelpers {
   val components: Seq[Component] = frontend.allComponents
 }
 
-trait MainHelpers extends inox.MainHelpers {
+trait MainHelpers extends inox.MainHelpers { self =>
 
   case object Pipelines extends Category
   case object Verification extends Category
   case object Termination extends Category
   case object Solidity extends Category
 
-  override protected def getOptions = super.getOptions - inox.solvers.optAssumeChecked ++ Map(
+  override protected def getOptions: Map[inox.OptionDef[_], Description] = super.getOptions - inox.solvers.optAssumeChecked ++ Map(
     optFunctions -> Description(General, "Only consider functions f1,f2,..."),
     extraction.utils.optDebugObjects -> Description(General, "Only print debug output for functions/adts named o1,o2,..."),
     extraction.utils.optDebugPhases -> Description(General, {
@@ -44,8 +44,8 @@ trait MainHelpers extends inox.MainHelpers {
     frontend.optPersistentCache -> Description(General, "Enable caching of program extraction & analysis"),
     solidity.optSolidityOutput -> Description(Solidity, "From Stainless to Solidity"),
     solidity.optOverwriteSol -> Description(Solidity, "Overwrite existing Solidity files when compiling"),
-    frontend.optBatchedProgram -> Description(General, "Process the whole program together, skip dependency analysis"),
     frontend.optSmartContracts -> Description(General, "Go through the smart contracts phases for verification (implies --keep=smart-contracts and --batched)"),
+    frontend.optBatchedProgram -> Description(General, "Process the whole program together, skip dependency analysis"),
     frontend.optKeep -> Description(General, "Keep library objects marked by @keep(g) for some g in g1,g2,... (implies --batched)"),
     utils.Caches.optCacheDir -> Description(General, "Specify the directory in which cache files should be stored")
   ) ++ MainHelpers.components.map { component =>
@@ -65,7 +65,8 @@ trait MainHelpers extends inox.MainHelpers {
     extraction.utils.DebugSectionTrees,
     extraction.utils.DebugSectionPositions,
     frontend.DebugSectionExtraction,
-    frontend.DebugSectionFrontend
+    frontend.DebugSectionFrontend,
+    frontend.DebugSectionRecovery,
   )
 
   override protected def displayVersion(reporter: inox.Reporter): Unit = {
@@ -88,6 +89,26 @@ trait MainHelpers extends inox.MainHelpers {
   final lazy val libraryFiles = factory.libraryFiles
 
   // TODO add (optional) customisation points for CallBacks to access intermediate reports(?)
+
+  override
+  protected def newReporter(debugSections: Set[inox.DebugSection]): inox.Reporter =
+    new stainless.DefaultReporter(debugSections)
+
+  override
+  protected def processOptions(files: Seq[File], cmdOptions: Seq[inox.OptionValue[_]])
+                              (implicit initReporter: inox.Reporter): inox.Context = {
+
+    val configOptions = Configuration.parseDefault(self.options.keys.toSeq)(initReporter)
+
+    // Override config options with command-line options
+    val options = (cmdOptions ++ configOptions)
+      .groupBy(_.optionDef.name)
+      .mapValues(_.head)
+      .values
+      .toSeq
+
+    super.processOptions(files, options)
+  }
 
   def main(args: Array[String]): Unit = try {
     val ctx = setup(args)

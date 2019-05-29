@@ -15,13 +15,23 @@ class SolidityCallBack(implicit val context: inox.Context)
   val files = MutableSet[String]()
   val allClasses = ListBuffer[xt.ClassDef]()
   val allFunctions = ListBuffer[xt.FunDef]()
+  val allTypeDefs = ListBuffer[xt.TypeDef]()
 
-  def apply(file: String, unit: xt.UnitDef, classes: Seq[xt.ClassDef], functions: Seq[xt.FunDef]): Unit = {
-    if (unit.isMain) {
-      files += file
+  override def apply(
+    file: String,
+    unit: xt.UnitDef,
+    classes: Seq[xt.ClassDef],
+    functions: Seq[xt.FunDef],
+    typeDefs: Seq[xt.TypeDef]
+  ): Unit = {
+    synchronized {
+      if (unit.isMain) {
+        files += file
+      }
+      allClasses ++= classes
+      allFunctions ++= functions
+      allTypeDefs ++= typeDefs
     }
-    allClasses ++= classes
-    allFunctions ++= functions
   }
 
   def beginExtractions() = {}

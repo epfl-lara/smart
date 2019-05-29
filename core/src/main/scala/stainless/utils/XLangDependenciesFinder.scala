@@ -5,7 +5,7 @@ package utils
 
 import extraction.xlang.{ trees => xt }
 
-import scala.collection.mutable.{ Set => MutableSet }
+import scala.collection.mutable.{ HashSet => MutableSet }
 
 /**
  * [[XLangDependenciesFinder]] find the set of dependencies for a function/class,
@@ -20,8 +20,15 @@ import scala.collection.mutable.{ Set => MutableSet }
  * the class itself.
  */
 class XLangDependenciesFinder {
+
   private val deps: MutableSet[Identifier] = MutableSet.empty
-  private val finder = new xt.SelfTreeTraverser {
+
+  private trait TreeTraverser extends xt.SelfTreeTraverser {
+    def traverse(lcd: xt.LocalClassDef): Unit
+    def traverse(mld: xt.LocalMethodDef): Unit
+  }
+
+  private val finder = new TreeTraverser {
     override def traverse(e: xt.Expr): Unit = e match {
       case xt.FunctionInvocation(id, _, _) =>
         deps += id
@@ -30,6 +37,16 @@ class XLangDependenciesFinder {
       case xt.MethodInvocation(_, id, _, _) =>
         deps += id
         super.traverse(e)
+
+      case xt.LetClass(lcds, body) =>
+        lcds foreach { lcd =>
+          traverse(lcd)
+          lcd.methods foreach traverse
+          traverse(body)
+
+          deps --= lcds.map(_.id).toSet
+          deps --= lcds.flatMap(_.methods).map(_.id).toSet
+        }
 
       case _ => super.traverse(e)
     }
@@ -51,6 +68,11 @@ class XLangDependenciesFinder {
         traverse(pred)
         deps -= vd.id
 
+      case xt.TypeSelect(expr, id) =>
+        expr foreach traverse
+        deps += id
+        super.traverse(tpe)
+
       case _ => super.traverse(tpe)
     }
 
@@ -61,21 +83,52 @@ class XLangDependenciesFinder {
 
       case _ => super.traverse(flag)
     }
+
+    override def traverse(cd: xt.ClassDef): Unit = {
+      cd.tparams foreach traverse
+      cd.parents foreach traverse
+      cd.fields foreach traverse
+      cd.flags foreach traverse
+    }
+
+    override def traverse(lcd: xt.LocalClassDef): Unit = {
+      lcd.tparams foreach traverse
+      lcd.parents foreach traverse
+      lcd.fields foreach traverse
+      lcd.flags foreach traverse
+    }
+
+    override def traverse(lmd: xt.LocalMethodDef): Unit = traverse(lmd.toFunDef)
+  }
+
+  def apply(defn: xt.Definition): Set[Identifier] = defn match {
+    case fd: xt.FunDef   => apply(fd)
+    case cd: xt.ClassDef => apply(cd)
+    case td: xt.TypeDef  => apply(td)
+    case _: xt.ADTSort   => sys.error("There should be not sorts at this stage")
   }
 
   def apply(fd: xt.FunDef): Set[Identifier] = {
     finder.traverse(fd)
     deps -= fd.id
+    deps --= fd.params.map(_.id)
 
     deps.toSet
   }
 
   def apply(cd: xt.ClassDef): Set[Identifier] = {
-    cd.tparams foreach finder.traverse
-    cd.parents foreach finder.traverse
-    cd.fields foreach finder.traverse
-    cd.flags foreach finder.traverse
+    finder.traverse(cd)
     deps -= cd.id
+    deps --= cd.fields.map(_.id)
+
+    deps.toSet
+  }
+
+  def apply(td: xt.TypeDef): Set[Identifier] = {
+    td.tparams foreach finder.traverse
+    finder.traverse(td.rhs)
+    td.flags foreach finder.traverse
+    deps -= td.id
 
     deps.toSet
   }

@@ -41,10 +41,13 @@ trait Definitions extends innerfuns.Trees { self: Trees =>
     def descendants(implicit s: Symbols): Seq[ClassDef] =
       children.flatMap(cd => cd +: cd.descendants).distinct
 
+    def typeMembers(implicit s: Symbols): Seq[TypeDef] =
+      s.typeDefs.values.filter(_.flags contains IsTypeMemberOf(id)).toSeq
+
     def typeArgs = tparams map (_.tp)
 
     def typed(tps: Seq[Type])(implicit s: Symbols): TypedClassDef = TypedClassDef(this, tps)
-    def typed(implicit s: Symbols): TypedClassDef = typed(tparams.map(_.tp))
+    def typed(implicit s: Symbols): TypedClassDef = typed(typeArgs)
 
     def copy(
       id: Identifier = this.id,
@@ -92,10 +95,58 @@ trait Definitions extends innerfuns.Trees { self: Trees =>
       else cd.fields.map(vd => vd.copy(tpe = typeOps.instantiateType(vd.tpe, tpSubst)))
     })
 
+    @inline def typeMembers: Seq[TypeDef] = _typeMembers.get
+    private[this] val _typeMembers = inox.utils.Lazy({
+      if (tpSubst.isEmpty) cd.typeMembers
+      else cd.typeMembers.map(td => td.copy(rhs = typeOps.instantiateType(td.rhs, tpSubst)))
+    })
+
     @inline def toType = ClassType(id, tps).copiedFrom(this)
   }
 
+  class TypeDef(
+    val id: Identifier,
+    val tparams: Seq[TypeParameterDef],
+    val rhs: Type,
+    val flags: Seq[Flag],
+  ) extends Definition {
+    val typeArgs = tparams map (_.tp)
+
+    val isAbstract: Boolean = flags contains IsAbstract
+
+    def bounds: Option[TypeBounds] = rhs match {
+      case tb: TypeBounds => Some(tb)
+      case _ => None
+    }
+
+    def typed(tps: Seq[Type])(implicit s: Symbols): AppliedTypeDef = AppliedTypeDef(this, tps)
+    def typed(implicit s: Symbols): AppliedTypeDef = typed(tparams.map(_.tp))
+
+    def copy(
+      id: Identifier = id,
+      tparams: Seq[TypeParameterDef] = tparams,
+      rhs: Type = rhs,
+      flags: Seq[Flag] = flags,
+    ): TypeDef = new TypeDef(id, tparams, rhs, flags)
+  }
+
+  case class AppliedTypeDef(td: TypeDef, tps: Seq[Type]) extends Tree {
+    copiedFrom(td)
+
+    def bounds: Option[TypeBounds] = td.bounds map { bounds =>
+      val tpSubst = td.tparams.map(_.tp) zip tps
+      typeOps.instantiateType(bounds, tpSubst.toMap).asInstanceOf[TypeBounds]
+    }
+
+    def resolve(implicit s: Symbols): Type = {
+      val tpSubst = td.tparams.map(_.tp) zip tps
+      self.dealias(typeOps.instantiateType(td.rhs, tpSubst.toMap))
+    }
+  }
+
   case class ClassLookupException(id: Identifier) extends LookupException(id, "class")
+
+  case class TypeDefLookupException(id: Identifier) extends LookupException(id, "type def")
 
 
   type Symbols >: Null <: AbstractSymbols
@@ -107,6 +158,7 @@ trait Definitions extends innerfuns.Trees { self: Trees =>
        with SymbolOps { self0: Symbols =>
 
     val classes: Map[Identifier, ClassDef]
+    val typeDefs: Map[Identifier, TypeDef]
 
     private val typedClassCache: MutableMap[(Identifier, Seq[Type]), Option[TypedClassDef]] = MutableMap.empty
     def lookupClass(id: Identifier): Option[ClassDef] = classes.get(id)
@@ -117,10 +169,38 @@ trait Definitions extends innerfuns.Trees { self: Trees =>
         res
       })
 
-    def getClass(id: Identifier): ClassDef = lookupClass(id).getOrElse(throw ClassLookupException(id))
-    def getClass(id: Identifier, tps: Seq[Type]): TypedClassDef = lookupClass(id, tps).getOrElse(throw ClassLookupException(id))
+    private val appliedTypeDefCache: MutableMap[(Identifier, Seq[Type]), Option[AppliedTypeDef]] = MutableMap.empty
+    def getClass(id: Identifier): ClassDef =
+      lookupClass(id).getOrElse(throw ClassLookupException(id))
+    def getClass(id: Identifier, tps: Seq[Type]): TypedClassDef =
+      lookupClass(id, tps).getOrElse(throw ClassLookupException(id))
+
+    def lookupTypeDef(id: Identifier): Option[TypeDef] = typeDefs.get(id)
+    def lookupTypeDef(id: Identifier, tps: Seq[Type]): Option[AppliedTypeDef] =
+      appliedTypeDefCache.getOrElse(id -> tps, {
+        val res = lookupTypeDef(id).map(_.typed(tps))
+        appliedTypeDefCache(id -> tps) = res
+        res
+      })
+
+    def getTypeDef(id: Identifier): TypeDef =
+      lookupTypeDef(id).getOrElse(throw TypeDefLookupException(id))
+    def getTypeDef(id: Identifier, tps: Seq[Type]): AppliedTypeDef =
+      lookupTypeDef(id, tps).getOrElse(throw TypeDefLookupException(id))
+
+    def withoutLibrary: Symbols = {
+      def isLibrary(defn: Definition): Boolean =
+        defn.flags exists (_.name == "library")
+
+      NoSymbols
+        .withClasses(classes.values.filterNot(isLibrary).toSeq)
+        .withFunctions(functions.values.filterNot(isLibrary).toSeq)
+        .withTypeDefs(typeDefs.values.filterNot(isLibrary).toSeq)
+    }
 
     override def asString(implicit opts: PrinterOptions): String = {
+      typeDefs.map(p => prettyPrint(p._2, opts)).mkString("\n\n") +
+        "\n\n-----------\n\n" +
       classes.map(p => prettyPrint(p._2, opts)).mkString("\n\n") +
         "\n\n-----------\n\n" +
         super.asString
@@ -138,6 +218,7 @@ trait Definitions extends innerfuns.Trees { self: Trees =>
     override protected def ensureWellFormedSymbols: Unit = {
       super.ensureWellFormedSymbols
       for ((_, cd) <- classes) ensureWellFormedClass(cd)
+      for ((_, td) <- typeDefs) ensureWellFormedTypeDef(td)
     }
 
     protected def ensureWellFormedClass(cd: ClassDef): Unit = {
@@ -146,36 +227,49 @@ trait Definitions extends innerfuns.Trees { self: Trees =>
       }
 
       cd.parents.find(!_.tcd.cd.flags.contains(IsAbstract)).foreach { pcd =>
-        throw NotWellFormedException(cd, 
+        throw NotWellFormedException(cd,
           Some(s"a concrete class (${pcd.id}) cannot be extended (by ${cd.id}).")
         )
       }
-      
+
       cd.fields.groupBy(_.id).find(_._2.size > 1).foreach { case (id, vds) =>
-        throw NotWellFormedException(cd, 
+        throw NotWellFormedException(cd,
           Some(s"there are at least two fields with the same id ($id) in ${cd.id} (${vds.mkString(",")}).")
         )
       }
     }
 
+    protected def ensureWellFormedTypeDef(td: TypeDef): Unit = {
+      // TODO: Typedefs
+    }
+
     override def equals(that: Any): Boolean = super.equals(that) && (that match {
-      case sym: AbstractSymbols => classes == sym.classes
+      case sym: AbstractSymbols => classes == sym.classes && typeDefs == sym.typeDefs
       case _ => false
     })
 
-    override def hashCode: Int = super.hashCode + 31 * classes.hashCode
+    override def hashCode: Int = {
+      var result = super.hashCode
+      result = 31 * result + classes.hashCode
+      result = 31 * result + typeDefs.hashCode
+      result
+    }
 
     def withClasses(classes: Seq[ClassDef]): Symbols
+    def withTypeDefs(typeDefs: Seq[TypeDef]): Symbols
 
     protected class Lookup extends super.Lookup {
       override def get[T <: Definition : ClassTag](name: String): Option[T] = ({
         if (classTag[ClassDef].runtimeClass.isAssignableFrom(classTag[T].runtimeClass)) find(name, classes)
+        else if (classTag[TypeDef].runtimeClass.isAssignableFrom(classTag[T].runtimeClass)) find(name, typeDefs)
         else super.get[T](name)
       }).asInstanceOf[Option[T]]
 
       override def apply[T <: Definition : ClassTag](name: String): T = {
         if (classTag[ClassDef].runtimeClass.isAssignableFrom(classTag[T].runtimeClass)) {
           find(name, classes).getOrElse(throw ClassLookupException(FreshIdentifier(name))).asInstanceOf[T]
+        } else if (classTag[TypeDef].runtimeClass.isAssignableFrom(classTag[T].runtimeClass)) {
+          find(name, typeDefs).getOrElse(throw TypeDefLookupException(FreshIdentifier(name))).asInstanceOf[T]
         } else {
           super.apply[T](name)
         }
@@ -191,6 +285,7 @@ trait Definitions extends innerfuns.Trees { self: Trees =>
   case object IsCaseObject extends Flag("caseObject", Seq.empty)
   case class Bounds(lo: Type, hi: Type) extends Flag("bounds", Seq(lo, hi))
   case class Variance(variance: Boolean) extends Flag("variance", Seq.empty)
+  case class IsTypeMemberOf(id: Identifier) extends Flag("typeMember", Seq(id))
 
   implicit class TypeParameterWrapper(tp: TypeParameter) {
     def bounds: TypeBounds = {

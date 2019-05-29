@@ -166,6 +166,9 @@ trait TreeDeconstructor extends inox.ast.TreeDeconstructor {
     case s.ArrayLength(array) =>
       (Seq(), Seq(), Seq(array), Seq(), Seq(), (_, _, es, _, _) => t.ArrayLength(es.head))
 
+    case s.Decreases(measure, body) =>
+      (Seq(), Seq(), Seq(measure, body), Seq(), Seq(), (_, _, es, _, _) => t.Decreases(es(0), es(1)))
+
     case _ => super.deconstruct(expr)
   }
 
@@ -175,6 +178,7 @@ trait TreeDeconstructor extends inox.ast.TreeDeconstructor {
   }
 
   override def deconstruct(f: s.Flag): DeconstructedFlag = f match {
+    case s.Law => (Seq(), Seq(), Seq(), (_, _, _) => t.Law)
     case s.Ghost => (Seq(), Seq(), Seq(), (_, _, _) => t.Ghost)
     case s.Extern => (Seq(), Seq(), Seq(), (_, _, _) => t.Extern)
     case s.Opaque => (Seq(), Seq(), Seq(), (_, _, _) => t.Opaque)

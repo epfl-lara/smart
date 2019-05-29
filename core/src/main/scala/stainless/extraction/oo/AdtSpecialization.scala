@@ -8,6 +8,7 @@ trait AdtSpecialization
   extends CachingPhase
      with SimpleFunctions
      with SimpleSorts
+     with SimpleTypeDefs
      with utils.SyntheticSorts { self =>
 
   val s: Trees
@@ -20,11 +21,13 @@ trait AdtSpecialization
   private[this] def isCandidate(id: Identifier)(implicit symbols: s.Symbols): Boolean = {
     import s._
     val cd = symbols.getClass(id)
+
     cd.parents match {
       case Nil =>
         def rec(cd: s.ClassDef): Boolean = {
           val cs = cd.children
           (cd.parents.size <= 1) &&
+          (cd.typeMembers.isEmpty) &&
           (cs forall rec) &&
           (cd.parents forall (_.tps == cd.typeArgs)) &&
           ((cd.flags contains IsAbstract) || cs.isEmpty) &&
@@ -42,7 +45,7 @@ trait AdtSpecialization
       if (cd.parents.isEmpty && !(cd.flags contains s.IsAbstract)) constructorCache(cd.id)
       else cd.id
     }.get
-    
+
   private[this] def constructors(id: Identifier)(implicit symbols: s.Symbols): Seq[Identifier] = {
     val cd = symbols.getClass(id)
     val classes = cd +: cd.descendants
@@ -65,7 +68,7 @@ trait AdtSpecialization
     protected implicit val implicitContext: TransformerContext = this
 
     override def transform(e: s.Expr): t.Expr = e match {
-      case s.ClassSelector(expr, selector) => expr.getType match {
+      case s.ClassSelector(expr, selector) => s.dealias(expr.getType) match {
         case s.ClassType(id, tps) if isCandidate(id) =>
           val vd = t.ValDef.fresh("e", t.ADTType(root(id), tps map transform).copiedFrom(e)).copiedFrom(e)
           t.Let(vd, transform(expr),
@@ -121,10 +124,10 @@ trait AdtSpecialization
       (symbols.dependencies(id) + id)
         .flatMap(id => Set(id) ++ symbols.lookupClass(id).toSeq.flatMap { cd =>
           val rootCd = symbols.getClass(root(cd.id))
-          Set(rootCd.id) ++ rootCd.descendants.map(_.id)
+          val classes = Set(rootCd.id) ++ rootCd.descendants.map(_.id)
+          classes ++ classes.flatMap(id => symbols.getClass(id).typeMembers.map(_.id))
         })
     )
-
   // The function cache must consider the descendants of all classes on which the
   // function depends as they will determine which classes will be transformed into
   // sorts and which ones will not.
@@ -141,12 +144,17 @@ trait AdtSpecialization
   override protected final val classCache = new ExtractionCache[s.ClassDef, ClassResult]({
     // Note that we could use a more precise key here that determines whether the
     // option sort will be used by the class result, but this shouldn't be necessary
-    (cd, context) => 
+    (cd, context) =>
       val symbols = context.symbols
       ClassKey(cd) + descendantKey(cd.id)(symbols) + OptionSort.key(symbols)
   })
 
+  override protected final val typeDefCache = new ExtractionCache[s.TypeDef, TypeDefResult](
+    (td, context) => TypeDefKey(td) + descendantKey(td.id)(context.symbols)
+  )
+
   override protected final def extractFunction(context: TransformerContext, fd: s.FunDef): t.FunDef = context.transform(fd)
+  override protected final def extractTypeDef(context: TransformerContext, td: s.TypeDef): t.TypeDef = context.transform(td)
   override protected final def extractSort(context: TransformerContext, sort: s.ADTSort): t.ADTSort = context.transform(sort)
 
   override protected final type ClassResult = Either[t.ClassDef, (Option[t.ADTSort], Seq[t.FunDef])]
@@ -248,6 +256,7 @@ trait AdtSpecialization
       })
       .withSorts(newSymbols.sorts.values.toSeq.filter(sort => dependencies(sort.id)))
       .withClasses(newSymbols.classes.values.toSeq.filter(cd => dependencies(cd.id)))
+      .withTypeDefs(newSymbols.typeDefs.values.toSeq.filter(td => dependencies(td.id)))
 
     independentSymbols
   }

@@ -54,7 +54,7 @@ package object frontend {
    * Based on the context option, return the list of active component (e.g. verification, termination).
    * By default, return [[stainless.verification.VerificationComponent]].
    */
-  private def getActiveComponents(ctx: inox.Context) = {
+  private def getActiveComponents(ctx: inox.Context): Seq[Component] = {
     val fromOptions = allComponents.filter { c =>
       ctx.options.options.collectFirst {
         case inox.OptionValue(o, value: Boolean) if o.name == c.name => value
@@ -80,12 +80,17 @@ package object frontend {
     val activeComponents = getActiveComponents(ctx)
     if(hasOptSolidityOutput)
       new SolidityCallBack
-    else if(ctx.options.findOptionOrDefault(optBatchedProgram) ||
-            ctx.options.findOptionOrDefault(optSmartContracts) ||
-            !ctx.options.findOptionOrDefault(optKeep).isEmpty)
+    else if (batchSymbols(activeComponents))
       new BatchedCallBack(activeComponents)
     else
       new SplitCallBack(activeComponents)
+  }
+
+  private def batchSymbols(activeComponents: Seq[Component])(implicit ctx: inox.Context): Boolean = {
+    ctx.options.findOptionOrDefault(optBatchedProgram) ||
+    ctx.options.findOptionOrDefault(optSmartContracts) ||
+    !ctx.options.findOptionOrDefault(optKeep).isEmpty ||
+    activeComponents.contains(termination.TerminationComponent)
   }
 }
 

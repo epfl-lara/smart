@@ -19,6 +19,8 @@ trait TransformerWithType extends TreeTransformer {
     case tp: s.TypeParameter =>
       import s._
       widen(tp.upperBound)
+    case ta: s.TypeApply =>
+      widen(ta.dealias(symbols))
     case _ => tpe
   }
 

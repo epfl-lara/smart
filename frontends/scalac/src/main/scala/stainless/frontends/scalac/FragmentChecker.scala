@@ -226,11 +226,6 @@ trait FragmentChecker extends SubComponent { _: StainlessExtraction =>
         reportError(pos, s"Scala API ($tp) no longer extracted, please use ${replacement}")
     }
 
-    def checkVariance(tdef: TypeDef): Unit = {
-      // if (tdef.symbol.asType.isCovariant || tdef.symbol.asType.isContravariant)
-      //   reportError(tdef.pos, "Stainless supports only invariant type parameters")
-    }
-
     private var classBody = false
     def inClassBody[T](f: => T): T = {
       val old = classBody
@@ -264,19 +259,22 @@ trait FragmentChecker extends SubComponent { _: StainlessExtraction =>
           super.traverse(od)
 
         case ClassDef(mods, name, tparams, impl) =>
-          if (!sym.isAbstractClass
-            && !sym.isCaseClass
-            && !sym.isModuleClass
-            && !sym.isImplicit
-            && !sym.isNonBottomSubClass(definitions.AnnotationClass))
-            reportError(tree.pos, "Only abstract classes, case classes and objects are allowed in Stainless.")
+          val isSupported = {
+            sym.isAbstractClass ||
+            sym.isCaseClass ||
+            sym.isModuleClass ||
+            sym.isAnonymousClass ||
+            sym.isImplicit ||
+            sym.isNonBottomSubClass(definitions.AnnotationClass)
+          }
+
+          if (!isSupported)
+            reportError(tree.pos, "Only abstract classes, case classes, anonymous classes, and objects are allowed in Stainless.")
 
           val parents = impl.parents.map(_.tpe).filterNot(ignoredClasses)
-
           if (parents.length > 1)
             reportError(tree.pos, s"Stainless supports only simple type hierarchies: Classes can only inherit from a single class/trait")
 
-          tparams.foreach(checkVariance)
           atOwner(sym)(traverse(impl))
 
         case DefDef(_, _, _, _, _, rhs) if sym.isConstructor =>
@@ -291,12 +289,7 @@ trait FragmentChecker extends SubComponent { _: StainlessExtraction =>
           atOwner(sym)(traverse(rhs))
 
         case vd @ ValDef(mods, _, _, _) if sym.owner.isClass && !sym.owner.isAbstractClass && mods.isMutable && !mods.isCaseAccessor =>
-          reportError(tree.pos, "Vars are not allowed in class bodies in Stainless.")
-
-        case t: TypeDef =>
-          if (!t.symbol.isAliasType)
-            reportError(t.pos, "Stainless doesn't support abstract type members")
-          atOwner(sym)(traverse(t.rhs))
+          reportError(tree.pos, "Variables are only allowed within functions and as constructor parameters in Stainless.")
 
         case Apply(fun, List(arg)) if sym == StainlessOld =>
           arg match {

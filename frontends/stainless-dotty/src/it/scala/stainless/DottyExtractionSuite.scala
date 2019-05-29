@@ -8,10 +8,7 @@ class DottyExtractionSuite extends ExtractionSuite {
   testExtractAll("verification/invalid")
   testExtractAll("verification/unchecked")
 
-  testExtractAll("imperative/valid"/*,
-    "imperative/valid/Blocks1.scala",*/
-    ,"imperative/valid/Snapshot2.scala" // excluded due to https://github.com/epfl-lara/stainless/issues/419
-  )
+  testExtractAll("imperative/valid")
   testExtractAll("imperative/invalid")
 
   testExtractAll("termination/valid")
@@ -36,6 +33,8 @@ class DottyExtractionSuite extends ExtractionSuite {
     "extraction/invalid/GhostPatmat.scala",
     "extraction/invalid/GhostDafny.scala",
     "extraction/invalid/SuperAbstract.scala",
+    "extraction/invalid/SuperAbstract.scala",
+    "extraction/invalid/AnonymousClassRefine.scala",
   )
 
   testExtractAll("dotty-specific/valid")

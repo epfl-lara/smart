@@ -312,9 +312,6 @@ trait TreeDeconstructor extends oo.TreeDeconstructor {
     case s.Old(e) =>
       (Seq(), Seq(), Seq(e), Seq(), Seq(), (_, _, es, _, _) => t.Old(es.head))
 
-    case s.Snapshot(e) =>
-      (Seq(), Seq(), Seq(e), Seq(), Seq(), (_, _, es, _, _) => t.Snapshot(es.head))
-
     case s.MutableMapWithDefault(from, to, default) =>
       (Seq(), Seq(), Seq(default), Seq(from, to), Seq(), (_, _, es, tps, _) => t.MutableMapWithDefault(tps(0), tps(1), es(0)))
 
@@ -329,6 +326,9 @@ trait TreeDeconstructor extends oo.TreeDeconstructor {
 
     case s.MutableMapDuplicate(map) =>
       (Seq(), Seq(), Seq(map), Seq(), Seq(), (_, _, es, _, _) => t.MutableMapDuplicate(es(0)))
+
+    case s.Snapshot(e) =>
+      (Seq(), Seq(), Seq(e), Seq(), Seq(), (_, _, es, _, _) => t.Snapshot(es.head))
 
     case _ => super.deconstruct(e)
   }

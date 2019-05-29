@@ -9,6 +9,7 @@ trait ContractMethodLifting extends oo.SimplePhase
   with oo.SimplyCachedClasses
   with SimplyCachedSorts
   with SimplyCachedFunctions
+  with oo.IdentityTypeDefs
   { self =>
   val s: trees.type
   val t: s.type

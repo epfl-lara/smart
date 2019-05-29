@@ -32,6 +32,7 @@ package object extraction {
     "HavocInjection"            -> "Inject a havoc method in each Contract that can be used to reset variables to arbirary values",
     //"EtherUpdateInjection"      -> "Inject a method that checks if the global invariant holds under increase of ether for any address",
     "ContractMethodLifting"      -> "Lift the method of contract outside of their enclosing contract",
+    "InnerClasses"              -> "Lift inner classes",
     "Laws"                      -> "Rewrite laws as abstract functions with contracts",
     "SuperCalls"                -> "Resolve super-function calls",
     "Sealing"                   -> "Seal every class and add mutable flags",
@@ -45,13 +46,15 @@ package object extraction {
     "TypeEncoding"              -> "Encode non-ADT types",
     "FunctionClosure"           -> "Lift inner functions",
     "FunctionInlining"          -> "Transitively inline marked functions",
-    "PartialEvaluation"         -> "Partially evaluate marked function calls"
+    "InductElimination"         -> "Replace @induct annotation by explicit recursion",
+    "SizeInjection"             -> "Injects a size function for each ADT",
+    "PartialEvaluation"         -> "Partially evaluate marked function calls",
   )
 
   val phaseNames: Set[String] = phases.map(_._1).toSet
 
   /** Unifies all stainless tree definitions */
-  trait Trees extends ast.Trees with termination.Trees { self =>
+  trait Trees extends ast.Trees with stainless.termination.Trees { self =>
     override def getDeconstructor(that: inox.ast.Trees): inox.ast.TreeDeconstructor { val s: self.type; val t: that.type } = that match {
       case tree: Trees => new TreeDeconstructor {
         protected val s: self.type = self
@@ -67,16 +70,16 @@ package object extraction {
   }
 
   /** Unifies all stainless tree printers */
-  trait Printer extends ast.Printer with termination.Printer
+  trait Printer extends ast.Printer with stainless.termination.Printer
 
   /** Unifies all stainless tree extractors */
-  trait TreeDeconstructor extends ast.TreeDeconstructor with termination.TreeDeconstructor {
+  trait TreeDeconstructor extends ast.TreeDeconstructor with stainless.termination.TreeDeconstructor {
     protected val s: Trees
     protected val t: Trees
   }
 
   /** Unifies all stainless expression operations */
-  trait ExprOps extends ast.ExprOps with termination.ExprOps
+  trait ExprOps extends ast.ExprOps with stainless.termination.ExprOps
 
   object trees extends Trees with inox.ast.SimpleSymbols {
     case class Symbols(
@@ -91,14 +94,17 @@ package object extraction {
     extends Exception(msg)
 
   def pipeline(implicit ctx: inox.Context): StainlessPipeline = {
-    xlang.extractor      andThen
+    xlang.extractor           andThen
     smartcontracts.extractor  andThen
-    methods.extractor    andThen
-    throwing.extractor   andThen
-    imperative.extractor andThen
-    oo.extractor         andThen
-    innerfuns.extractor  andThen
-    inlining.extractor
+    innerclasses.extractor    andThen
+    methods.extractor         andThen
+    throwing.extractor        andThen
+    imperative.extractor      andThen
+    oo.extractor              andThen
+    innerfuns.extractor       andThen
+    inlining.extractor        andThen
+    induction.extractor       andThen
+    termination.extractor
   }
 
   private[this] def completeSymbols(symbols: trees.Symbols)(to: ast.Trees): to.Symbols = {

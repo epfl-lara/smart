@@ -14,6 +14,7 @@ class BatchedCallBack(components: Seq[Component])(implicit val context: inox.Con
 
   private var currentClasses = Seq[xt.ClassDef]()
   private var currentFunctions = Seq[xt.FunDef]()
+  private var currentTypeDefs = Seq[xt.TypeDef]()
 
   private var report: AbstractReport[Report] = _
 
@@ -22,31 +23,50 @@ class BatchedCallBack(components: Seq[Component])(implicit val context: inox.Con
 
   def beginExtractions(): Unit = {}
 
-  def apply(file: String, unit: xt.UnitDef, classes: Seq[xt.ClassDef], functions: Seq[xt.FunDef]): Unit = {
+  override def apply(
+    file: String,
+    unit: xt.UnitDef,
+    classes: Seq[xt.ClassDef],
+    functions: Seq[xt.FunDef],
+    typeDefs: Seq[xt.TypeDef]
+  ): Unit = {
     synchronized {
       currentFunctions ++= functions
       currentClasses ++= classes
+      currentTypeDefs ++= typeDefs
     }
   }
 
   def failed(): Unit = {}
 
   def endExtractions(): Unit = {
-    val allSymbols = xt.NoSymbols.withClasses(currentClasses).withFunctions(currentFunctions)
+    val allSymbols = xt.NoSymbols
+      .withClasses(currentClasses)
+      .withFunctions(currentFunctions)
+      .withTypeDefs(currentTypeDefs)
+
     def notUserFlag(f: xt.Flag) = f.name == "library" || f == xt.Synthetic
+
     val userIds =
       currentClasses.filterNot(cd => cd.flags.exists(notUserFlag)).map(_.id) ++
-      currentFunctions.filterNot(fd => fd.flags.exists(notUserFlag)).map(_.id)
-    val userDependencies = userIds.flatMap(id => allSymbols.dependencies(id) ) ++ userIds
+      currentFunctions.filterNot(fd => fd.flags.exists(notUserFlag)).map(_.id) ++
+      currentTypeDefs.filterNot(td => td.flags.exists(notUserFlag)).map(_.id)
+
+    val userDependencies = userIds.flatMap(id => allSymbols.dependencies(id)) ++ userIds
+
     val smartcontracts = context.options.findOptionOrDefault(optSmartContracts)
     val smartcontractsGroup = if (smartcontracts) Some("smart-contracts") else None
     val keepGroups = context.options.findOptionOrDefault(optKeep) ++ smartcontractsGroup
-    def hasKeepFlag(flags: Seq[xt.Flag]) =
-      keepGroups.exists(g => flags.contains(xt.Annotation("keep",Seq(xt.StringLiteral(g)))))
 
-    val symbols =
+    def hasKeepFlag(flags: Seq[xt.Flag]) =
+      keepGroups.exists(g => flags.contains(xt.Annotation("keep", Seq(xt.StringLiteral(g)))))
+
+    val preSymbols =
       xt.NoSymbols.withClasses(currentClasses.filter(cd => hasKeepFlag(cd.flags) || userDependencies.contains(cd.id)))
                   .withFunctions(currentFunctions.filter(fd => hasKeepFlag(fd.flags) || userDependencies.contains(fd.id)))
+                  .withTypeDefs(currentTypeDefs.filter(td => hasKeepFlag(td.flags) || userDependencies.contains(td.id)))
+
+    val symbols = Recovery.recover(preSymbols)
 
     try {
       TreeSanitizer(xt).check(symbols)
@@ -57,16 +77,27 @@ class BatchedCallBack(components: Seq[Component])(implicit val context: inox.Con
 
     val reports = runs map { run =>
       val ids = symbols.functions.keys.toSeq
-      val analysis = run(ids, symbols, filterSymbols = true)
-      val report = Await.result(analysis, Duration.Inf).toReport
-      Some(RunReport(run)(report))
+      val analysis = Try(run(ids, symbols, filterSymbols = true))
+      analysis match {
+        case Success(analysis) =>
+          val report = Await.result(analysis, Duration.Inf).toReport
+          RunReport(run)(report)
+
+        case Failure(err) =>
+          val msg = s"Run has failed with error: $err\n\n" +
+                    err.getStackTrace.map(_.toString).mkString("\n")
+
+          reporter.fatalError(msg)
+      }
     }
-    report = Report(reports collect { case Some(r) => r })
+
+    report = Report(reports)
   }
 
   def stop(): Unit = {
     currentClasses = Seq()
     currentFunctions = Seq()
+    currentTypeDefs = Seq()
   }
 
   def join(): Unit = {}
@@ -75,10 +106,11 @@ class BatchedCallBack(components: Seq[Component])(implicit val context: inox.Con
 
   private def reportError(pos: inox.utils.Position, msg: String, syms: xt.Symbols): Unit = {
     reporter.error(pos, msg)
-    reporter.error(s"The extracted sub-program in not well formed.")
+    reporter.error(s"The extracted program in not well formed.")
     reporter.error(s"Symbols are:")
     reporter.error(s"functions -> [${syms.functions.keySet.toSeq.sorted mkString ", "}]")
     reporter.error(s"classes   -> [\n  ${syms.classes.values mkString "\n  "}\n]")
-    reporter.fatalError(s"Aborting from SplitCallBack")
+    reporter.error(s"typedefs  -> [\n  ${syms.typeDefs.values mkString "\n  "}\n]")
+    reporter.fatalError(s"Aborting from BatchedCallBack")
   }
 }

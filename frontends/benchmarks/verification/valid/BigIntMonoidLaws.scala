@@ -25,14 +25,9 @@ object BigIntMonoidLaws {
     }
   }
 
-  case class AdditiveMonoid() extends Monoid[BigInt] {
+  def bigIntAdditiveMonoid: Monoid[BigInt] = new Monoid[BigInt] {
     def empty = 0
     def append(x: BigInt, y: BigInt) = x + y
-  }
-
-  case class ProductMonoid() extends Monoid[BigInt] {
-    def empty = 1
-    def append(x: BigInt, y: BigInt) = x * y
   }
 
 }

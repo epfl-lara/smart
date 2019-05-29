@@ -1,7 +1,7 @@
 import sbt.ScriptedPlugin
 
 enablePlugins(GitVersioning)
-git.baseVersion in ThisBuild := "0.1.0"
+git.baseVersion in ThisBuild := "0.2.0"
 git.formattedShaVersion in ThisBuild := git.gitHeadCommit.value map { sha => s"${git.baseVersion.value}-${sha}" }
 
 val osInf = Option(System.getProperty("os.name")).getOrElse("")
@@ -13,7 +13,7 @@ val isMac     = osInf.indexOf("Mac") >= 0
 val osName = if (isWindows) "win" else if (isMac) "mac" else "unix"
 val osArch = System.getProperty("sun.arch.data.model")
 
-// val inoxVersion = "1.1.0-322-g6cdfa72"
+// val inoxVersion = "1.1.0-326-g397ae7b"
 val dottyLibrary = "dotty-compiler_2.12"
 val dottyVersion = "0.12.0-RC1-nonbootstrapped"
 val circeVersion = "0.10.0-M2"
@@ -76,7 +76,8 @@ lazy val commonSettings: Seq[Setting[_]] = artifactSettings ++ Seq(
     "org.scalatest" %% "scalatest" % "3.0.1" % "test",
     "io.circe" %% "circe-core" % circeVersion,
     "io.circe" %% "circe-generic" % circeVersion,
-    "io.circe" %% "circe-parser" % circeVersion
+    "io.circe" %% "circe-parser" % circeVersion,
+    "com.typesafe" % "config" % "1.3.2"
   ),
 
   // disable documentation packaging in universal:stage to speedup development
@@ -90,7 +91,9 @@ lazy val commonSettings: Seq[Setting[_]] = artifactSettings ++ Seq(
 
   testOptions in Test := Seq(Tests.Argument("-oDF")),
 
-  testOptions in IntegrationTest := Seq(Tests.Argument("-oDF"))
+  testOptions in IntegrationTest := Seq(Tests.Argument("-oDF")),
+
+  mappings in (Compile, packageDoc) := Seq()
 )
 
 lazy val libraryFiles: Seq[(String, File)] = {
@@ -244,7 +247,8 @@ lazy val `stainless-scalac-standalone` = (project in file("frontends") / "stainl
       case x =>
         val oldStrategy = (assemblyMergeStrategy in assembly).value
         oldStrategy(x)
-    }
+    },
+    (unmanagedJars in Runtime) := (unmanagedJars in (`stainless-scalac`, Runtime)).value
   )
   .dependsOn(`stainless-scalac`)
   .settings(artifactSettings)

@@ -44,6 +44,8 @@ trait ASTExtractors {
   protected lazy val scalaSetSym  = classFromName("scala.collection.immutable.Set")
   protected lazy val scalaListSym = classFromName("scala.collection.immutable.List")
 
+  protected lazy val scalaProductClassSym = classFromName("scala.Product")
+
   protected lazy val exceptionSym = classFromName("stainless.lang.Exception")
 
   protected lazy val setSym         = classFromName("stainless.lang.Set")
@@ -459,8 +461,13 @@ trait ASTExtractors {
 
     object ExClassDef {
       def unapply(td: tpd.TypeDef): Boolean = {
-        val sym = td.symbol
-        td.isClassDef //&& ((sym is Abstract) || (sym is Case) || (sym is Implicit))
+        td.isClassDef
+      }
+    }
+
+    object ExTypeDef {
+      def unapply(td: tpd.TypeDef): Boolean = {
+        !td.isClassDef
       }
     }
 

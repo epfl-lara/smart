@@ -97,9 +97,15 @@ trait ComponentRun { self =>
   def apply(ids: Seq[Identifier], symbols: xt.Symbols, filterSymbols: Boolean = false): Future[Analysis] = try {
     val exSymbols = extract(symbols)
 
+    def isDerivedFrom(ids: Set[Identifier])(fd: trees.FunDef): Boolean =
+      fd.flags.exists { case trees.Derived(id) => ids(id) case _ => false }
+
+    def mustCheck(fd: trees.FunDef): Boolean =
+      fd.flags.exists { case trees.ForceVC => true case _ => false }
+
     val toCheck = inox.utils.fixpoint { (ids: Set[Identifier]) =>
       ids ++ exSymbols.functions.values.toSeq
-        .filter(_.flags.exists { case trees.Derived(id) => ids(id) case trees.ForceVC => true case _ => false })
+        .filter(fd => isDerivedFrom(ids)(fd) || mustCheck(fd))
         .filter(extractionFilter.shouldBeChecked)
         .map(_.id)
     } (ids.flatMap(id => exSymbols.lookupFunction(id).toSeq).filter(extractionFilter.shouldBeChecked).map(_.id).toSet)
