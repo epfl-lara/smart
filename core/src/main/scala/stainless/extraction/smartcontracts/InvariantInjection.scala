@@ -26,7 +26,6 @@ trait InvariantInjection extends oo.SimplePhase
 
     import s.exprOps._
 
-
     val envCd: ClassDef = symbols.lookup[ClassDef]("stainless.smartcontracts.Environment")
     val envType: ClassType = envCd.typed.toType
     val contractAtAccessor: Identifier = envCd.fields.find(vd => isIdentifier("stainless.smartcontracts.Environment.contractAt", vd.id)).get.id
@@ -37,24 +36,21 @@ trait InvariantInjection extends oo.SimplePhase
 
     val assumeFunId = symbols.lookup[FunDef]("stainless.smartcontracts.assume").id
 
-    def checkInvariantForm(cid: Identifier, fd: FunDef) = {
-      if (
-        fd.typeArgs.isEmpty &&
-        fd.params.forall(p => p.getType == envType) &&
-        fd.returnType == BooleanType()
-      ) ()
-      else {
-        context.reporter.fatalError(s"The `invariant` function of contract ${cid.asString} must be of type: invariant(): Boolean")
-      }
-    }
     // We collect all contracts
     val contracts = symbols.classes.values.filter(_.isContract)
+
+    val invariants = contracts.map { contract =>
+      contract.methods.map(symbols.functions).collectFirst {
+        case fd if fd.isInvariant =>
+          (contract.id, fd)
+      }
+    }.flatten.toMap
 
     // Here we compute a mapping from a contract C to a pair (C', F) of type (contract , funDef).
     // The pair represents the FunDef of an address field of C for which the annotation @addressOfContract
     // is defined. C' is the class of the contract referenced by the field.
-    val contractKnownAddrFields = contracts.map (cd => {
-      val addressFields = cd.methods.map(symbols.functions).filter{ case fd => fd.returnType == addressType }
+    val knownAddressFieldByContract = contracts.map (contract => {
+      val addressFields = contract.methods.map(symbols.functions).filter{ case fd => fd.returnType == addressType }
 
       val addresses = addressFields.flatMap( fd => {
         fd.flags.collectFirst{ case AddressOfContract(name) => name } match {
@@ -63,32 +59,64 @@ trait InvariantInjection extends oo.SimplePhase
         }
       })
 
-      cd.id -> addresses.map{ case (fd, name) => (fd, contracts.collectFirst{ case cd if cd.id.name contains name => cd}.get) }
+      contract.id -> addresses.map{ case (fd, name) => 
+        (fd, contracts.collectFirst{ case cd if cd.id.name contains name => cd}.get)
+      }
     }).toMap
 
-    val existingInvariants = contracts.map { cd =>
-      symbols.functions.values.collectFirst {
-        case fd if (fd.isInClass(cd.id) && fd.id.name == "invariant") =>
-          checkInvariantForm(cd.id, fd)
-          (cd, fd)
-      }
-    }.flatten.toMap
+    val contractReferences = contracts.map { case contract =>
+      val ref = symbols.functions.values.collectFirst{ 
+        case fd if fd.id.name == s"addressOf${contract.id}" => fd
+      }.get
 
-    // Used to remove old symbols
-    val existingInvariantToRemove = existingInvariants.values.map(_.id).toSet
+      (contract, FunctionInvocation(ref.id, Seq(), Seq()))
+    }
 
-    val invariantsDefs = existingInvariants
-    // Here we transform the local invariant to include the isInstanceOf/asInstanceOf implied by the
-    // the contracts' address fields annotated by @addressOfContract.
-    val transformedInvariantDefs = invariantsDefs.map{ case (contract, inv) =>
-      val envVar = inv.params.collectFirst{
+    val refCastInvariant = {
+      val envVd = ValDef.fresh("env", envType)
+      val envVar = envVd.toVariable
+
+      val body = if(contractReferences.isEmpty) BooleanLiteral(true)
+      else contractReferences.map{ case (contract, ref) =>
+        val addrEquality = Equals(ref,
+            MethodInvocation(
+              AsInstanceOf(MutableMapApply(ClassSelector(envVar, contractAtAccessor), ref), contract.typed.toType),
+              addressAccessorId, Seq(), Seq()))
+        val isInstanceOff = IsInstanceOf(MutableMapApply(ClassSelector(envVar, contractAtAccessor), ref), contract.typed.toType)
+        And(isInstanceOff, addrEquality)
+      }.reduce(And(_,_))
+
+      new FunDef(
+        ast.SymbolIdentifier("refCastInvariant"),
+        Seq(),
+        Seq(envVd),
+        BooleanType(),
+        body,
+        Seq(Synthetic, IsPure, Final)
+      )
+    }
+
+    val refCallInvariant = (env:Variable) => {
+      contractReferences.map{ case (contract, ref) =>
+        MethodInvocation(
+          AsInstanceOf(MutableMapApply(ClassSelector(env, contractAtAccessor), ref), contract.typed.toType),
+          invariants(contract.id).id, Seq(), Seq(env))
+      }.reduce[Expr](And(_,_))
+    }
+
+    def transformInvariant(fd: FunDef): FunDef = {
+      val contract = symbols.classes(fd.findClass.get)
+      val envVar = fd.params.collectFirst{
         case v@ValDef(_, tpe, _) if tpe == envType => v.toVariable
       }.get
 
-      val invBody = inv.fullBody
+      val invBody = fd.fullBody
 
-      val newBody = contractKnownAddrFields(contract.id).map { case (fd, cd) =>
-        val addrCall = MethodInvocation(This(contract.typed.toType), fd.id, Seq(), Seq())
+      val addrCalls = knownAddressFieldByContract(contract.id).map { case (fd, cd) =>
+        (MethodInvocation(This(contract.typed.toType), fd.id, Seq(), Seq()), cd)
+      }
+
+      val newBody = addrCalls.map { case (addrCall, cd) =>
         val addrEquality = Equals(addrCall,
             MethodInvocation(
               AsInstanceOf(MutableMapApply(ClassSelector(envVar, contractAtAccessor), addrCall), cd.typed.toType),
@@ -98,73 +126,98 @@ trait InvariantInjection extends oo.SimplePhase
         And(isInstanceOff, addrEquality)
       }.foldRight(invBody)(And(_,_))
 
-      (contract.id -> inv.copy(fullBody = newBody).copiedFrom(inv))
-    }.toMap
+      fd.copy(
+        fullBody = newBody
+      ).copiedFrom(fd)
+    }
 
-    val invariants = transformedInvariantDefs.map{ case (contract, fd) => contract -> fd.id }.toMap
+    def withAssumes(body: Expr, condition: Expr): Expr = {
+      val post = postconditionOf(body)
+      val bodyWithoutSpecs = withoutSpecs(body).getOrElse(NoTree(body.getType))
 
-    // Build the contractInvariant of each contract. The contract invariant only asserts the local invariant of
-    // the contract + the local invariant of the contract's address fields annotated by @addressOfContract
-    val contractInvariant = symbols.classes.values.filter(_.isContract).map( contract => {
-      val envVd = ValDef.fresh("env", envType)
-      val envVar = envVd.toVariable
+      val assume = FunctionInvocation(assumeFunId, Seq(), Seq(condition))
 
-      val invariantCall = MethodInvocation(This(contract.typed.toType), invariants(contract.id), Seq(), Seq(envVar))
-
-      val body = contractKnownAddrFields(contract.id).map { case (fd, cd) =>
-        val addrCall = MethodInvocation(This(contract.typed.toType), fd.id, Seq(), Seq())
-
-        MethodInvocation(
-          AsInstanceOf(MutableMapApply(ClassSelector(envVar, contractAtAccessor), addrCall), contract.typed.toType),
-          invariants(cd.id), Seq(), Seq(envVar))
-
-      }.foldLeft[Expr](invariantCall)(And(_, _))
-
-      val invDef = new FunDef(
-        ast.SymbolIdentifier("contractInvariant"),
-        Seq(),
-        Seq(envVd),
-        BooleanType(),
-        body,
-        Seq(Synthetic, IsPure, Final, IsMethodOf(contract.id))
-      )
-
-      (contract.id, invDef)
-    }).toMap
+      withPostcondition(Block(Seq(assume), bodyWithoutSpecs), post)
+    }
 
     override def transform(fd: FunDef): FunDef = fd match {
-      case fd if fd.isContractMethod =>
-        val contract = symbols.classes(fd.findClass.get)
-        val contractType = contract.typed.toType
+      case fd if fd.isInvariant =>
+        transformInvariant(fd)
 
+      case fd if fd.isHavoc =>
+        val contract = symbols.classes(fd.findClass.get)
         val envVar = fd.params.collectFirst{
           case v@ValDef(_, tpe, _) if tpe == envType => v.toVariable
         }.get
 
-        val currPre = preconditionOf(fd.fullBody).getOrElse(BooleanLiteral(true))
-        val Lambda(vds, currPost) = postconditionOf(fd.fullBody).getOrElse(Lambda(Seq(ValDef.fresh("res", fd.returnType)), BooleanLiteral(true)))
+        val invariant = And(
+          MethodInvocation(This(contract.typed.toType), invariants(contract.id).id, Seq(), Seq(envVar)),
+          And(
+            FunctionInvocation(refCastInvariant.id, Seq(), Seq(envVar)),
+            refCallInvariant(envVar)
+          )
+        )
+        val Lambda(vds, postBody) = postconditionOf(fd.fullBody).getOrElse(Lambda(Seq(ValDef.fresh("res", fd.returnType)), BooleanLiteral(true)))
 
-        val invCall = MethodInvocation(This(contractType), transformedInvariantDefs(contract.id).id, Seq(), Seq(envVar))
+        fd.copy( fullBody = withPostcondition(
+          fd.fullBody,
+          Some(Lambda(vds, And(postBody, invariant))))
+        )
+        
+      case fd if fd.isConstructor =>
+        val contract = symbols.classes(fd.findClass.get)
+        val envVar = fd.params.collectFirst{
+          case v@ValDef(_, tpe, _) if tpe == envType => v.toVariable
+        }.get
 
-        // If the method is the constructor we only add the new postcondition as nothing can be required
-        // at the instanciation of the contract.
-        val bodyWithoutSpecs = withoutSpecs(fd.fullBody).getOrElse(NoTree(fd.returnType))
+        preconditionOf(fd.fullBody) match {
+          case None =>
+          case Some(x) => context.reporter.error("Constructor can not have a precondition")
+        }
 
-        val bodyWithAssume = if(fd.isConstructor || fd.id.name.contains(s"havoc${contract.id.name}")) bodyWithoutSpecs
-                             else Block(Seq(FunctionInvocation(assumeFunId, Seq(), Seq(And(invCall, currPre)))), bodyWithoutSpecs)
+        val refCastInvCall = FunctionInvocation(refCastInvariant.id, Seq(), Seq(envVar))
+        val invariant = And(
+          MethodInvocation(This(contract.typed.toType), invariants(contract.id).id, Seq(), Seq(envVar)),
+          refCastInvCall
+        )
 
-        val newPost = Postcondition(Lambda(vds, And(invCall, currPost)))
+        val Lambda(vds, postBody) = postconditionOf(fd.fullBody).getOrElse(Lambda(Seq(ValDef.fresh("res", fd.returnType)), BooleanLiteral(true)))
 
-        super.transform(fd.copy(
-          fullBody = reconstructSpecs(Seq(newPost), Some(bodyWithAssume), fd.returnType)
-        ).copiedFrom(fd))
+        fd.copy( fullBody = withPostcondition(
+          withAssumes(fd.fullBody, refCastInvCall),
+          Some(Lambda(vds, And(postBody, invariant)))
+        ))
+        
+      case fd if fd.isContractMethod =>
+        val contract = symbols.classes(fd.findClass.get)
+        val envVar = fd.params.collectFirst{
+          case v@ValDef(_, tpe, _) if tpe == envType => v.toVariable
+        }.get
 
+        val invariant = And(
+          MethodInvocation(This(contract.typed.toType), invariants(contract.id).id, Seq(), Seq(envVar)),
+          And(
+            FunctionInvocation(refCastInvariant.id, Seq(), Seq(envVar)),
+            refCallInvariant(envVar)
+          )
+        )
+
+        val Lambda(vds, postBody) = postconditionOf(fd.fullBody).getOrElse(Lambda(Seq(ValDef.fresh("res", fd.returnType)), BooleanLiteral(true)))
+
+        val newBody = postMap {
+          case mi@MethodInvocation(receiver, id, tps, args) if symbols.functions(id).isInSmartContract && !isThis(receiver) =>
+            Some(Assert(invariant, None, mi))
+          case mi@MethodInvocation(receiver, id, tps, args) if symbols.functions(id).isHavoc =>
+            Some(Assert(invariant, None, mi))
+          case _ => None
+        }(fd.fullBody)
+
+        fd.copy(fullBody = withPostcondition(withAssumes(newBody, invariant), Some(Lambda(vds, And(invariant, postBody)))))
+      
       case fd => super.transform(fd)
     }
 
-    val newFuns = contractInvariant.values.toSeq ++
-                  symbols.functions.values.filterNot(fd => existingInvariantToRemove contains fd.id) ++
-                  transformedInvariantDefs.values.toSeq
+    val newFds = Seq(refCastInvariant)
   }
 
   /* ====================================
@@ -172,7 +225,7 @@ trait InvariantInjection extends oo.SimplePhase
    * ==================================== */
 
   override def extractSymbols(context: TransformerContext, symbols: Symbols): Symbols = {
-    super.extractSymbols(context, symbols.withFunctions(context.newFuns.toSeq))
+    super.extractSymbols(context, symbols).withFunctions(context.newFds)
   }
 }
 
