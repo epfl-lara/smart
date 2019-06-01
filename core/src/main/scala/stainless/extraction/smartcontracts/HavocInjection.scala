@@ -31,10 +31,10 @@ trait HavocInjection extends oo.SimplePhase
     val contractAtId: Identifier = envCd.fields.find(vd => isIdentifier("stainless.smartcontracts.Environment.contractAt", vd.id)).get.id
 
     val contracts = symbols.classes.values.filter(_.isContract)
-    val invariants: Map[Identifier, Identifier] = contracts.map { cd =>
-      symbols.functions.values.collectFirst {
-        case fd if (fd.isInClass(cd.id) && fd.id.name == "invariant") =>
-          (cd.id, fd.id)
+    val invariants = contracts.map { contract =>
+      contract.methods.map(symbols.functions).collectFirst {
+        case fd if fd.isInvariant =>
+          (contract.id, fd.id)
       }
     }.flatten.toMap
 
@@ -44,11 +44,11 @@ trait HavocInjection extends oo.SimplePhase
       val paramType = TypeParameterDef.fresh("T")
 
       val fd = new FunDef(
-        ast.SymbolIdentifier(s"havoc${contract.id}"),
+        ast.SymbolIdentifier("havoc"),
         Seq(paramType),
         Seq(envVd),
         paramType.tp,
-        reconstructSpecs(Seq(Postcondition(Lambda(Seq(ValDef.fresh("res", paramType.tp)), invCall))), Some(NoTree(paramType.tp)), paramType.tp),
+        NoTree(paramType.tp),
         Seq(Synthetic, Extern, IsMethodOf(contract.id))
       )
       (contract.id, fd)
