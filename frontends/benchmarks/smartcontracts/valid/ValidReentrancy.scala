@@ -19,6 +19,20 @@ trait VRA extends Contract {
   final def invariant() = userBalance + contractBalance == totalCoins
 
   @solidityPublic
+  final def constructor(_totalCoins: Uint256) = {
+    // We temporarily use assume here but we must use something
+    // that will be compiled so that this fails at runtime if invalid
+    ghost(assume(
+      Environment.contractAt(target).isInstanceOf[VRB] &&
+      Environment.contractAt(target).asInstanceOf[VRB].addr == target
+    ))
+
+    totalCoins = _totalCoins
+    contractBalance = _totalCoins
+    userBalance = Uint256.ZERO
+  }
+
+  @solidityPublic
   final def withdrawBalance() = {
     val amount = userBalance
 

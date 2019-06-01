@@ -7,7 +7,7 @@ trait CC extends Contract {
   var b: Uint256
 
   @solidityPublic
-  def constructor(_c: Uint256, _d: Uint256) = {
+  final def constructor(_c: Uint256, _d: Uint256) = {
     a = _c;
     b = _c + _d;
   }

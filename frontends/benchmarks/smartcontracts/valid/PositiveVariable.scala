@@ -5,18 +5,13 @@ import stainless.lang.StaticChecks._
 import stainless.lang.ghost
 
 trait PositiveVariableUser extends Contract {
+  @addressOfContract("PositiveVariable")
   var target: Address
 
   @solidityPublic
-  def f(): Unit = {
+  final def f(): Unit = {
     Environment.contractAt(target).asInstanceOf[PositiveVariable].g()
     assert(Environment.contractAt(target).asInstanceOf[PositiveVariable].x >= 0)
-  }
-
-  @ghost
-  final def invariant() = {
-    Environment.contractAt(target).isInstanceOf[PositiveVariable] &&
-    Environment.contractAt(target).asInstanceOf[PositiveVariable].invariant()
   }
 }
 
@@ -26,5 +21,5 @@ trait PositiveVariable extends ContractInterface {
   def g(): Unit
 
   @ghost
-  def invariant(): Boolean = x >= 0
+  final def invariant(): Boolean = x >= 0
 }

@@ -24,4 +24,9 @@ trait HavocInvariant1 extends Contract {
     assert( invariant() )
   }
 
+  @solidityPublic
+  final def constructor(_balance: Uint256) = {
+    balance = _balance
+    empty = !(balance > Uint256.ZERO)
+  }
 }

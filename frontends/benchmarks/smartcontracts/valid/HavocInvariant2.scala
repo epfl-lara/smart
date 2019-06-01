@@ -17,20 +17,31 @@ trait HavocInvariant2B extends Contract {
     balance = Uint256.ZERO
     isEmpty = true
   }
+
+  @solidityPublic
+  final def constructor(_balance: Uint256) = {
+    balance = _balance
+    isEmpty = !(balance > Uint256.ZERO)
+  }
 }
 
 trait HavocInvariant2A extends Contract {
+  @addressOfContract("HavocInvariant2B")
   val target:Address
 
-  @ghost
-  final def invariant(): Boolean = {
-    Environment.contractAt(target).isInstanceOf[HavocInvariant2B] &&
-    Environment.contractAt(target).asInstanceOf[HavocInvariant2B].invariant()
+  @solidityPublic
+  final def withdrawBalance() = {
+    Environment.contractAt(target).asInstanceOf[HavocInvariant2B].emptyContract()
+    assert(Environment.contractAt(target).asInstanceOf[HavocInvariant2B].invariant())
   }
 
   @solidityPublic
-  final def withdrawBalance() = { 
-    Environment.contractAt(target).asInstanceOf[HavocInvariant2B].emptyContract()
-    assert(Environment.contractAt(target).asInstanceOf[HavocInvariant2B].invariant())
+  final def constructor() = {
+    // We temporarily use assume here but we must use something
+    // that will be compiled so that this fails at runtime if invalid
+    ghost(assume(
+      Environment.contractAt(target).isInstanceOf[HavocInvariant2B] &&
+      Environment.contractAt(target).asInstanceOf[HavocInvariant2B].addr == target
+    ))
   }
 }

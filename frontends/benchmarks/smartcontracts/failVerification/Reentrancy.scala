@@ -4,7 +4,6 @@ import stainless.collection._
 import stainless.annotation._
 
 trait RB extends Contract {
-  @solidityPublic
   def doSomething(): Unit
 }
 
@@ -15,6 +14,20 @@ trait RA extends Contract {
 
   @addressOfContract("RB")
   val target: Address
+
+  @solidityPublic
+  final def constructor(_totalCoins: Uint256) = {
+    // We temporarily use assume here but we must use something
+    // that will be compiled so that this fails at runtime if invalid
+    ghost(assume(
+      Environment.contractAt(target).isInstanceOf[RB] &&
+      Environment.contractAt(target).asInstanceOf[RB].addr == target
+    ))
+
+    userBalance = Uint256.ZERO
+    contractBalance = _totalCoins
+    totalCoins = _totalCoins
+  }
 
   @ghost
   final def invariant() = userBalance + contractBalance == totalCoins

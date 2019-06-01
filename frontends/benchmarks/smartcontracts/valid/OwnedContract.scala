@@ -3,13 +3,13 @@ import stainless.annotation._
 import stainless.lang._
 
 trait OwnedContract extends Contract {
-  var owner: PayableAddress
+  var owner: Address
 
   @solidityPayable
   @solidityPublic
   def sendBalance() = {
-    require(
-      !(addr.equals(Msg.sender)) &&
+    dynRequire(
+      !(addr == Msg.sender) &&
       addr.balance == Uint256("20")
     )
 
@@ -17,7 +17,7 @@ trait OwnedContract extends Contract {
       owner.transfer(addr.balance)
     }
   } ensuring { _ =>
-    ((Msg.sender.equals(owner)) ==> (addr.balance == Uint256.ZERO)) &&
-    (!(Msg.sender.equals(owner)) ==> (addr.balance == Uint256("20")))
+    ((Msg.sender == owner) ==> (addr.balance == Uint256.ZERO)) &&
+    (!(Msg.sender == owner) ==> (addr.balance == Uint256("20")))
   }
 }

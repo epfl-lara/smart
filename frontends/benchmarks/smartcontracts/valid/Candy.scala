@@ -7,7 +7,8 @@ trait Candy extends Contract {
   var remainingCandies: Uint256
   var eatenCandies: Uint256
 
-  def constructor(_candies: Uint256) = {
+  @solidityPublic
+  final def constructor(_candies: Uint256) = {
     initialCandies = _candies
     remainingCandies = _candies
     eatenCandies = Uint256.ZERO
@@ -27,4 +28,5 @@ trait Candy extends Contract {
     remainingCandies <= initialCandies &&
     initialCandies - eatenCandies == remainingCandies
   }
+
 }

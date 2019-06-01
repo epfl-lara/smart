@@ -1,14 +1,14 @@
 import stainless.smartcontracts._
 import stainless.annotation._
 
-trait TrueInvariant extends Contract {
+trait FalseInvariant extends Contract {
   var x: BigInt
 
   @solidityPublic
-  def increment() = {
+  final def increment() = {
     x = x + 1
   }
 
   @ghost
-  final def invariant: Boolean = true
+  final def invariant(): Boolean = false
 }

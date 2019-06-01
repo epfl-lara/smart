@@ -8,10 +8,15 @@ trait OCMB extends Contract {
   var testField1: Uint256
 
   @solidityPublic
-  val testField2: Uint256
+  var testField2: Uint256
 
   @ghost
   final def invariant() = testField2 == Uint256.ONE
+
+  @solidityPublic
+  final def constructor() = {
+    testField2 = Uint256.ONE
+  }
 
   @solidityPublic
   @solidityView
@@ -21,11 +26,18 @@ trait OCMB extends Contract {
 }
 
 trait OCMA extends Contract {
+  @addressOfContract("OCMB")
   val target:Address
 
-  @ghost
-  final def invariant() = Environment.contractAt(target).isInstanceOf[OCMB] &&
-                          Environment.contractAt(target).asInstanceOf[OCMB].invariant()
+  @solidityPublic
+  final def constructor() = {
+    // We temporarily use assume here but we must use something
+    // that will be compiled so that this fails at runtime if invalid
+    ghost(assume(
+      Environment.contractAt(target).isInstanceOf[OCMB] &&
+      Environment.contractAt(target).asInstanceOf[OCMB].addr == target
+    ))
+  }
 
   @solidityPublic
   @solidityView
