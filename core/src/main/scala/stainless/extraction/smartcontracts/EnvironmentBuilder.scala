@@ -47,7 +47,6 @@ trait EnvironmentBuilder extends oo.SimplePhase
 
     val toPayableAddressFd: FunDef = symbols.lookup[FunDef]("stainless.smartcontracts.toPayableAddress")
 
-
     // Useful shorthands
     val uint256 = BVType(false, 256)
     val uzero = BVLiteral(false, 0, 256)
@@ -63,7 +62,7 @@ trait EnvironmentBuilder extends oo.SimplePhase
 
     val existingInvariants = contracts.map { cd =>
       symbols.functions.values.collectFirst {
-        case fd if (fd.isInClass(cd.id) && fd.id.name == "invariant") =>
+        case fd if (fd.isInClass(cd.id) && fd.isInvariant) =>
           context.reporter.info(s"Found invariant for ${cd.id.asString}:\n${fd.fullBody.asString}")
           (cd, fd)
       }
@@ -81,7 +80,40 @@ trait EnvironmentBuilder extends oo.SimplePhase
       )
     }.toSeq
 
+    val existingConstructors = contracts.map { cd =>
+      symbols.functions.values.collectFirst {
+        case fd if (fd.isInClass(cd.id) && fd.isConstructor) =>
+          context.reporter.info(s"Found constructor for ${cd.id.asString}:\n${fd.fullBody.asString}")
+          (cd, fd)
+      }
+    }.flatten.toMap
+
+    val implicitConstructors = contracts.filterNot(c => existingConstructors.contains(c)).map { case cd =>
+      context.reporter.info(s"No constructor was found for contract ${cd.id}. Implicit constructor has been generated")
+      new FunDef(
+        ast.SymbolIdentifier("constructor"),
+        Seq(),
+        Seq(ValDef.fresh("env", envType)),
+        UnitType(),
+        UnitLiteral(),
+        Seq(Synthetic, Final, ForceVC, IsMethodOf(cd.id))
+      )
+    }.toSeq
+
+    // Create contract fixed reference
+    val contractReferences = contracts.map { case contract =>
+      new FunDef(
+        ast.SymbolIdentifier(s"addressOf${contract.id}"),
+        Seq(),
+        Seq(),
+        addressType,
+        NoTree(addressType),
+        Seq(IsPure, Synthetic, Extern)
+      )
+    }
+
     val implicitParameters:FunDef => Set[ImplicitParams] = fd => fd match {
+      case fd if fd.isConstructor                                                          => Set(EnvImplicit)
       case fd if fd.isContractMethod                                                       => Set(EnvImplicit, MsgImplicit)
       case fd if fd.isInvariant                                                            => Set(EnvImplicit)
       case fd if isIdentifier("stainless.smartcontracts.PayableAddress.transfer", fd.id)   => Set(EnvImplicit, MsgImplicit)
@@ -210,13 +242,17 @@ trait EnvironmentBuilder extends oo.SimplePhase
         ).setPos(fd))
       }
     }
+
+    val newFds = implicitInvariants ++ 
+                implicitConstructors ++
+                contractReferences
   } 
   /* ====================================
    *             Extraction
    * ==================================== */
 
   override def extractSymbols(context: TransformerContext, symbols: Symbols): Symbols = {
-    super.extractSymbols(context, symbols).withFunctions(context.implicitInvariants)
+    super.extractSymbols(context, symbols).withFunctions(context.newFds)
   }
 }
 
