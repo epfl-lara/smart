@@ -13,8 +13,8 @@ trait SRDA extends Contract {
     // We temporarily use assume here but we must use something
     // that will be compiled so that this fails at runtime if invalid
     ghost(assume(
-      Environment.contractAt(target).isInstanceOf[SRDA] &&
-      Environment.contractAt(target).asInstanceOf[SRDA].addr == target
+      Environment.contractAt(other).isInstanceOf[SRDA] &&
+      Environment.contractAt(other).asInstanceOf[SRDA].addr == other
     ))
   }
 
