@@ -39,11 +39,9 @@ trait Trees extends innerclasses.Trees { self =>
       }
     }
 
+    def isHavoc(implicit symbols: self.Symbols): Boolean = fd.isContractMethod && fd.id.name == "havoc"
     def isConstructor(implicit symbols: self.Symbols): Boolean = fd.isContractMethod && fd.id.name == "constructor"
-
-    def isInvariant(implicit symbols: self.Symbols): Boolean = fd.isUserInvariant || fd.isContractInvariant
-    def isUserInvariant(implicit symbols: self.Symbols) = fd.isInSmartContract && fd.id.name == "invariant"
-    def isContractInvariant(implicit symbols: self.Symbols) = fd.isInSmartContract && fd.id.name == "contractInvariant"
+    def isInvariant(implicit symbols: self.Symbols): Boolean = fd.isInSmartContract && fd.id.name == "invariant"
     
     def isContractMethod(implicit symbols: self.Symbols): Boolean = !fd.isInvariant && fd.isInSmartContract && !fd.isAccessor
   }
