@@ -39,11 +39,14 @@ trait Trees extends innerclasses.Trees { self =>
       }
     }
 
-    def isHavoc(implicit symbols: self.Symbols): Boolean = fd.isContractMethod && fd.id.name == "havoc"
-    def isConstructor(implicit symbols: self.Symbols): Boolean = fd.isContractMethod && fd.id.name == "constructor"
+    def isHavoc(implicit symbols: self.Symbols): Boolean = fd.isInSmartContract && fd.id.name == "havoc"
+    def isConstructor(implicit symbols: self.Symbols): Boolean = fd.isInSmartContract && fd.id.name == "constructor"
     def isInvariant(implicit symbols: self.Symbols): Boolean = fd.isInSmartContract && fd.id.name == "invariant"
     
-    def isContractMethod(implicit symbols: self.Symbols): Boolean = !fd.isInvariant && fd.isInSmartContract && !fd.isAccessor
+    def isContractMethod(implicit symbols: self.Symbols): Boolean = 
+      !fd.isInvariant && !fd.isHavoc && fd.isInSmartContract && !fd.isAccessor
+
+    def isSolidityPublic(implicit symbols: self.Symbols):Boolean = fd.flags.contains(Annotation("solidityPublic", Seq.empty))
   }
 
   implicit class SmartContractsClassDefWrapper(cd: ClassDef) {
