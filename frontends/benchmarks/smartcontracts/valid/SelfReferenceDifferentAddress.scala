@@ -23,8 +23,8 @@ trait SRDA extends Contract {
     // We temporarily use assume here but we must use something
     // that will be compiled so that this fails at runtime if invalid
     ghost(assume(
-      Environment.contractAt(other).isInstanceOf[SRDA] &&
-      Environment.contractAt(other).asInstanceOf[SRDA].addr == other
+      Environment.contractAt(_other).isInstanceOf[SRDA] &&
+      Environment.contractAt(_other).asInstanceOf[SRDA].addr == _other
     ))
 
     dynRequire(_other != addr)
