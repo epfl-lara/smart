@@ -3,7 +3,7 @@ import stainless.lang._
 import stainless.annotation._
 
 trait MappingType2 extends Contract {
-  val m: MutableMap[Address, MutableMap[Address, Uint256]]
+  var m: MutableMap[Address, MutableMap[Address, Uint256]]
 
   @solidityPublic
   def foo() = {
