@@ -6,9 +6,7 @@ Installing Stainless
 General Requirement
 -------------------
 
-* `Java SE Development Kit 8 <http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html>`_ for your platform
-
-Make sure ``java -version`` reports a version starting with ``1.8``.
+Java 8 JRE. It sufficies to have headless OpenJDK JRE 8 (e.g. one that one gets with ``apt install openjdk-8-jre-headless`` on Debian/Ubuntu). Make sure that ``java -version`` reports a version starting with 1.8, such as ``openjdk version "1.8`` or ``java version "1.8``.
 
 
 Use Pre-Packaged JAR file
