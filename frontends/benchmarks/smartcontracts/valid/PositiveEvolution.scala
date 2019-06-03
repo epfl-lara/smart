@@ -1,4 +1,6 @@
-import stainless.smartcontracts._
+// FIXME : Evolution invariant is not implemented at the moment
+
+/*import stainless.smartcontracts._
 import stainless.annotation._
 
 trait PositiveEvolution extends Contract {
@@ -18,4 +20,6 @@ trait PositiveEvolution extends Contract {
   final def invariant: Boolean = x >= 0
   @ghost
   final def evolution(old: PositiveEvolution): Boolean = x >= old.x
+  
 }
+*/
