@@ -56,7 +56,7 @@ trait HavocInjection extends oo.SimplePhase
 
     val contractMethods = symbols.functions.values.filter(_.isContractMethod).toSet
     val isImpureContractMethod = contractMethods.filter(fd => 
-      (fd.isAbstract || fd.flags.contains(Extern)) && !fd.flags.contains(IsPure)
+      (fd.isAbstract || fd.flags.contains(Extern)) && !fd.isAccessor && !fd.flags.contains(IsPure)
     ).map(_.id).toSet
 
     val contractMethodToCallees = contractMethods.map(fd => 
@@ -68,10 +68,10 @@ trait HavocInjection extends oo.SimplePhase
       else fixpoint(neww)
     }
 
-    val isFullyKnownMethod = contractMethodToCallees.map{ case (id, callees) => 
+    val isNotFullyKnownMethod = contractMethodToCallees.map{ case (id, callees) => 
       val recCallee = fixpoint(callees)
-      val isFullyKnown = recCallee.exists{ case id if isImpureContractMethod(id) => true case _ => false}
-      (id, isFullyKnown)
+      val isNotFullyKnown = isImpureContractMethod(id) || recCallee.exists{ case id if isImpureContractMethod(id) => true case _ => false}
+      (id, isNotFullyKnown)
     }.toMap
 
     override def transform(fd: FunDef): FunDef = {
@@ -83,15 +83,13 @@ trait HavocInjection extends oo.SimplePhase
           case v@ValDef(_, tpe, _) if tpe == envType => v.toVariable
         }.get
 
-        val newBody = if(isFullyKnownMethod(fd.id)) {
-          postMap {
-            case MethodInvocation(receiver, id, tps, args) if symbols.functions(id).isContractMethod && !isThis(receiver) =>
-              val fdReturnType = symbols.functions(id).returnType
-              Some(MethodInvocation(This(contractType), havocs(contract.id).id, Seq(fdReturnType), Seq(envVar)))
+        val newBody = postMap {
+          case MethodInvocation(receiver, id, tps, args) if symbols.functions(id).isContractMethod && isNotFullyKnownMethod(id) =>
+            val fdReturnType = symbols.functions(id).returnType
+            Some(MethodInvocation(This(contractType), havocs(contract.id).id, Seq(fdReturnType), Seq(envVar)))
 
-            case _ => None
-          }(fd.fullBody)
-        } else fd.fullBody
+          case _ => None
+        }(fd.fullBody)
 
         super.transform(fd.copy(
           fullBody = newBody

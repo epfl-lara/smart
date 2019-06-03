@@ -33,18 +33,23 @@ trait ContractMethodLifting extends oo.SimplePhase
     val contractAtId = envCd.fields.find(vd => isIdentifier("stainless.smartcontracts.Environment.contractAt", vd.id)).get.id
     val addrFieldId = symbols.lookup[FunDef]("stainless.smartcontracts.ContractInterface.addr").id
 
+    def toProcess(id: Identifier) = symbols.functions(id) match {
+      case fd if fd.isContractMethod || fd.isInvariant || fd.isHavoc => true
+      case _ => false
+    }
+
     def processBody(body: Expr, env: Variable, callee: Variable): Expr = {
       postMap {
         case This(tp) => 
           Some(AsInstanceOf(MutableMapApply(ClassSelector(env, contractAtId), callee), tp))
 
-        case MethodInvocation(This(receiverType), id, tps, args) if symbols.functions(id).isContractMethod || symbols.functions(id).isInvariant =>
+        case MethodInvocation(This(receiverType), id, tps, args) if toProcess(id) =>
           Some(FunctionInvocation(id, tps, args :+ callee))
 
         case MethodInvocation(recv@FunctionInvocation(recvId, _, _), id, tps, args) if symbols.functions(id).isInvariant && recvId.name.contains("addressOf") =>
           Some(FunctionInvocation(id, tps, args ++ Seq(recv)))
 
-        case MethodInvocation(receiver, id, tps, args) if symbols.functions(id).isContractMethod || symbols.functions(id).isInvariant =>
+        case MethodInvocation(receiver, id, tps, args) if toProcess(id) =>
           val AsInstanceOf(MutableMapApply(ClassSelector(_, _), calleeAddr), _) = receiver 
           Some(FunctionInvocation(id, tps, args ++ Seq(calleeAddr)))
 
@@ -53,7 +58,7 @@ trait ContractMethodLifting extends oo.SimplePhase
     }
 
     override def transform(fd: FunDef): FunDef = fd match {
-      case fd if fd.isContractMethod || fd.isInvariant =>
+      case fd if toProcess(fd.id) =>
         val contract = symbols.classes(fd.findClass.get)
         val contractType = contract.typed.toType
 

@@ -188,7 +188,7 @@ trait InvariantInjection extends oo.SimplePhase
           Some(Lambda(vds, And(postBody, invariant)))
         ))
         
-      case fd if fd.isContractMethod =>
+      case fd if fd.isContractMethod && fd.isSolidityPublic =>
         val contract = symbols.classes(fd.findClass.get)
         val envVar = fd.params.collectFirst{
           case v@ValDef(_, tpe, _) if tpe == envType => v.toVariable
@@ -205,9 +205,9 @@ trait InvariantInjection extends oo.SimplePhase
         val Lambda(vds, postBody) = postconditionOf(fd.fullBody).getOrElse(Lambda(Seq(ValDef.fresh("res", fd.returnType)), BooleanLiteral(true)))
 
         val newBody = postMap {
-          case mi@MethodInvocation(receiver, id, tps, args) if symbols.functions(id).isInSmartContract && !isThis(receiver) =>
-            Some(Assert(invariant, None, mi))
           case mi@MethodInvocation(receiver, id, tps, args) if symbols.functions(id).isHavoc =>
+            Some(Assert(invariant, None, mi))
+          case mi@MethodInvocation(receiver, id, tps, args) if symbols.functions(id).isContractMethod && symbols.functions(id).isSolidityPublic =>
             Some(Assert(invariant, None, mi))
           case _ => None
         }(fd.fullBody)
