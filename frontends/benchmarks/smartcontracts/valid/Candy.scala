@@ -15,7 +15,7 @@ trait Candy extends Contract {
   }
 
   @solidityPublic
-  def eatCandy(candies: Uint256) = {
+  final def eatCandy(candies: Uint256) = {
     dynRequire(candies <= remainingCandies)
 
     remainingCandies -= candies
