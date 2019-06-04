@@ -60,7 +60,7 @@ trait InvariantInjection extends oo.SimplePhase
       })
 
       contract.id -> addresses.map{ case (fd, name) => 
-        (fd, contracts.collectFirst{ case cd if cd.id.name contains name => cd}.get)
+        (fd, contracts.collectFirst{ case cd if cd.id.name == name => cd}.get)
       }
     }).toMap
 
