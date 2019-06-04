@@ -1,8 +1,6 @@
 import stainless.smartcontracts._
 import stainless.lang._
 import stainless.annotation._
-import stainless.lang.StaticChecks._
-import stainless.lang.ghost
 
 trait PositiveVariableUser extends Contract {
   @addressOfContract("PositiveVariable")
@@ -12,7 +10,7 @@ trait PositiveVariableUser extends Contract {
   final def constructor() = {
     // We temporarily use assume here but we must use something
     // that will be compiled so that this fails at runtime if invalid
-    ghost(assume(
+    ghost(dynRequire(
       Environment.contractAt(target).isInstanceOf[PositiveVariable] &&
       Environment.contractAt(target).asInstanceOf[PositiveVariable].addr == target
     ))
@@ -25,7 +23,7 @@ trait PositiveVariableUser extends Contract {
   }
 }
 
-trait PositiveVariable extends ContractInterface {
+trait PositiveVariable extends Contract {
   var x: BigInt
 
   def g(): Unit

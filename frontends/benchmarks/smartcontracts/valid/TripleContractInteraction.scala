@@ -20,7 +20,7 @@ trait TCIB extends Contract {
   final def constructor(_balance:Uint256) = {
     // We temporarily use assume here but we must use something
     // that will be compiled so that this fails at runtime if invalid
-    ghost(assume(
+    ghost(dynRequire(
       Environment.contractAt(target).isInstanceOf[UnknownInterfaceA] &&
       Environment.contractAt(target).asInstanceOf[UnknownInterfaceA].addr == target
     ))
@@ -55,7 +55,7 @@ trait TCIA extends Contract {
   final def constructor() = {
     // We temporarily use assume here but we must use something
     // that will be compiled so that this fails at runtime if invalid
-    ghost(assume(
+    ghost(dynRequire(
       Environment.contractAt(target).isInstanceOf[TCIB] &&
       Environment.contractAt(target).asInstanceOf[TCIB].addr == target
     ))

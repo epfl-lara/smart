@@ -23,7 +23,7 @@ trait InvariantAcyclicity1 extends Contract {
   final def constructor(_balance: Uint256) = {
     // We temporarily use assume here but we must use something
     // that will be compiled so that this fails at runtime if invalid
-    ghost(assume(
+    ghost(dynRequire(
       Environment.contractAt(target).isInstanceOf[InvariantAcyclicity2] &&
       Environment.contractAt(target).asInstanceOf[InvariantAcyclicity2].addr == target
     ))
@@ -41,7 +41,7 @@ trait InvariantAcyclicity2 extends Contract {
   final def constructor() = {
     // We temporarily use assume here but we must use something
     // that will be compiled so that this fails at runtime if invalid
-    ghost(assume(
+    ghost(dynRequire(
       Environment.contractAt(target).isInstanceOf[InvariantAcyclicity1] &&
       Environment.contractAt(target).asInstanceOf[InvariantAcyclicity1].addr == target
     ))

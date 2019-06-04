@@ -16,7 +16,7 @@ trait Source extends Contract {
   final def constructor(_balance: Uint256) = {
     // We temporarily use assume here but we must use something
     // that will be compiled so that this fails at runtime if invalid
-    ghost(assume(
+    ghost(dynRequire(
       Environment.contractAt(targetContract).isInstanceOf[Target] &&
       Environment.contractAt(targetContract).asInstanceOf[Target].addr == targetContract
     ))

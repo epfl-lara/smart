@@ -15,14 +15,14 @@ trait VRA extends Contract {
   @addressOfContract("VRB")
   val target: Address
 
-  @ghost
+  @ghost @inline
   final def invariant() = userBalance + contractBalance == totalCoins
 
   @solidityPublic
   final def constructor(_totalCoins: Uint256) = {
     // We temporarily use assume here but we must use something
     // that will be compiled so that this fails at runtime if invalid
-    ghost(assume(
+    ghost(dynRequire(
       Environment.contractAt(target).isInstanceOf[VRB] &&
       Environment.contractAt(target).asInstanceOf[VRB].addr == target
     ))

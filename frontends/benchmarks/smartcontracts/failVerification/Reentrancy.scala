@@ -19,7 +19,7 @@ trait RA extends Contract {
   final def constructor(_totalCoins: Uint256) = {
     // We temporarily use assume here but we must use something
     // that will be compiled so that this fails at runtime if invalid
-    ghost(assume(
+    ghost(dynRequire(
       Environment.contractAt(target).isInstanceOf[RB] &&
       Environment.contractAt(target).asInstanceOf[RB].addr == target
     ))

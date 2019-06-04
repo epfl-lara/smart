@@ -33,7 +33,7 @@ trait EVKB extends Contract {
   final def constructor(_balance: Uint256) = {
     // We temporarily use assume here but we must use something
     // that will be compiled so that this fails at runtime if invalid
-    ghost(assume(
+    ghost(dynRequire(
       Environment.contractAt(target).isInstanceOf[EVKA] &&
       Environment.contractAt(target).asInstanceOf[EVKA].addr == target
     ))

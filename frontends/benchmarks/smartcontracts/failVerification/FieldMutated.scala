@@ -15,7 +15,7 @@ trait FieldMutated extends Contract {
   final def constructor() = {
     // We temporarily use assume here but we must use something
     // that will be compiled so that this fails at runtime if invalid
-    ghost(assume(
+    ghost(dynRequire(
       Environment.contractAt(target).isInstanceOf[UnknownInterface] &&
       Environment.contractAt(target).asInstanceOf[UnknownInterface].addr == target
     ))

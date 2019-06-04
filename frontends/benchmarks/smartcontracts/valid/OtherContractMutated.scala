@@ -33,7 +33,7 @@ trait OCMA extends Contract {
   final def constructor() = {
     // We temporarily use assume here but we must use something
     // that will be compiled so that this fails at runtime if invalid
-    ghost(assume(
+    ghost(dynRequire(
       Environment.contractAt(target).isInstanceOf[OCMB] &&
       Environment.contractAt(target).asInstanceOf[OCMB].addr == target
     ))

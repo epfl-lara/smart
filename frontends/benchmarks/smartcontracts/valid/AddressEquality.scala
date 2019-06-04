@@ -15,7 +15,7 @@ trait AddressEquality extends Contract {
     // We temporarily use assume here but we must use something
     // that will be compiled so that this fails at runtime if invalid
     // Warning : This example should not be used as is.
-    ghost(assume(
+    ghost(dynRequire(
       Environment.contractAt(other).isInstanceOf[AddressEquality] &&
       Environment.contractAt(other).asInstanceOf[AddressEquality].addr == other &&
       other == Address(0) &&

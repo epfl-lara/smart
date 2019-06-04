@@ -22,7 +22,7 @@ trait SRDA extends Contract {
   final def constructor(_other: Address) = {
     // We temporarily use assume here but we must use something
     // that will be compiled so that this fails at runtime if invalid
-    ghost(assume(
+    ghost(dynRequire(
       Environment.contractAt(_other).isInstanceOf[SRDA] &&
       Environment.contractAt(_other).asInstanceOf[SRDA].addr == _other
     ))

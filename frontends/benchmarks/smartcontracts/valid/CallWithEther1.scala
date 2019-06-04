@@ -11,7 +11,7 @@ trait CallWithEther1 extends Contract {
   final def constructor() = {
     // We temporarily use assume here but we must use something
     // that will be compiled so that this fails at runtime if invalid
-    ghost(assume(
+    ghost(dynRequire(
       Environment.contractAt(other).isInstanceOf[CallWithEther1] &&
       Environment.contractAt(other).asInstanceOf[CallWithEther1].addr == other
     ))
