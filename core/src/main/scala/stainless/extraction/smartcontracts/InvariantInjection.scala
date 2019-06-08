@@ -132,12 +132,13 @@ trait InvariantInjection extends oo.SimplePhase
     }
 
     def withAssumes(body: Expr, condition: Expr): Expr = {
+      val pre = preconditionOf(body)
       val post = postconditionOf(body)
       val bodyWithoutSpecs = withoutSpecs(body).getOrElse(NoTree(body.getType))
 
       val assume = FunctionInvocation(assumeFunId, Seq(), Seq(condition))
 
-      withPostcondition(Block(Seq(assume), bodyWithoutSpecs), post)
+      withPrecondition(withPostcondition(Block(Seq(assume), bodyWithoutSpecs), post), pre)
     }
 
     override def transform(fd: FunDef): FunDef = fd match {
@@ -170,11 +171,6 @@ trait InvariantInjection extends oo.SimplePhase
           case v@ValDef(_, tpe, _) if tpe == envType => v.toVariable
         }.get
 
-        preconditionOf(fd.fullBody) match {
-          case None =>
-          case Some(x) => context.reporter.error("Constructor can not have a precondition")
-        }
-
         val refCastInvCall = FunctionInvocation(refCastInvariant.id, Seq(), Seq(envVar))
         val invariant = And(
           MethodInvocation(This(contract.typed.toType), invariants(contract.id).id, Seq(), Seq(envVar)),
@@ -193,6 +189,12 @@ trait InvariantInjection extends oo.SimplePhase
         val envVar = fd.params.collectFirst{
           case v@ValDef(_, tpe, _) if tpe == envType => v.toVariable
         }.get
+
+        preconditionOf(fd.fullBody) match {
+          case None =>
+          case Some(x) => throw SmartcontractException(fd, "Public contract method cannot have a precondition")
+                          
+        }
 
         val invariant = And(
           MethodInvocation(This(contract.typed.toType), invariants(contract.id).id, Seq(), Seq(envVar)),
