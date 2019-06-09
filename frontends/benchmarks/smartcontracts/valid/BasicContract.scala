@@ -1,7 +1,7 @@
 import stainless.smartcontracts._
 import stainless.annotation._
 
-trait BasicContract1 extends Contract {
+trait BasicContract extends Contract {
   val other: Address
 
   @solidityView

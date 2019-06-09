@@ -40,8 +40,7 @@ trait HavocInvariant2A extends Contract {
     // We temporarily use assume here but we must use something
     // that will be compiled so that this fails at runtime if invalid
     ghost(dynRequire(
-      Environment.contractAt(target).isInstanceOf[HavocInvariant2B] &&
-      Environment.contractAt(target).asInstanceOf[HavocInvariant2B].addr == target
+      Environment.contractAt(target).isInstanceOf[HavocInvariant2B]
     ))
   }
 }

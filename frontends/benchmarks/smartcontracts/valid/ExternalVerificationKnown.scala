@@ -4,7 +4,7 @@ import stainless.annotation._
 import stainless.lang._
 
 trait EVKA extends Contract {
-  var balance:Uint256
+  var balance: Uint256
 
   @ghost
   final def invariant() = {
@@ -25,17 +25,16 @@ trait EVKA extends Contract {
 }
 
 trait EVKB extends Contract {
-  var balance:Uint256
+  var balance: Uint256
   @addressOfContract("EVKA")
-  var target:Address
+  var target: Address
 
   @solidityPublic
   final def constructor(_balance: Uint256) = {
     // We temporarily use assume here but we must use something
     // that will be compiled so that this fails at runtime if invalid
     ghost(dynRequire(
-      Environment.contractAt(target).isInstanceOf[EVKA] &&
-      Environment.contractAt(target).asInstanceOf[EVKA].addr == target
+      Environment.contractAt(target).isInstanceOf[EVKA]
     ))
 
     dynRequire(_balance <= Uint256("120"))

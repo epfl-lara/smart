@@ -34,8 +34,7 @@ trait OCMA extends Contract {
     // We temporarily use assume here but we must use something
     // that will be compiled so that this fails at runtime if invalid
     ghost(dynRequire(
-      Environment.contractAt(target).isInstanceOf[OCMB] &&
-      Environment.contractAt(target).asInstanceOf[OCMB].addr == target
+      Environment.contractAt(target).isInstanceOf[OCMB]
     ))
   }
 

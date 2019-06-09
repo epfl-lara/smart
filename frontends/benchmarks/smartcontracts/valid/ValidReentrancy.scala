@@ -23,8 +23,7 @@ trait VRA extends Contract {
     // We temporarily use assume here but we must use something
     // that will be compiled so that this fails at runtime if invalid
     ghost(dynRequire(
-      Environment.contractAt(target).isInstanceOf[VRB] &&
-      Environment.contractAt(target).asInstanceOf[VRB].addr == target
+      Environment.contractAt(target).isInstanceOf[VRB]
     ))
 
     totalCoins = _totalCoins

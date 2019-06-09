@@ -11,8 +11,7 @@ trait PositiveVariableUser extends Contract {
     // We temporarily use assume here but we must use something
     // that will be compiled so that this fails at runtime if invalid
     ghost(dynRequire(
-      Environment.contractAt(target).isInstanceOf[PositiveVariable] &&
-      Environment.contractAt(target).asInstanceOf[PositiveVariable].addr == target
+      Environment.contractAt(target).isInstanceOf[PositiveVariable]
     ))
   }
 
@@ -26,6 +25,7 @@ trait PositiveVariableUser extends Contract {
 trait PositiveVariable extends Contract {
   var x: BigInt
 
+  @solidityPublic
   def g(): Unit
 
   @solidityPublic

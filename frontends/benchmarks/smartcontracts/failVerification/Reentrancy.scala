@@ -20,8 +20,7 @@ trait RA extends Contract {
     // We temporarily use assume here but we must use something
     // that will be compiled so that this fails at runtime if invalid
     ghost(dynRequire(
-      Environment.contractAt(target).isInstanceOf[RB] &&
-      Environment.contractAt(target).asInstanceOf[RB].addr == target
+      Environment.contractAt(target).isInstanceOf[RB]
     ))
 
     userBalance = Uint256.ZERO

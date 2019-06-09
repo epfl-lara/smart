@@ -1,6 +1,6 @@
 import stainless.smartcontracts._
 
-trait BasicInterface1 extends ContractInterface {
+trait BasicInterface extends ContractInterface {
   def foo: Unit
   def bar = true
 }

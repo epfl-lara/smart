@@ -2,12 +2,12 @@ import stainless.smartcontracts._
 import stainless.annotation._
 import stainless.lang._
 
+import Environment._
+
 trait C1 extends Contract {
-  @solidityPure
+  @solidityView
   @solidityPublic
-  final def f() = {
-    dynRequire(Msg.sender == Address(10))
-  }
+  final def f(): Address = Msg.sender
 }
 
 trait C2 extends Contract {
@@ -17,9 +17,7 @@ trait C2 extends Contract {
   @solidityView
   @solidityPublic
   final def g() = {
-    dynRequire(addr == Address(10))
-
-    Environment.contractAt(a).asInstanceOf[C1].f()
+    assert(Environment.contractAt(a).asInstanceOf[C1].f() == addr)
   }
 
   @solidityPublic
@@ -27,8 +25,7 @@ trait C2 extends Contract {
     // We temporarily use assume here but we must use something
     // that will be compiled so that this fails at runtime if invalid
     ghost(dynRequire(
-      Environment.contractAt(a).isInstanceOf[C1] &&
-      Environment.contractAt(a).asInstanceOf[C1].addr == a
+      Environment.contractAt(a).isInstanceOf[C1]
     ))
   }
 }

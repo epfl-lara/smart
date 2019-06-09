@@ -2,6 +2,8 @@ import stainless.smartcontracts._
 import stainless.annotation._
 import stainless.lang._
 
+import Environment._
+
 trait OwnedContract extends Contract {
   var owner: Address
 
@@ -14,7 +16,7 @@ trait OwnedContract extends Contract {
     )
 
     if(Msg.sender == owner) {
-      owner.transfer(addr.balance)
+      Msg.sender.transfer(addr.balance)
     }
   } ensuring { _ =>
     ((Msg.sender == owner) ==> (addr.balance == Uint256.ZERO)) &&

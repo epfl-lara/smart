@@ -2,6 +2,8 @@ import stainless.smartcontracts._
 import stainless.annotation._
 import stainless.lang._
 
+import Environment._
+
 trait SRDA extends Contract {
   var x: Uint256
 
@@ -23,8 +25,7 @@ trait SRDA extends Contract {
     // We temporarily use assume here but we must use something
     // that will be compiled so that this fails at runtime if invalid
     ghost(dynRequire(
-      Environment.contractAt(_other).isInstanceOf[SRDA] &&
-      Environment.contractAt(_other).asInstanceOf[SRDA].addr == _other
+      Environment.contractAt(_other).isInstanceOf[SRDA]
     ))
 
     dynRequire(_other != addr)
@@ -32,5 +33,7 @@ trait SRDA extends Contract {
   }
 
   @solidityPublic
-  final def increment() = x = x + Uint256.ONE
+  final def increment() = {
+    x = x + Uint256.ONE
+  }
 }

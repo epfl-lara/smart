@@ -18,8 +18,7 @@ trait HIPM1 extends Contract {
     // We temporarily use assume here but we must use something
     // that will be compiled so that this fails at runtime if invalid
     ghost(dynRequire(
-      Environment.contractAt(other).isInstanceOf[HIPM2] &&
-      Environment.contractAt(other).asInstanceOf[HIPM2].addr == other
+      Environment.contractAt(other).isInstanceOf[HIPM2]
     ))
 
     x = Uint256.ONE

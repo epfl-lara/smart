@@ -3,8 +3,10 @@ import stainless.smartcontracts.Environment._
 import stainless.annotation._
 import stainless.lang._
 
-trait CallWithEther1 extends Contract {
-  @addressOfContract("CallWithEther1")
+import Environment._
+
+trait CallWithEther extends Contract {
+  @addressOfContract("CallWithEther")
   val other: Address
 
   @solidityPublic
@@ -12,23 +14,22 @@ trait CallWithEther1 extends Contract {
     // We temporarily use assume here but we must use something
     // that will be compiled so that this fails at runtime if invalid
     ghost(dynRequire(
-      Environment.contractAt(other).isInstanceOf[CallWithEther1] &&
-      Environment.contractAt(other).asInstanceOf[CallWithEther1].addr == other
+      contractAt(other).isInstanceOf[CallWithEther]
     ))
   }
 
   @solidityPublic
   def foo() = {
     dynRequire(
-      this.addr.balance == Uint256("50") &&
+      addr.balance == Uint256("50") &&
       other.balance == Uint256("0")
     )
 
-    pay(contractAt(other).asInstanceOf[CallWithEther1].bar, Uint256("50"))
+    pay(contractAt(other).asInstanceOf[CallWithEther].bar, Uint256("50"))
 
     assert(
       other.balance == Uint256("50") &&
-      this.addr.balance == Uint256("0")
+      addr.balance == Uint256("0")
     )
   }
 

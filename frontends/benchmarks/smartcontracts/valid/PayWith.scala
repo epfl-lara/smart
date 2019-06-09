@@ -2,6 +2,8 @@ import stainless.smartcontracts._
 import stainless.annotation._
 import stainless.lang._
 
+import Environment._
+
 trait Target extends Contract {
   @solidityPayable
   @solidityPublic
@@ -17,8 +19,7 @@ trait Source extends Contract {
     // We temporarily use assume here but we must use something
     // that will be compiled so that this fails at runtime if invalid
     ghost(dynRequire(
-      Environment.contractAt(targetContract).isInstanceOf[Target] &&
-      Environment.contractAt(targetContract).asInstanceOf[Target].addr == targetContract
+      Environment.contractAt(targetContract).isInstanceOf[Target]
     ))
   }
 

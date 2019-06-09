@@ -10,12 +10,11 @@ trait CouplingInvariantA extends Contract {
 
   @ghost
   final def invariant() = balance >= Environment.contractAt(target).asInstanceOf[CouplingInvariantB].balance
-  
+
   @solidityPublic
   final def constructor() = {
     ghost(dynRequire(
-      Environment.contractAt(target).isInstanceOf[CouplingInvariantB] &&
-      Environment.contractAt(target).asInstanceOf[CouplingInvariantB].addr == target
+      Environment.contractAt(target).isInstanceOf[CouplingInvariantB]
     ))
 
     balance = Environment.contractAt(target).asInstanceOf[CouplingInvariantB].balance

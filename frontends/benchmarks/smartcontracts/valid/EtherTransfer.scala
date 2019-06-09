@@ -1,8 +1,10 @@
 import stainless.smartcontracts._
 import stainless.annotation._
 
-trait EtherTransfer1 extends Contract {
-  val other: Address
+import Environment._
+
+trait EtherTransfer extends Contract {
+  val other: PayableAddress
 
   @solidityPublic
   def foo(): Unit = {

@@ -2,6 +2,8 @@ import stainless.smartcontracts._
 import stainless.annotation._
 import stainless.lang._
 
+import Environment._
+
 trait UnknownInterfaceA extends Contract {
   @solidityPublic
   def balance(a: Address): Uint256
@@ -21,8 +23,7 @@ trait TCIB extends Contract {
     // We temporarily use assume here but we must use something
     // that will be compiled so that this fails at runtime if invalid
     ghost(dynRequire(
-      Environment.contractAt(target).isInstanceOf[UnknownInterfaceA] &&
-      Environment.contractAt(target).asInstanceOf[UnknownInterfaceA].addr == target
+      Environment.contractAt(target).isInstanceOf[UnknownInterfaceA]
     ))
 
     dynRequire(_balance >= Uint256.ONE)
@@ -37,7 +38,7 @@ trait TCIB extends Contract {
   final def transfer(to: Address, amount: Uint256):Unit = {
     if(balance > Uint256.ZERO && balance - Uint256.ONE > amount) {
       balance = balance - amount
-      Environment.contractAt(target).asInstanceOf[UnknownInterfaceA].transfer(this.addr, to, amount)
+      Environment.contractAt(target).asInstanceOf[UnknownInterfaceA].transfer(addr, to, amount)
     }
   }
 
@@ -56,14 +57,13 @@ trait TCIA extends Contract {
     // We temporarily use assume here but we must use something
     // that will be compiled so that this fails at runtime if invalid
     ghost(dynRequire(
-      Environment.contractAt(target).isInstanceOf[TCIB] &&
-      Environment.contractAt(target).asInstanceOf[TCIB].addr == target
+      Environment.contractAt(target).isInstanceOf[TCIB]
     ))
   }
 
   @solidityPublic
   final def foo() = {
-    Environment.contractAt(target).asInstanceOf[TCIB].transfer(this.addr, Uint256.ONE)
+    Environment.contractAt(target).asInstanceOf[TCIB].transfer(addr, Uint256.ONE)
   }
 
 }

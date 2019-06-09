@@ -24,8 +24,7 @@ trait InvariantAcyclicity1 extends Contract {
     // We temporarily use assume here but we must use something
     // that will be compiled so that this fails at runtime if invalid
     ghost(dynRequire(
-      Environment.contractAt(target).isInstanceOf[InvariantAcyclicity2] &&
-      Environment.contractAt(target).asInstanceOf[InvariantAcyclicity2].addr == target
+      Environment.contractAt(target).isInstanceOf[InvariantAcyclicity2]
     ))
 
     dynRequire(_balance >= Uint256.ONE)
@@ -42,8 +41,7 @@ trait InvariantAcyclicity2 extends Contract {
     // We temporarily use assume here but we must use something
     // that will be compiled so that this fails at runtime if invalid
     ghost(dynRequire(
-      Environment.contractAt(target).isInstanceOf[InvariantAcyclicity1] &&
-      Environment.contractAt(target).asInstanceOf[InvariantAcyclicity1].addr == target
+      Environment.contractAt(target).isInstanceOf[InvariantAcyclicity1]
     ))
   }
 }

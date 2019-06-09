@@ -18,6 +18,7 @@ trait PrivateMethodValid extends Contract {
     balance = clamp(newBalance)
   }
 
+  @solidityPrivate
   final def clamp(x: Uint256) = {
     if(x >= Uint256("20")) x
     else Uint256("20")

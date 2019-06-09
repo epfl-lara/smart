@@ -1,14 +1,16 @@
 import stainless.smartcontracts._
 import stainless.annotation._
 
-trait DynRequire1 extends Contract {
+import Environment._
+
+trait DynRequire extends Contract {
   @solidityView
   @solidityPublic
   def foo() = {
-    // Solidity require
+    // Solidity dynamic require
     dynRequire(addr.balance == Uint256("42"))
 
-    // Stainless assertion
+    // Stainless static assertion
     assert(addr.balance == Uint256("42"))
   }
 }
