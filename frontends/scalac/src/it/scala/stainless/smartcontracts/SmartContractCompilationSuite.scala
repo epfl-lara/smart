@@ -34,7 +34,7 @@ class SmartContractSolcSuite extends SmartContractSuite {
       val cmd = s"solc ${args.mkString(" ")}"
       test(cmd) {
         val (std, exitCode) = runCommand(cmd)
-        if (exitCode == 0 && !std.isEmpty)
+        if (exitCode == 0 && std.mkString != "Compiler run successful, no output requested.")
           println("solc output:\n" + std.mkString("\n"))
         assert(exitCode == 0, "solc failed with output:\n" + std.mkString("\n"))
       }
