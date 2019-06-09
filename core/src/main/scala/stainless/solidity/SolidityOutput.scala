@@ -128,12 +128,13 @@ trait SolidityOutput {
   }
 
   def transformExpr(expr: Expr): SolidityExpr = expr match {
-    // Transform call to field addr of a contract
-    case MethodInvocation(rcv, id, _, args) if isIdentifier("stainless.smartcontracts.ContractInterface.addr", id) =>
-      rcv match {
-        case This(_) => SAddress(SVariable("this"))
-        case ClassSelector(_, selector) => SAddress(SVariable(selector.name))
-      }
+    // Transform call to Environment.addr to `address(this)`
+    case FunctionInvocation(id, Seq(), Seq()) if isIdentifier("stainless.smartcontracts.Environment.addr", id) =>
+      SAddress(SVariable("this"))
+
+    // Transform calls `toPayableAddress(a)` to casts using `address(uint160(a))`
+    case FunctionInvocation(id, Seq(), Seq(a)) if isIdentifier("stainless.smartcontracts.toPayableAddress", id) =>
+      SAddress(SFunctionInvocation("uint160", Seq(transformExpr(a))))
 
     // Transform call to field transfer of an address
     case MethodInvocation(rcv, id, _, Seq(amount)) if isIdentifier("stainless.smartcontracts.Address.transfer", id) =>
@@ -143,8 +144,11 @@ trait SolidityOutput {
     case MethodInvocation(rcv, id, _, Seq(receiver)) if isIdentifier("stainless.smartcontracts.ContractInterface.selfdestruct", id) =>
       SSelfDestruct(transformExpr(receiver))
 
-    // Desugar call to method balance on class address
-    case MethodInvocation(rcv, id, _, _) if isIdentifier("stainless.smartcontracts.Address.balance", id) =>
+    // Desugar call to method balance on class Address or PayableAddress
+    case MethodInvocation(rcv, id, _, _) if
+      isIdentifier("stainless.smartcontracts.Address.balance", id) ||
+      isIdentifier("stainless.smartcontracts.PayableAddress.balance", id) =>
+
       val srcv = transformExpr(rcv)
       SClassSelector(srcv, "balance")
 
@@ -449,8 +453,7 @@ trait SolidityOutput {
     val methods = cd.methods(symbols)
                     .map(symbols.functions)
                     .filterNot(functionShouldBeDiscarded)
-                    .filter(fd => !fd.flags.contains(xt.IsInvariant) &&
-                                  !isIdentifier("stainless.smartcontracts.ContractInterface.addr", fd.id))
+                    .filter(fd => !fd.flags.contains(xt.IsInvariant))
                     .map(transformAbstractMethods)
 
     SContractInterface(cd.id.name, Seq(), methods)
@@ -468,8 +471,7 @@ trait SolidityOutput {
     val methods = cd.methods(symbols).map(symbols.functions).filterNot(functionShouldBeDiscarded)
 
     val newMethods = methods.filter(fd => !fd.flags.contains(xt.IsInvariant) &&
-                                          !fd.flags.contains(xt.Ghost) &&
-                                          !isIdentifier("stainless.smartcontracts.ContractInterface.addr", fd.id))
+                                          !fd.flags.contains(xt.Ghost))
                               .map(transformMethod)
 
     val constructor = transformConstructor(cd)
