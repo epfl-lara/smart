@@ -161,7 +161,7 @@ package object smartcontracts {
 
   @library
   @keep("smart-contracts")
-  implicit def toPayableAddress(a: Address): PayableAddress = PayableAddress(a.id)
+  def toPayableAddress(a: Address): PayableAddress = PayableAddress(a.id)
 
   @library @mutable
   @keep("smart-contracts")
