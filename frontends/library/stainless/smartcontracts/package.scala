@@ -9,9 +9,6 @@ import scala.language.implicitConversions
 
 package object smartcontracts {
   @library @inline
-  def address(c: ContractInterface): Address = c.addr
-
-  @library @inline
   def unsafeIgnoreCode[T](code: T) = code
 
   @library @inline
@@ -85,7 +82,10 @@ package object smartcontracts {
 
   @keep("smart-contracts")
   object Environment {
-    @library @extern
+    @library @extern @pure
+    def addr(): Address = ???
+
+    @library @extern @pure
     def balanceOf(addr: Address): Uint256 = ???
 
     @library @extern
@@ -165,9 +165,7 @@ package object smartcontracts {
 
   @library @mutable
   @keep("smart-contracts")
-  trait ContractInterface {
-    val addr: Address
-  }
+  trait ContractInterface
 
   @library @mutable
   @keep("smart-contracts")
