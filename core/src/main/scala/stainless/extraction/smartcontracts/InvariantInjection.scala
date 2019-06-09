@@ -32,7 +32,6 @@ trait InvariantInjection extends oo.SimplePhase
     val contractInterfaceCd: ClassDef = symbols.lookup[ClassDef]("stainless.smartcontracts.ContractInterface")
     val contractInterfaceType: ClassType = contractInterfaceCd.typed.toType
     val addressType = symbols.lookup[ClassDef]("stainless.smartcontracts.Address").typed.toType
-    val addressAccessorId = symbols.lookup[FunDef]("stainless.smartcontracts.ContractInterface.addr").id
 
     val assumeFunId = symbols.lookup[FunDef]("stainless.smartcontracts.assume").id
 
@@ -76,15 +75,11 @@ trait InvariantInjection extends oo.SimplePhase
       val envVd = ValDef.fresh("env", envType)
       val envVar = envVd.toVariable
 
-      val body = if(contractReferences.isEmpty) BooleanLiteral(true)
-      else contractReferences.map{ case (contract, ref) =>
-        val addrEquality = Equals(ref,
-            MethodInvocation(
-              AsInstanceOf(MutableMapApply(ClassSelector(envVar, contractAtAccessor), ref), contract.typed.toType),
-              addressAccessorId, Seq(), Seq()))
-        val isInstanceOff = IsInstanceOf(MutableMapApply(ClassSelector(envVar, contractAtAccessor), ref), contract.typed.toType)
-        And(isInstanceOff, addrEquality)
-      }.reduce(And(_,_))
+      val body =
+        if (contractReferences.isEmpty) BooleanLiteral(true)
+        else contractReferences.map { case (contract, ref) =>
+          IsInstanceOf(MutableMapApply(ClassSelector(envVar, contractAtAccessor), ref), contract.typed.toType): Expr
+        }.reduce(And(_,_))
 
       new FunDef(
         ast.SymbolIdentifier("refCastInvariant"),
@@ -117,13 +112,7 @@ trait InvariantInjection extends oo.SimplePhase
       }
 
       val newBody = addrCalls.map { case (addrCall, cd) =>
-        val addrEquality = Equals(addrCall,
-            MethodInvocation(
-              AsInstanceOf(MutableMapApply(ClassSelector(envVar, contractAtAccessor), addrCall), cd.typed.toType),
-              addressAccessorId, Seq(), Seq()))
-        val isInstanceOff = IsInstanceOf(MutableMapApply(ClassSelector(envVar, contractAtAccessor), addrCall), cd.typed.toType)
-
-        And(isInstanceOff, addrEquality)
+        IsInstanceOf(MutableMapApply(ClassSelector(envVar, contractAtAccessor), addrCall), cd.typed.toType): Expr
       }.foldRight(invBody)(And(_,_))
 
       fd.copy(
@@ -192,7 +181,7 @@ trait InvariantInjection extends oo.SimplePhase
 
         preconditionOf(fd.fullBody) match {
           case None =>
-          case Some(x) => throw SmartcontractException(fd, "Public contract method cannot have a precondition")
+          case Some(x) => throw SmartContractException(fd, "Public contract method cannot have a precondition")
                           
         }
 

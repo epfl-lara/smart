@@ -42,8 +42,8 @@ trait EnvironmentBuilder extends oo.SimplePhase
     val balancesAccessor: ValDef = envCd.fields.find(vd => isIdentifier("stainless.smartcontracts.Environment.balances", vd.id)).get
     val envUpdateBalance: FunDef = envCd.methods.map(symbols.functions).find(fd => isIdentifier("stainless.smartcontracts.Environment.updateBalance", fd.id)).get
     val contractAtAccessor: ValDef = envCd.fields.find(vd => isIdentifier("stainless.smartcontracts.Environment.contractAt", vd.id)).get
-    val addressAccessor: FunDef = symbols.lookup[FunDef]("stainless.smartcontracts.ContractInterface.addr")
     val transferFd: FunDef = symbols.lookup[FunDef]("stainless.smartcontracts.PayableAddress.transfer")
+    val addrFd: FunDef = symbols.lookup[FunDef]("stainless.smartcontracts.Environment.addr")
 
     val toPayableAddressFd: FunDef = symbols.lookup[FunDef]("stainless.smartcontracts.toPayableAddress")
 
@@ -137,9 +137,9 @@ trait EnvironmentBuilder extends oo.SimplePhase
 
         case mi@MethodInvocation(address, id, Seq(), Seq(amount)) if isIdentifier("stainless.smartcontracts.AddressPayable.transfer", id) =>
           if (contractType.isEmpty) {
-            throw SmartcontractException(symbols.getFunction(id), "Function transfer can only be used within a contract.")
+            throw SmartContractException(symbols.getFunction(id), "Function transfer can only be used within a contract.")
           }
-          val addr = MethodInvocation(This(contractType.get), addressAccessor.id, Seq(), Seq()).setPos(mi)
+          val addr = FunctionInvocation(addrFd.id, Seq(), Seq())
           val newMsg = ClassConstructor(msgType, Seq(addr, uzero))
           Some(MethodInvocation(address, transferFd.id, Seq(), Seq(transform(amount), env, newMsg)).setPos(mi))
 
@@ -170,17 +170,17 @@ trait EnvironmentBuilder extends oo.SimplePhase
       val newBody = postMap {
         case fi@FunctionInvocation(id, _, Seq(method: MethodInvocation, amount)) if isIdentifier("stainless.smartcontracts.pay", id) =>
           if(!symbols.getFunction(method.id).isPayable)
-            throw SmartcontractException(method, "The function must be annotated as payable")
+            throw SmartContractException(method, "The function must be annotated as payable")
 
           if(!symbols.getFunction(method.id).isInSmartContract)
-            throw SmartcontractException(method, "The function must be a method of a contract class or interface")
+            throw SmartContractException(method, "The function must be a method of a contract class or interface")
 
           val cd = fd.flags.collectFirst {
             case IsMethodOf(cid) => symbols.getClass(cid)
           }.get
           val thisRef = This(cd.typed.toType)
 
-          val senderAddress = MethodInvocation(thisRef, addressAccessor.id, Seq(), Seq()).setPos(fi)
+          val senderAddress = FunctionInvocation(addrFd.id, Seq(), Seq()).setPos(fi)
           val AsInstanceOf(MutableMapApply(_, receiverAddress), _) = method.receiver
           val envUpdateCall = MethodInvocation(env, envUpdateBalance.id, Seq(), Seq(senderAddress, receiverAddress, amount))
 
@@ -197,7 +197,7 @@ trait EnvironmentBuilder extends oo.SimplePhase
           }.get
 
           val thisRef = This(cd.typed.toType)
-          val addr = MethodInvocation(thisRef, addressAccessor.id, Seq(), Seq()).setPos(mi)
+          val addr = FunctionInvocation(addrFd.id, Seq(), Seq()).setPos(mi)
           val newMsg = ClassConstructor(msgType, Seq(FunctionInvocation(toPayableAddressFd.id, Seq(), Seq(addr)), uzero))
 
           val newArgs = args ++ paramsMapper(newMsg, env, implicitParameters(symbols.functions(mi.id)))

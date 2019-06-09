@@ -31,7 +31,6 @@ trait ContractMethodLifting extends oo.SimplePhase
     val envCd = symbols.lookup[ClassDef]("stainless.smartcontracts.Environment")
     val envType = envCd.typed.toType
     val contractAtId = envCd.fields.find(vd => isIdentifier("stainless.smartcontracts.Environment.contractAt", vd.id)).get.id
-    val addrFieldId = symbols.lookup[FunDef]("stainless.smartcontracts.ContractInterface.addr").id
 
     val assumeFunId = symbols.lookup[FunDef]("stainless.smartcontracts.assume").id
 
@@ -42,7 +41,7 @@ trait ContractMethodLifting extends oo.SimplePhase
 
     def processBody(body: Expr, env: Variable, callee: Variable): Expr = {
       postMap {
-        case This(tp) => 
+        case This(tp) =>
           Some(AsInstanceOf(MutableMapApply(ClassSelector(env, contractAtId), callee), tp))
 
         case MethodInvocation(This(receiverType), id, tps, args) if toProcess(id) =>
@@ -52,8 +51,11 @@ trait ContractMethodLifting extends oo.SimplePhase
           Some(FunctionInvocation(id, tps, args ++ Seq(recv)))
 
         case MethodInvocation(receiver, id, tps, args) if toProcess(id) =>
-          val AsInstanceOf(MutableMapApply(ClassSelector(_, _), calleeAddr), _) = receiver 
+          val AsInstanceOf(MutableMapApply(ClassSelector(_, _), calleeAddr), _) = receiver
           Some(FunctionInvocation(id, tps, args ++ Seq(calleeAddr)))
+
+        case FunctionInvocation(id, Seq(), Seq()) if isIdentifier("stainless.smartcontracts.Environment.addr", id) =>
+          Some(callee)
 
         case _ => None
       }(body)
@@ -72,20 +74,17 @@ trait ContractMethodLifting extends oo.SimplePhase
         val newParams = fd.params :+ calleeVd
 
         val (Seq(pre,post), bodyOpt) = deconstructSpecs(processBody(fd.fullBody, envVar, calleeVd.toVariable))
-        
+
         val calleeContract = MutableMapApply(ClassSelector(envVar, contractAtId), calleeVd.toVariable)
         val calleeIsInstanceOf = IsInstanceOf(calleeContract, contractType)
-        val calleeAddrEquality = Equals(calleeVd.toVariable,
-                                 MethodInvocation(AsInstanceOf(calleeContract, contractType), addrFieldId, Seq(), Seq()))
 
-        
         val body = bodyOpt.getOrElse(NoTree(fd.returnType))
 
         val newBody = if(fd.isContractMethod && !fd.isAbstract) {
-          val tmp = Block(Seq(FunctionInvocation(assumeFunId, Seq(), Seq(And(calleeIsInstanceOf, calleeAddrEquality)))), body)
+          val tmp = Block(Seq(FunctionInvocation(assumeFunId, Seq(), Seq(calleeIsInstanceOf))), body)
           reconstructSpecs(Seq(pre, post), Some(tmp), fd.returnType)
         } else if(fd.isInvariant) {
-          And(And(calleeIsInstanceOf, calleeAddrEquality), body)
+          And(calleeIsInstanceOf, body)
         } else reconstructSpecs(Seq(pre, post), Some(body), fd.returnType)
 
         super.transform(fd.copy(

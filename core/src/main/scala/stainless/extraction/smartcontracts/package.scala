@@ -20,11 +20,11 @@ package object smartcontracts {
     object printer extends Printer { val trees: smartcontracts.trees.type = smartcontracts.trees }
   }
 
-  class SmartcontractException(tree: inox.ast.Trees#Tree, msg: String)
+  class SmartContractException(tree: inox.ast.Trees#Tree, msg: String)
     extends MalformedStainlessCode(tree, msg)
 
-  object SmartcontractException {
-    def apply(tree: inox.ast.Trees#Tree, msg: String) = new SmartcontractException(tree, msg)
+  object SmartContractException {
+    def apply(tree: inox.ast.Trees#Tree, msg: String) = new SmartContractException(tree, msg)
   }
 
   val contractID = "stainless.smartcontracts.Contract"
