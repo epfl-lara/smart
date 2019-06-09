@@ -33,6 +33,8 @@ trait ContractMethodLifting extends oo.SimplePhase
     val contractAtId = envCd.fields.find(vd => isIdentifier("stainless.smartcontracts.Environment.contractAt", vd.id)).get.id
     val addrFieldId = symbols.lookup[FunDef]("stainless.smartcontracts.ContractInterface.addr").id
 
+    val assumeFunId = symbols.lookup[FunDef]("stainless.smartcontracts.assume").id
+
     def toProcess(id: Identifier) = symbols.functions(id) match {
       case fd if fd.isContractMethod || fd.isInvariant || fd.isHavoc => true
       case _ => false
@@ -80,8 +82,8 @@ trait ContractMethodLifting extends oo.SimplePhase
         val body = bodyOpt.getOrElse(NoTree(fd.returnType))
 
         val newBody = if(!fd.isInvariant) {
-          val newPre = Precondition(And(calleeIsInstanceOf, calleeAddrEquality))
-          reconstructSpecs(Seq(newPre, post), Some(body), fd.returnType)
+          val tmp = Block(Seq(FunctionInvocation(assumeFunId, Seq(), Seq(And(calleeIsInstanceOf, calleeAddrEquality)))), body)
+          reconstructSpecs(Seq(pre, post), Some(tmp), fd.returnType)
         } else {
           And(And(calleeIsInstanceOf, calleeAddrEquality), body)
         }
