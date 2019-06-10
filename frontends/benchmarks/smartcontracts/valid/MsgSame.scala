@@ -7,7 +7,7 @@ trait MsgSame extends Contract {
 
   @solidityPublic
   def g(a: Address) = {
-    require(a.equals(Msg.sender))
+    dynRequire(a == Msg.sender)
 
   }
 }

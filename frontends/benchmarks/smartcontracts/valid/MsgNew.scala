@@ -6,7 +6,7 @@ trait C1 extends Contract {
   @solidityPure
   @solidityPublic
   final def f() = {
-    require(Msg.sender.equals(Address(10)))
+    dynRequire(Msg.sender == Address(10))
   }
 }
 
@@ -17,7 +17,7 @@ trait C2 extends Contract {
   @solidityView
   @solidityPublic
   final def g() = {
-    require(addr.equals(Address(10)))
+    dynRequire(addr == Address(10))
 
     Environment.contractAt(a).asInstanceOf[C1].f()
   }

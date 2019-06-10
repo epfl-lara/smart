@@ -35,8 +35,7 @@ trait PositiveVariable extends Contract {
   }
 
   @solidityPublic
-  @pure
-  final def getX():BigInt = x
+  final def getX(): BigInt = x
 
   @ghost
   final def invariant(): Boolean = x >= 0
