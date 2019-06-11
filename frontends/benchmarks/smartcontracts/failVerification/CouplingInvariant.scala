@@ -1,5 +1,6 @@
 import stainless.smartcontracts._
 import stainless.annotation._
+import stainless.lang.ghost
 
 trait CouplingInvariantA extends Contract {
   var balance: Uint256
@@ -12,8 +13,10 @@ trait CouplingInvariantA extends Contract {
   
   @solidityPublic
   final def constructor() = {
-    dynRequire(Environment.contractAt(target).isInstanceOf[CouplingInvariantB] &&
-                Environment.contractAt(target).asInstanceOf[CouplingInvariantB].addr == target)
+    ghost(dynRequire(
+      Environment.contractAt(target).isInstanceOf[CouplingInvariantB] &&
+      Environment.contractAt(target).asInstanceOf[CouplingInvariantB].addr == target
+    ))
 
     balance = Environment.contractAt(target).asInstanceOf[CouplingInvariantB].balance
   }
