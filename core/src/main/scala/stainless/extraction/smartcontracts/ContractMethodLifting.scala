@@ -81,12 +81,12 @@ trait ContractMethodLifting extends oo.SimplePhase
         
         val body = bodyOpt.getOrElse(NoTree(fd.returnType))
 
-        val newBody = if(!fd.isInvariant) {
+        val newBody = if(fd.isContractMethod && !fd.isAbstract) {
           val tmp = Block(Seq(FunctionInvocation(assumeFunId, Seq(), Seq(And(calleeIsInstanceOf, calleeAddrEquality)))), body)
           reconstructSpecs(Seq(pre, post), Some(tmp), fd.returnType)
-        } else {
+        } else if(fd.isInvariant) {
           And(And(calleeIsInstanceOf, calleeAddrEquality), body)
-        }
+        } else reconstructSpecs(Seq(pre, post), Some(body), fd.returnType)
 
         super.transform(fd.copy(
           flags = fd.flags.filterNot{ case IsMethodOf(_) => true case _ => false},
