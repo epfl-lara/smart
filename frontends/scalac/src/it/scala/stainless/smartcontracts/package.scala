@@ -32,12 +32,10 @@ package object utils {
   def runMainWithArgs(args: Array[String]) = {
     val ctx = Main.setup(args).copy(reporter = new inox.TestSilentReporter())
     val compilerArgs = args.toList filterNot { _.startsWith("--") }
-    def newCompiler() = frontend.build(ctx, compilerArgs, stainless.Main.factory)
-    var compiler = newCompiler()
+    var compiler = frontend.build(ctx, compilerArgs, stainless.Main.factory)
     ctx.reporter.info(s"Running: stainless ${args.mkString(" ")}")
     compiler.run()
     compiler.join()
-    compiler.getReport foreach { _.emit(ctx) }
     compiler.getReport
   }
 }
