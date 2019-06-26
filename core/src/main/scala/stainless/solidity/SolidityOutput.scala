@@ -270,6 +270,9 @@ trait SolidityOutput {
     case FunctionInvocation(id, _, _) if isIdentifier("stainless.smartcontracts.unsafeIgnoreCode", id) =>
       STerminal()
 
+    case FunctionInvocation(id, Seq(contract), Seq(a)) if isIdentifier("stainless.smartcontracts.Environment.unsafeCast", id) =>
+      SAddressCast(transformType(contract), transformExpr(a))
+
     case FunctionInvocation(id, _, args) =>
       assert(symbols.functions.contains(id), "Symbols do not contain the function: " + id)
       val f = symbols.functions(id)
@@ -420,7 +423,6 @@ trait SolidityOutput {
     } else if (name == "constructor") {
       true
     } else if (name == "$init") {
-      ctx.reporter.warning("Ignoring a method named `$init` (you can safely ignore this warning if you have no such method).")
       true
     } else {
       fd.isAccessor || fd.isField
