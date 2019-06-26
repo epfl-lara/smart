@@ -7,7 +7,7 @@ import java.io.File
 
 package object utils {
   def runCommand(cmd: String): (List[String], Int) = {
-    val std = scala.collection.mutable.ListBuffer[String]() 
+    val std = scala.collection.mutable.ListBuffer[String]()
     val exitCode = cmd ! ProcessLogger(std append _)
     (std.toList, exitCode)
   }
