@@ -3,10 +3,10 @@ import stainless.annotation._
 
 trait MsgSame extends Contract {
   @solidityPublic
-  def f() = g(Msg.sender)
+  final def f() = g(Msg.sender)
 
   @solidityPrivate
-  def g(a: Address) = {
+  final def g(a: Address) = {
     dynRequire(a == Msg.sender)
 
   }

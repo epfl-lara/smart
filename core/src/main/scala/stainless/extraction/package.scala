@@ -30,8 +30,6 @@ package object extraction {
     "EnvironmentBuilder"        -> "Give semantics to Msg.sender and smart contracts environment",
     "InvariantInjection"        -> "Inject and update the invariants of each contract",
     "HavocInjection"            -> "Inject a havoc method in each Contract that can be used to reset variables to arbirary values",
-    //"EtherUpdateInjection"      -> "Inject a method that checks if the global invariant holds under increase of ether for any address",
-    "ContractMethodLifting"      -> "Lift the method of contract outside of their enclosing contract",
     "InnerClasses"              -> "Lift inner classes",
     "Laws"                      -> "Rewrite laws as abstract functions with contracts",
     "SuperCalls"                -> "Resolve super-function calls",
@@ -91,6 +89,9 @@ package object extraction {
   }
 
   case class MalformedStainlessCode(tree: inox.ast.Trees#Tree, msg: String)
+    extends Exception(msg)
+
+  case class MalformedSmartContract(tree: inox.ast.Trees#Tree, msg: String)
     extends Exception(msg)
 
   def pipeline(implicit ctx: inox.Context): StainlessPipeline = {

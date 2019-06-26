@@ -7,7 +7,7 @@ trait EtherTransfer extends Contract {
   val other: PayableAddress
 
   @solidityPublic
-  def foo(): Unit = {
+  final def foo(): Unit = {
     dynRequire(
       addr.balance == Uint256("50") &&
       other.balance == Uint256("0"))

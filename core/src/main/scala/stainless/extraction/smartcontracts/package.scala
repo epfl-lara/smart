@@ -45,9 +45,6 @@ package object smartcontracts {
       utils.DebugPipeline("EnvironmentBuilder", EnvironmentBuilder()) andThen
       utils.DebugPipeline("HavocInjection", HavocInjection()) andThen
       utils.DebugPipeline("InvariantInjection", InvariantInjection()) andThen
-      utils.DebugPipeline("ContractMethodLifting", ContractMethodLifting()) andThen
-      // Need to establish if this phase is sound
-      //utils.DebugPipeline("EtherUpdateInjection", EtherUpdateInjection()) andThen
       lowering
     } else {
       lowering

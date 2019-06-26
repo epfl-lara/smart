@@ -1,7 +1,9 @@
 import stainless.smartcontracts._
 import stainless.lang._
 import stainless.annotation._
-import stainless.lang._
+import stainless.lang.StaticChecks._
+
+import Environment._
 
 trait EVKA extends Contract {
   var balance: Uint256
@@ -19,24 +21,17 @@ trait EVKA extends Contract {
 
   @solidityPublic
   final def increase() = {
-    if(balance <= Uint256("250"))
+    if (balance <= Uint256("250"))
       balance = balance + Uint256.ONE
   }
 }
 
 trait EVKB extends Contract {
   var balance: Uint256
-  @addressOfContract("EVKA")
   var target: Address
 
   @solidityPublic
   final def constructor(_balance: Uint256) = {
-    // We temporarily use assume here but we must use something
-    // that will be compiled so that this fails at runtime if invalid
-    ghost(dynRequire(
-      Environment.contractAt(target).isInstanceOf[EVKA]
-    ))
-
     dynRequire(_balance <= Uint256("120"))
     balance = _balance
   }
@@ -48,13 +43,14 @@ trait EVKB extends Contract {
 
   @solidityPublic
   final def decrease() = {
-    if(balance > Uint256.ZERO)
+    if (balance > Uint256.ZERO)
       balance = balance - Uint256.ONE
   }
 
   @solidityPublic
   final def exchange() = {
-    Environment.contractAt(target).asInstanceOf[EVKA].increase()
+    unsafeCast[EVKA](target).increase()
+    assert(invariant())
     decrease()
 
     true

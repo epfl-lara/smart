@@ -16,7 +16,7 @@ trait DependencyGraph extends methods.DependencyGraph {
     for (cd <- symbols.classes.values if cd.isContract) {
       for (fid <- cd.methods(symbols) if (fid.name == "invariant" || fid.name == "evolution"))
         g += SimpleEdge(cd.id, fid)
-      for (fid <- cd.methods(symbols) if (fid.name.contains("addressOf") || fid.name == "environmentInvariant"))
+      for (fid <- cd.methods(symbols) if fid.name == "environmentInvariant")
         g += SimpleEdge(cd.id, fid)
     }
 

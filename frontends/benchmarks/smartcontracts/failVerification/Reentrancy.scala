@@ -3,7 +3,9 @@ import stainless.lang._
 import stainless.collection._
 import stainless.annotation._
 
-trait RB extends Contract {
+import Environment._
+
+trait RB extends ContractInterface {
   def doSomething(): Unit
 }
 
@@ -12,17 +14,10 @@ trait RA extends Contract {
   var contractBalance: Uint256
   var totalCoins: Uint256
 
-  @addressOfContract("RB")
   val target: Address
 
   @solidityPublic
   final def constructor(_totalCoins: Uint256) = {
-    // We temporarily use assume here but we must use something
-    // that will be compiled so that this fails at runtime if invalid
-    ghost(dynRequire(
-      Environment.contractAt(target).isInstanceOf[RB]
-    ))
-
     userBalance = Uint256.ZERO
     contractBalance = _totalCoins
     totalCoins = _totalCoins
@@ -39,7 +34,7 @@ trait RA extends Contract {
     // totalCoins = totalCoins - amount
     // userBalance = Uint256.ZERO
 
-    Environment.contractAt(target).asInstanceOf[RB].doSomething
+    unsafeCast[RB](target).doSomething()
 
     // Shouldn't work to change the state here
     totalCoins = totalCoins - amount

@@ -50,7 +50,7 @@ package object smartcontracts {
   @library
   def now() = choose((b: Uint256) => b >= Uint256.ZERO)
 
-  @library
+  @library @pure
   def pay[A](f: A, amount: Uint256): A = f
 
   @library
@@ -92,17 +92,12 @@ package object smartcontracts {
     def updateBalance(from: Address, to: Address, amnt: Uint256): Unit = ???
 
     @library @extern @pure
-    def contractAt(a: Address): ContractInterface = ???
-
-    def invariant(): Boolean = true
+    def unsafeCast[@mutable T <: ContractInterface](a: Address): T = ???
   }
 
   @library
   @keep("smart-contracts")
-  case class Environment(
-    balances: MutableMap[Address, Uint256],
-    contractAt: MutableMap[Address, ContractInterface]
-  ) {
+  case class Environment(balances: MutableMap[Address, Uint256]) {
     @library
     final def updateBalance(from: Address, to: Address, amnt: Uint256): Unit = {
       dynRequire(balances(from) >= amnt)

@@ -6,7 +6,7 @@ import Environment._
 trait DynRequire extends Contract {
   @solidityView
   @solidityPublic
-  def foo() = {
+  final def foo() = {
     // Solidity dynamic require
     dynRequire(addr.balance == Uint256("42"))
 

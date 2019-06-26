@@ -3,6 +3,7 @@
 package stainless
 package extraction
 package smartcontracts
+
 import scala.collection.mutable.{Map => MutableMap, Set => MutableSet}
 
 trait HavocInjection extends oo.SimplePhase
@@ -28,19 +29,17 @@ trait HavocInjection extends oo.SimplePhase
 
     val envCd: ClassDef = symbols.lookup[ClassDef]("stainless.smartcontracts.Environment")
     val envType: ClassType = envCd.typed.toType
-    val contractAtId: Identifier = envCd.fields.find(vd => isIdentifier("stainless.smartcontracts.Environment.contractAt", vd.id)).get.id
 
-    val contracts = symbols.classes.values.filter(_.isContract)
+    val contracts = symbols.classes.values.filter(_.isConcreteContract)
     val invariants = contracts.map { contract =>
       contract.methods.map(symbols.functions).collectFirst {
-        case fd if fd.isInvariant =>
+        case fd if fd.isContractInvariant =>
           (contract.id, fd.id)
       }
     }.flatten.toMap
 
     val havocs = contracts.map { contract =>
       val envVd = ValDef.fresh("env", envType)
-      val invCall = MethodInvocation(This(contract.typed.toType), invariants(contract.id), Seq(), Seq(envVd.toVariable))
       val paramType = TypeParameterDef.fresh("T")
 
       val fd = new FunDef(
@@ -49,44 +48,31 @@ trait HavocInjection extends oo.SimplePhase
         Seq(envVd),
         paramType.tp,
         NoTree(paramType.tp),
-        Seq(Synthetic, Extern, IsMethodOf(contract.id))
+        Seq(Synthetic, Extern, Final, IsMethodOf(contract.id))
       )
       (contract.id, fd)
     }.toMap
 
-    val contractMethods = symbols.functions.values.filter(_.isContractMethod).toSet
-    val isImpureContractMethod = contractMethods.filter(fd => 
-      (fd.isAbstract || fd.flags.contains(Extern)) && !fd.isAccessor && !fd.flags.contains(IsPure)
-    ).map(_.id).toSet
-
-    val contractMethodToCallees = contractMethods.map(fd => 
-      fd.id -> symbols.callees(fd).filter(_.isContractMethod).map(_.id)).toMap
-
-    def fixpoint(callees: Set[Identifier]):Set[Identifier] = {
-      val neww = callees ++ callees.flatMap(contractMethodToCallees)
-      if(neww == callees) neww
-      else fixpoint(neww)
-    }
-
-    val isNotFullyKnownMethod = contractMethodToCallees.map{ case (id, callees) => 
-      val recCallee = fixpoint(callees)
-      val isNotFullyKnown = isImpureContractMethod(id) || recCallee.exists{ case id if isImpureContractMethod(id) => true case _ => false}
-      (id, isNotFullyKnown)
-    }.toMap
-
     override def transform(fd: FunDef): FunDef = {
-      if(fd.isContractMethod) {
+      if (fd.isContractMethod) {
         val contract = symbols.classes(fd.findClass.get)
         val contractType = contract.typed.toType
 
-        val envVar = fd.params.collectFirst{
+        val envVar = fd.params.collectFirst {
           case v@ValDef(_, tpe, _) if tpe == envType => v.toVariable
         }.get
 
         val newBody = postMap {
-          case MethodInvocation(receiver, id, tps, args) if symbols.functions(id).isContractMethod && isNotFullyKnownMethod(id) =>
-            val fdReturnType = symbols.functions(id).returnType
-            Some(MethodInvocation(This(contractType), havocs(contract.id).id, Seq(fdReturnType), Seq(envVar)))
+          case m@MethodInvocation(receiver, id, tps, args) if symbols.functions(id).isContractMethod && !receiver.isInstanceOf[This] =>
+            val fd = symbols.functions(id)
+            val refinedReturnType = postconditionOf(fd.fullBody) match {
+              case Some(l@Lambda(Seq(vd), post)) =>
+                val Lambda(Seq(vd2), post2) = freshenLocals(l)
+                RefinementType(vd2, post2)
+              case None => fd.returnType
+            }
+            val thiss = This(contractType).setPos(m)
+            Some(MethodInvocation(thiss, havocs(contract.id).id, Seq(refinedReturnType), Seq(envVar.setPos(m))).setPos(m))
 
           case _ => None
         }(fd.fullBody)

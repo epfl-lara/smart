@@ -9,13 +9,13 @@ trait OwnedContract extends Contract {
 
   @solidityPayable
   @solidityPublic
-  def sendBalance() = {
+  final def sendBalance() = {
     dynRequire(
       !(addr == Msg.sender) &&
       addr.balance == Uint256("20")
     )
 
-    if(Msg.sender == owner) {
+    if (Msg.sender == owner) {
       Msg.sender.transfer(addr.balance)
     }
   } ensuring { _ =>

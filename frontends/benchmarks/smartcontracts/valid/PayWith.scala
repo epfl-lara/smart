@@ -11,23 +11,12 @@ trait Target extends Contract {
 }
 
 trait Source extends Contract {
-  @addressOfContract("Target")
   val targetContract: Address
-
-  @solidityPublic
-  final def constructor(_balance: Uint256) = {
-    // We temporarily use assume here but we must use something
-    // that will be compiled so that this fails at runtime if invalid
-    ghost(dynRequire(
-      Environment.contractAt(targetContract).isInstanceOf[Target]
-    ))
-  }
 
   @solidityPublic
   final def send() = {
     dynRequire(addr.balance >= Uint256("20"))
 
-    pay(Environment.contractAt(targetContract).asInstanceOf[Target].receiveMoney, Uint256("20"))
-    assert(targetContract.balance >= Uint256("20"))
+    pay(unsafeCast[Target](targetContract).receiveMoney, Uint256("20"))
   }
 }

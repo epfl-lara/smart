@@ -6,9 +6,8 @@ trait DuplicateIdentifier2 extends Contract {
 
   @solidityPure
   @solidityPublic
-  def foo() = {
+  final def foo() = {
     val i: Boolean = true
     i
   }
-
 }

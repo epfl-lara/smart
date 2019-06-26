@@ -5,7 +5,7 @@ trait TrueInvariant extends Contract {
   var x: BigInt
 
   @solidityPublic
-  def increment() = {
+  final def increment() = {
     x = x + 1
   }
 

@@ -6,7 +6,7 @@ trait BasicContract extends Contract {
 
   @solidityView
   @solidityPublic
-  def foo = {
+  final def foo(): Address = {
     other
   }
 }

@@ -6,5 +6,5 @@ trait DuplicateIdentifier1 extends Contract {
 
   @solidityPure
   @solidityPublic
-  def foo(@ghost i: Uint256) = true
+  final def foo(@ghost i: Uint256) = true
 }
