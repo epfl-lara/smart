@@ -15,8 +15,6 @@ val osName = if (isWindows) "win" else if (isMac) "mac" else "unix"
 val osArch = System.getProperty("sun.arch.data.model")
 
 val inoxVersion = "1.1.0-329-g3c23a86"
-val dottyLibrary = "dotty-compiler_2.12"
-val dottyVersion = "0.12.0-RC1-nonbootstrapped"
 val circeVersion = "0.10.0-M2"
 
 lazy val nParallel = {
@@ -193,7 +191,6 @@ val scriptSettings: Seq[Setting[_]] = Seq(
 def ghProject(repo: String, version: String) = RootProject(uri(s"${repo}#${version}"))
 
 //lazy val inox = RootProject(file("../inox"))
-//lazy val dotty = ghProject("git://github.com/lampepfl/dotty.git", "b3194406d8e1a28690faee12257b53f9dcf49506")
 
 // Allow integration test to use facilities from regular tests
 lazy val IntegrationTest = config("it") extend(Test)
@@ -262,27 +259,6 @@ lazy val `stainless-scalac-standalone` = (project in file("frontends") / "stainl
   )
   .dependsOn(`stainless-scalac`)
 
-lazy val `stainless-dotty-frontend` = (project in file("frontends/dotty"))
-  .settings(commonSettings)
-  .settings(name := "stainless-dotty-frontend")
-  .dependsOn(`stainless-core`)
-  .settings(libraryDependencies += "ch.epfl.lamp" % dottyLibrary % dottyVersion % "provided")
-
-lazy val `stainless-dotty` = (project in file("frontends/stainless-dotty"))
-  .enablePlugins(JavaAppPackaging)
-  .enablePlugins(BuildInfoPlugin)
-  .settings(commonSettings, commonFrontendSettings, artifactSettings, scriptSettings)
-  .settings(
-    name := "stainless-dotty",
-    frontendClass := "dotc.DottyCompiler"
-  )
-  //.dependsOn(inox % "test->test;it->test,it")
-  .dependsOn(`stainless-dotty-frontend`)
-  .aggregate(`stainless-dotty-frontend`)
-  // Should truly depend on dotty, overriding the "provided" modifier above:
-  .settings(libraryDependencies += "ch.epfl.lamp" % dottyLibrary % dottyVersion)
-  .configs(IntegrationTest)
-
 lazy val `sbt-stainless` = (project in file("sbt-plugin"))
   .enablePlugins(BuildInfoPlugin)
   .enablePlugins(SbtPlugin)
@@ -323,8 +299,8 @@ lazy val root = (project in file("."))
     publishArtifact := false, // Don't publish root project
     publish := (()),
   )
-  .dependsOn(`stainless-scalac`, `stainless-library`, `stainless-dotty`, `sbt-stainless`)
-  .aggregate(`stainless-core`, `stainless-library`, `stainless-scalac`, `stainless-dotty`, `sbt-stainless`, `stainless-scalac-plugin`)
+  .dependsOn(`stainless-scalac`, `stainless-library`, `sbt-stainless`)
+  .aggregate(`stainless-core`, `stainless-library`, `stainless-scalac`, `sbt-stainless`, `stainless-scalac-plugin`)
 
 def commonPublishSettings = Seq(
   bintrayOrganization := Some("epfl-lara")
