@@ -3,7 +3,7 @@
 package stainless
 package frontend
 
-import stainless.extraction.xlang.{trees => xt, TreeSanitizer}
+import extraction.xlang.{trees => xt, TreeSanitizer, SmartContractsSanitizer}
 
 import scala.util.{Try, Success, Failure}
 import scala.concurrent.Await
@@ -69,9 +69,14 @@ class BatchedCallBack(components: Seq[Component])(implicit val context: inox.Con
     val symbols = Recovery.recover(preSymbols)
 
     try {
+      symbols.ensureWellFormed
       TreeSanitizer(xt).check(symbols)
+      if (smartcontracts)
+        SmartContractsSanitizer(xt).check(symbols)
     } catch {
       case e: extraction.MalformedStainlessCode =>
+        reportError(e.tree.getPos, e.getMessage, symbols)
+      case e: extraction.MalformedSmartContract =>
         reportError(e.tree.getPos, e.getMessage, symbols)
     }
 

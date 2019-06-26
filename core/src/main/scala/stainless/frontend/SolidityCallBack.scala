@@ -1,7 +1,7 @@
 package stainless
 package frontend
 
-import extraction.xlang.{ trees => xt }
+import extraction.xlang.{trees => xt, TreeSanitizer, SmartContractsSanitizer}
 import scala.concurrent.Future
 import java.nio.file
 
@@ -41,7 +41,10 @@ class SolidityCallBack(implicit val context: inox.Context)
   final override def endExtractions(): Unit = {
     context.reporter.info("Begin Compilation")
     val symbols = xt.NoSymbols.withClasses(allClasses).withFunctions(allFunctions)
+
     symbols.ensureWellFormed
+    TreeSanitizer(xt).check(symbols)
+    SmartContractsSanitizer(xt).check(symbols)
 
     files.foreach { file =>
       solidity.SolidityOutput(file)(symbols, context)
