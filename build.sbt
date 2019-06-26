@@ -1,8 +1,9 @@
 import sbt.ScriptedPlugin
 
 enablePlugins(GitVersioning)
-git.baseVersion in ThisBuild := "0.2.0"
-git.formattedShaVersion in ThisBuild := git.gitHeadCommit.value map { sha => s"${git.baseVersion.value}-${sha}" }
+enablePlugins(GitBranchPrompt)
+
+git.useGitDescribe := true
 
 val osInf = Option(System.getProperty("os.name")).getOrElse("")
 
@@ -13,7 +14,7 @@ val isMac     = osInf.indexOf("Mac") >= 0
 val osName = if (isWindows) "win" else if (isMac) "mac" else "unix"
 val osArch = System.getProperty("sun.arch.data.model")
 
-// val inoxVersion = "1.1.0-326-g397ae7b"
+// val inoxVersion = "1.1.0-329-g3c23a86"
 val dottyLibrary = "dotty-compiler_2.12"
 val dottyVersion = "0.12.0-RC1-nonbootstrapped"
 val circeVersion = "0.10.0-M2"
@@ -41,14 +42,25 @@ lazy val extraClasspath = taskKey[String]("Classpath extensions passed directly 
 
 lazy val scriptPath = taskKey[String]("Classpath used in the stainless Bash script")
 
+lazy val stainlessBuildInfoKeys = Seq[BuildInfoKey](
+  name,
+  version,
+  scalaVersion,
+  sbtVersion,
+)
+
 lazy val baseSettings: Seq[Setting[_]] = Seq(
   organization := "ch.epfl.lara",
-  licenses := Seq("AGPL-V3" -> url("https://www.gnu.org/licenses/agpl-3.0.html"))
+  licenses := Seq("Apache-2.0" -> url("https://www.apache.org/licenses/LICENSE-2.0.html"))
 )
 
 lazy val artifactSettings: Seq[Setting[_]] = baseSettings ++ Seq(
   scalaVersion := crossScalaVersions.value.head,
-  crossScalaVersions := SupportedScalaVersions
+  crossScalaVersions := SupportedScalaVersions,
+
+  buildInfoPackage := "stainless",
+  buildInfoKeys := stainlessBuildInfoKeys,
+  buildInfoOptions := Seq(BuildInfoOption.BuildTime),
 )
 
 lazy val commonSettings: Seq[Setting[_]] = artifactSettings ++ Seq(
@@ -66,18 +78,20 @@ lazy val commonSettings: Seq[Setting[_]] = artifactSettings ++ Seq(
     Resolver.sonatypeRepo("releases"),
     Resolver.typesafeIvyRepo("releases"),
     Resolver.bintrayRepo("epfl-lara", "maven"),
-    "uuverifiers" at "http://logicrunch.it.uu.se:4096/~wv/maven"
+    "uuverifiers" at "http://logicrunch.research.it.uu.se/maven",
   ),
 
   libraryDependencies ++= Seq(
-    // "ch.epfl.lara" %% "inox" % inoxVersion,
-    // "ch.epfl.lara" %% "inox" % inoxVersion % "test" classifier "tests",
-    "ch.epfl.lara" %% "cafebabe" % "1.2",
-    "org.scalatest" %% "scalatest" % "3.0.1" % "test",
-    "io.circe" %% "circe-core" % circeVersion,
-    "io.circe" %% "circe-generic" % circeVersion,
-    "io.circe" %% "circe-parser" % circeVersion,
-    "com.typesafe" % "config" % "1.3.2"
+    // "ch.epfl.lara"  %% "inox"          % inoxVersion,
+    // "ch.epfl.lara"  %% "inox"          % inoxVersion % "test" classifier "tests",
+    "ch.epfl.lara"  %% "cafebabe"      % "1.2",
+    "uuverifiers"   %% "princess"      % "2018-02-26" ,
+    "io.circe"      %% "circe-core"    % circeVersion,
+    "io.circe"      %% "circe-generic" % circeVersion,
+    "io.circe"      %% "circe-parser"  % circeVersion,
+    "com.typesafe"   % "config"        % "1.3.2",
+
+    "org.scalatest" %% "scalatest"     % "3.0.1" % "test",
   ),
 
   // disable documentation packaging in universal:stage to speedup development
@@ -94,6 +108,18 @@ lazy val commonSettings: Seq[Setting[_]] = artifactSettings ++ Seq(
   testOptions in IntegrationTest := Seq(Tests.Argument("-oDF")),
 
   mappings in (Compile, packageDoc) := Seq()
+)
+
+lazy val assemblySettings: Seq[Setting[_]] = Seq(
+  assembly / assemblyMergeStrategy := {
+    // The BuildInfo class file from the current project comes before the one from `stainless-scalac`,
+    // hence the following merge strategy picks the standalone BuildInfo over the usual one.
+    case "stainless/BuildInfo.class" => MergeStrategy.first
+    case "stainless/BuildInfo$.class" => MergeStrategy.first
+    case x =>
+      val oldStrategy = (assembly / assemblyMergeStrategy).value
+      oldStrategy(x)
+  },
 )
 
 lazy val libraryFiles: Seq[(String, File)] = {
@@ -174,6 +200,7 @@ lazy val IntegrationTest = config("it") extend(Test)
 
 lazy val `stainless-core` = (project in file("core"))
   .disablePlugins(AssemblyPlugin)
+  .enablePlugins(BuildInfoPlugin)
   //.enablePlugins(SphinxPlugin)
   .settings(name := "stainless-core")
   .settings(commonSettings, publishMavenSettings)
@@ -191,23 +218,15 @@ lazy val `stainless-library` = (project in file("frontends") / "library")
     scalaSource in Compile := baseDirectory.value
   )
 
-lazy val stainlessBuildInfoKeys = Seq[BuildInfoKey](
-  name,
-  version,
-  scalaVersion,
-  sbtVersion
-)
-
 lazy val `stainless-scalac` = (project in file("frontends") / "scalac")
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(BuildInfoPlugin)
+  .settings(commonSettings, commonFrontendSettings, scriptSettings, assemblySettings)
   .settings(
     name := "stainless-scalac",
     frontendClass := "scalac.ScalaCompiler",
-    extraClasspath := "", // no need for the classpath extension with scalac
     libraryDependencies += "org.scala-lang" % "scala-compiler" % scalaVersion.value,
-    buildInfoKeys := stainlessBuildInfoKeys ++ Seq[BuildInfoKey]("useJavaClassPath" -> false),
-    buildInfoPackage := "stainless",
+    buildInfoKeys ++= Seq[BuildInfoKey]("useJavaClassPath" -> false),
     assemblyOption in assembly := (assemblyOption in assembly).value.copy(includeScala = false),
     assemblyExcludedJars in assembly := {
       val cp = (fullClasspath in assembly).value
@@ -220,57 +239,49 @@ lazy val `stainless-scalac` = (project in file("frontends") / "scalac")
   .dependsOn(`stainless-core`)
   .dependsOn(inox % "test->test;it->test,it")
   .configs(IntegrationTest)
-  .settings(commonSettings, commonFrontendSettings, scriptSettings)
 
 // Following https://github.com/sbt/sbt-assembly#q-despite-the-concerned-friends-i-still-want-publish-fat-jars-what-advice-do-you-have
 lazy val `stainless-scalac-plugin` = (project in file("frontends") / "stainless-scalac-plugin")
+  .settings(artifactSettings, publishMavenSettings, assemblySettings)
   .settings(
     name := "stainless-scalac-plugin",
     crossVersion := CrossVersion.full, // because compiler api is not binary compatible
     packageBin in Compile := (assembly in (`stainless-scalac`, Compile)).value
   )
-  .settings(artifactSettings, publishMavenSettings)
 
 lazy val `stainless-scalac-standalone` = (project in file("frontends") / "stainless-scalac-standalone")
   .enablePlugins(BuildInfoPlugin)
   .enablePlugins(JavaAppPackaging)
+  .settings(artifactSettings, assemblySettings)
   .settings(
     name := "stainless-scalac-standalone",
-    buildInfoKeys := stainlessBuildInfoKeys ++ Seq[BuildInfoKey]("useJavaClassPath" -> true),
-    buildInfoPackage := "stainless",
+    buildInfoKeys ++= Seq[BuildInfoKey]("useJavaClassPath" -> true),
     (mainClass in assembly) := Some("stainless.Main"),
-    (assemblyJarName in assembly) := (name.value + "-" + (git.baseVersion in ThisBuild).value + ".jar"),
-    (assemblyMergeStrategy in assembly) := {
-      // The BuildInfo class file from the current project comes before the one from `stainless-scalac`,
-      // hence the following merge strategy picks the standalone BuildInfo over the usual one.
-      case "stainless/BuildInfo$.class" => MergeStrategy.first
-      case x =>
-        val oldStrategy = (assemblyMergeStrategy in assembly).value
-        oldStrategy(x)
-    },
+    (assemblyJarName in assembly) := (name.value + "-" + version.value + ".jar"),
     (unmanagedJars in Runtime) := (unmanagedJars in (`stainless-scalac`, Runtime)).value
   )
   .dependsOn(`stainless-scalac`)
-  .settings(artifactSettings)
 
 // lazy val `stainless-dotty-frontend` = (project in file("frontends/dotty"))
+//   .settings(commonSettings)
 //   .settings(name := "stainless-dotty-frontend")
 //   .dependsOn(`stainless-core`)
 //   .settings(libraryDependencies += "ch.epfl.lamp" % dottyLibrary % dottyVersion % "provided")
-//   .settings(commonSettings)
 
 // lazy val `stainless-dotty` = (project in file("frontends/stainless-dotty"))
 //   .enablePlugins(JavaAppPackaging)
+//   .enablePlugins(BuildInfoPlugin)
+//   .settings(commonSettings, commonFrontendSettings, artifactSettings, scriptSettings)
 //   .settings(
 //     name := "stainless-dotty",
-//     frontendClass := "dotc.DottyCompiler")
+//     frontendClass := "dotc.DottyCompiler"
+//   )
 //   //.dependsOn(inox % "test->test;it->test,it")
 //   .dependsOn(`stainless-dotty-frontend`)
 //   .aggregate(`stainless-dotty-frontend`)
 //   // Should truly depend on dotty, overriding the "provided" modifier above:
 //   .settings(libraryDependencies += "ch.epfl.lamp" % dottyLibrary % dottyVersion)
 //   .configs(IntegrationTest)
-//   .settings(commonSettings, commonFrontendSettings, artifactSettings, scriptSettings)
 
 lazy val `sbt-stainless` = (project in file("sbt-plugin"))
   .enablePlugins(BuildInfoPlugin)
@@ -282,10 +293,10 @@ lazy val `sbt-stainless` = (project in file("sbt-plugin"))
     sbtPlugin := true,
     buildInfoUsePackageAsPath := true,
     buildInfoPackage := "ch.epfl.lara.sbt.stainless",
-    buildInfoKeys := Seq[BuildInfoKey](
+    buildInfoKeys ++= Seq[BuildInfoKey](
       BuildInfoKey.map(version) { case (_, v) => "stainlessVersion" -> v },
-      "supportedScalaVersions" -> SupportedScalaVersions
-    )
+      "supportedScalaVersions" -> SupportedScalaVersions,
+    ),
   )
   .settings(
     scripted := scripted.tag(Tags.Test).evaluated,
@@ -310,7 +321,7 @@ lazy val root = (project in file("."))
   .settings(
     sourcesInBase in Compile := false,
     publishArtifact := false, // Don't publish root project
-    publish := (())
+    publish := (()),
   )
   .dependsOn(`stainless-scalac`, `stainless-library`/*, `stainless-dotty`*/, `sbt-stainless`)
   .aggregate(`stainless-core`, `stainless-library`, `stainless-scalac`/*, `stainless-dotty`*/, `sbt-stainless`, `stainless-scalac-plugin`)
