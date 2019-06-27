@@ -15,6 +15,14 @@ object MinimumTokenInvariant {
     case Cons(x,xs) => balances(x) + sumBalances(xs, balances)
   }
 
+  def nonZeroContained(
+    participants: List[Address],
+    balanceOf: MutableMap[Address, Uint256],
+    a: Address
+  ): Boolean = {
+    participants.contains(a) || balanceOf(a) == Uint256.ZERO
+  }
+
   def balancesUnchangedLemma(
     to: Address,
     newBalance: Uint256,
@@ -85,7 +93,7 @@ object MinimumTokenInvariant {
   def transferProof(
     @ghost b0: MutableMap[Address,Uint256],
     @ghost b1: MutableMap[Address,Uint256],
-    @ghost balanceOf: MutableMap[Address,Uint256],
+    @ghost b2: MutableMap[Address,Uint256],
     @ghost from: Address,
     @ghost to: Address,
     @ghost amount: Uint256,
@@ -94,15 +102,15 @@ object MinimumTokenInvariant {
   ) = {
     require(
       distinctAddresses(participants) &&
-      sumBalances(participants, balanceOf) == total &&
+      sumBalances(participants, b0) == total &&
       b1 == b0.updated(from, b0(from) - amount) &&
-      balanceOf == b1.updated(to, b1(to) + amount) &&
+      b2 == b1.updated(to, b1(to) + amount) &&
       participants.contains(from) &&
       participants.contains(to)
     )
 
     assert((
-      sumBalances(participants, balanceOf)                                             ==:| balancesUpdatedLemma(participants, b1, to, b1(to) + amount) |:
+      sumBalances(participants, b2)                                             ==:| balancesUpdatedLemma(participants, b1, to, b1(to) + amount) |:
       sumBalances(participants, b1) - b1(to) + (b1(to) + amount)                       ==:| trivial |:
       sumBalances(participants, b1) + amount                                           ==:|
         (balancesUpdatedLemma(participants, b0, from, b0(from) - amount) &&
@@ -113,5 +121,5 @@ object MinimumTokenInvariant {
       sumBalances(participants, b0)                                                   ==:| trivial |:
       total
     ).qed)
-  } ensuring( _ => sumBalances(participants, balanceOf) == total)
+  } ensuring( _ => sumBalances(participants, b2) == total)
 }
