@@ -64,7 +64,7 @@ trait ComponentTestSuite extends inox.TestSuite with inox.ResourceUtils with Inp
         block(report, ctx.reporter)
       }
     } else {
-      implicit val ctx = inox.TestContext.empty
+      implicit val ctx: inox.Context = stainless.TestContext.empty
       val (structure, program) = loadFiles(fs.map(_.getPath))
       program.symbols.ensureWellFormed
 

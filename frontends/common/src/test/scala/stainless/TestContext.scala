@@ -4,6 +4,7 @@ package stainless
 
 import inox.{ DebugSection, Options, OptionValue }
 import stainless.verification.optVCCache
+import stainless.frontend.optSmartContracts
 
 object TestContext {
 
@@ -11,13 +12,16 @@ object TestContext {
    * Create a context for testing purposes.
    *
    * Unless explicitely present in [[options]], the returned
-   * context is set to use no VC cache.
+   * context is set to use no VC cache and no smart contracts.
    */
   def apply(options: Options): inox.Context = {
-    val newOptions =
-      if ((options findOption optVCCache).isDefined) options
-      else options + OptionValue(optVCCache)(false)
-    inox.TestContext(newOptions)
+    def setOptionFalse(opts: Options, option: inox.FlagOptionDef): Options = {
+      if ((opts findOption option).isDefined) opts
+      else opts + OptionValue(option)(false)
+    }
+    val newOptions1 = setOptionFalse(options, optVCCache)
+    val newOptions2 = setOptionFalse(newOptions1, optSmartContracts)
+    inox.TestContext(newOptions2)
   }
 
   /**
