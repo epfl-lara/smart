@@ -42,32 +42,28 @@ import stainless.smartcontracts._
 import stainless.lang.StaticChecks._
 import stainless.annotation._
 
-case class Candy(
-  var initialCandies: Uint256,
-  var remainingCandies: Uint256,
+trait Candy extends Contract {
+  var initialCandies: Uint256
+  var remainingCandies: Uint256
   var eatenCandies: Uint256
-) extends Contract {
 
-  def constructor(_candies: Uint256) = {
+  @solidityPublic
+  final def constructor(_candies: Uint256) = {
     initialCandies = _candies
     remainingCandies = _candies
     eatenCandies = Uint256.ZERO
-
-    assert(invariant)
   }
 
-  def eatCandy(candies: Uint256) = {
-    require(invariant)
+  @solidityPublic
+  final def eatCandy(candies: Uint256) = {
     dynRequire(candies <= remainingCandies)
 
     remainingCandies -= candies
     eatenCandies += candies
-
-    assert(invariant)
   }
 
-  @solidityView
-  private def invariant: Boolean = {
+  @ghost @inline
+  final def invariant(): Boolean = {
     eatenCandies <= initialCandies &&
     remainingCandies <= initialCandies &&
     initialCandies - eatenCandies == remainingCandies
@@ -75,9 +71,11 @@ case class Candy(
 }
 ```
 
-Stainless is able to verify that the assertions written in the contract are
-indeed valid. Verification for `Uint256` examples is faster if you
-configure stainless to use the external [CVC4](http://cvc4.cs.stanford.edu/web/) solver:
+Stainless is able to verify that the `constructor` creates a state where the
+invariant holds, and the `eatCandy` function modifies the state in a way that
+preserves the invariant. Verification for `Uint256` examples is faster if you
+configure stainless to use the external [CVC4](http://cvc4.cs.stanford.edu/web/)
+solver (which needs to be downloaded separately and added to your path):
 
 > ./stainless frontends/benchmarks/smartcontracts/valid/Candy.scala --solvers=smt-cvc4
 
@@ -103,12 +101,11 @@ The contract can be compiled to Solidity using
 > stainless frontends/benchmarks/smartcontracts/valid/Candy.scala --solidity
 
 which produces a file `Candy.sol`. The compiler drops the assertions, but
-compiles the `dynRequire` commands to `require` in Solidity. The compiler also
-drops the functions `invariant` and `noAdditionOverflow`, which we only use for
-specification purposes.
+compiles the `dynRequire` (dynamic require) commands to `require` in Solidity.
+The compiler also drops the function `invariant` which is marked with `@ghost`.
 
 ```solidity
-pragma solidity ^0.4.24;
+pragma solidity ^0.5.10;
 
 contract Candy {
     // Fields

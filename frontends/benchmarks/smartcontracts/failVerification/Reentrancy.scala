@@ -14,7 +14,7 @@ trait RA extends Contract {
   var contractBalance: Uint256
   var totalCoins: Uint256
 
-  val target: Address
+  val target: RB
 
   @solidityPublic
   final def constructor(_totalCoins: Uint256) = {
@@ -34,7 +34,7 @@ trait RA extends Contract {
     // totalCoins = totalCoins - amount
     // userBalance = Uint256.ZERO
 
-    unsafeCast[RB](target).doSomething()
+    target.doSomething()
 
     // Shouldn't work to change the state here
     totalCoins = totalCoins - amount

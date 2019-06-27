@@ -10,7 +10,7 @@ trait HIPM2 extends ContractInterface {
 }
 
 trait HIPM1 extends Contract {
-  val other:Address
+  val other: HIPM2
 
   var x: Uint256
 
@@ -24,7 +24,7 @@ trait HIPM1 extends Contract {
 
   @solidityPublic
   final def foo() = {
-    unsafeCast[HIPM2](other).balanceOf()
+    other.balanceOf()
     assert(x == Uint256.ONE)
   }
 }

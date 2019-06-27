@@ -24,7 +24,7 @@ package object frontend {
 
   /** Go through the smart contracts phases for verification
     */
-  object optSmartContracts extends inox.FlagOptionDef("smart-contracts", false)
+  object optSmartContracts extends inox.FlagOptionDef("smart-contracts", true)
 
   /**
    * Given a context (with its reporter) and a frontend factory, proceed to compile,

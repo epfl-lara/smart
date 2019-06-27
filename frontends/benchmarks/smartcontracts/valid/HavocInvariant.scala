@@ -3,7 +3,7 @@ import stainless.annotation._
 import stainless.lang.StaticChecks._
 import stainless.lang.ghost
 
-trait HavocInvariant1 extends Contract {
+trait HavocInvariant extends Contract {
   var balance: Uint256
   var empty: Boolean
 

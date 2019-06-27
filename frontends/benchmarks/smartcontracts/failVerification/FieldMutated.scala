@@ -10,13 +10,13 @@ trait UnknownInterface extends ContractInterface {
 }
 
 trait FieldMutated extends Contract {
-  val target: Address
+  val target: UnknownInterface
   var testField: Uint256
 
   @solidityPublic
   final def foo() = {
     val oldTestField = testField
-    unsafeCast[UnknownInterface](target).doSomething()
+    target.doSomething()
     assert(oldTestField == testField)
   }
 }

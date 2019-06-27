@@ -14,7 +14,7 @@ trait VRA extends Contract {
   var contractBalance: Uint256
   var totalCoins: Uint256
 
-  val target: Address
+  val target: VRB
 
   @ghost @inline
   final def invariant() = userBalance + contractBalance == totalCoins
@@ -37,6 +37,6 @@ trait VRA extends Contract {
 
     assert(userBalance + contractBalance == totalCoins)
 
-    unsafeCast[VRB](target).doSomething()
+    target.doSomething()
   }
 }

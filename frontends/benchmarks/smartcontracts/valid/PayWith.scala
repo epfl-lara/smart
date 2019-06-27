@@ -11,12 +11,12 @@ trait Target extends Contract {
 }
 
 trait Source extends Contract {
-  val targetContract: Address
+  val targetContract: Target
 
   @solidityPublic
   final def send() = {
     dynRequire(addr.balance >= Uint256("20"))
 
-    pay(unsafeCast[Target](targetContract).receiveMoney, Uint256("20"))
+    pay(targetContract.receiveMoney, Uint256("20"))
   }
 }

@@ -5,7 +5,7 @@ import stainless.lang.StaticChecks._
 import stainless.lang.ghost
 
 trait ConstructorGlobalInvariant extends Contract {
-  var balance:Uint256
+  var balance: Uint256
 
   @ghost
   final def invariant() = balance >= Uint256.ONE

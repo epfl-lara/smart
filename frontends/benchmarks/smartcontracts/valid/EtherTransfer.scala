@@ -17,5 +17,4 @@ trait EtherTransfer extends Contract {
     other.balance == Uint256("50") &&
     addr.balance == Uint256.ZERO
   }
-
 }

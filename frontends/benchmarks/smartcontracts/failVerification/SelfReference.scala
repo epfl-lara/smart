@@ -6,12 +6,12 @@ import Environment._
 
 trait SRDA extends Contract {
   var x: Uint256
-  val other: Address
+  val other: SRDA
 
   @solidityPublic
   final def foo() = {
     val old = x
-    unsafeCast[SRDA](other).increment()
+    other.increment()
     assert(old == x)
   }
 

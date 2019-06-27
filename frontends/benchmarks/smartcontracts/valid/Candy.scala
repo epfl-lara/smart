@@ -28,5 +28,4 @@ trait Candy extends Contract {
     remainingCandies <= initialCandies &&
     initialCandies - eatenCandies == remainingCandies
   }
-
 }

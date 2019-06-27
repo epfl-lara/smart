@@ -14,8 +14,9 @@ Installation
 
 Development happens on the `smart repository
 <https://github.com/epfl-lara/smart>`_, a fork of `Stainless
-<https://github.com/epfl-lara/stainess>`_. You can follow the Stainless
-`installation guide <installation.rst>`_ by changing the repository:
+<https://github.com/epfl-lara/stainless>`_. You can follow the Stainless
+`installation guide <installation.rst>`_ and replace stainless with smart as
+follows:
 
 .. code-block:: bash
 
@@ -26,7 +27,7 @@ Development happens on the `smart repository
   $ sbt clean universal:stage
   // takes about 1 minute
 
-You can then create a symbolic link (e.g. for Linux & Mac OS-X) to have access 
+You can then create a symbolic link (e.g. for Linux & Mac OS-X) to have access
 to a ``stainless`` command-line (assuming ~/bin is in your path).
 
 .. code-block:: bash
@@ -37,18 +38,19 @@ to a ``stainless`` command-line (assuming ~/bin is in your path).
 Formal Verification of Smart Contracts
 --------------------------------------
 
-Let us have a look at ``MinimumToken`` which implements a token with just a
-``transferFrom`` function. From the ``smart`` repository, issue the following
-commands:
+Let us have a look at `MinimumToken
+<https://github.com/epfl-lara/smart/frontends/benchmarks/smartcontracts/valid/MinimumToken>`_
+which implements a token with just a ``transferFrom`` function. From the
+``smart`` repository, issue the following commands:
 
-.. code-block:: bash 
+.. code-block:: bash
 
   $ cd frontends/benchmarks/smartcontracts/valid/MinimumToken
   $ stainless *.scala
 
 After 30 seconds or so, Stainless should report that all verification conditions
 are valid. What do these correspond to? The file ``MinimumToken.scala`` defines
-a token with a ``transferFrom`` function. 
+a token with a ``transferFrom`` function.
 
 .. code-block:: scala
 
@@ -91,7 +93,7 @@ Ignoring the body of the function for a while, the ``require`` and ``ensuring``
 annotations (pre and post-conditions) ask Stainless to show that, regardless
 with which arguments the ``transferFrom`` function is called, as long as the
 contract `invariant` holds before the function call, then it will still hold
-after the function call. 
+after the function call.
 
 The ``contractInvariant`` function is defined in the file
 ``MinimumTokenInvariant.scala``.
@@ -99,10 +101,10 @@ The ``contractInvariant`` function is defined in the file
 .. code-block:: scala
 
   def contractInvariant(contract: MinimumToken): Boolean = {
-    distinctAddresses(contract.participants) && 
+    distinctAddresses(contract.participants) &&
     sumBalances(contract.participants, contract.balanceOf) == contract.total &&
-    forall((x: Address) => 
-      (contract.balanceOf(x) != Uint256.ZERO) ==> 
+    forall((x: Address) =>
+      (contract.balanceOf(x) != Uint256.ZERO) ==>
       contract.participants.contains(x)
     )
   }
@@ -110,23 +112,23 @@ The ``contractInvariant`` function is defined in the file
 It states that all addresses that appear in the (ghost) variable participants
 are distinct, that the sum of all balances of participants equals to ``total``,
 and that all addresses with a non-zero balance appear in the list of
-participants. 
+participants.
 
 Showing that this invariant holds after the updates that happens in the
 ``transferFrom`` function requires some work. Some lemmas that are used to
 relate the sum of all balances before and after updates are stated and proven in
 the ``MinimumTokenInvariant.scala`` file. In the ``transferFrom`` function, we
 then invoke the lemmas using the call to ``transferProof``. These `ghost`
-expressions are ignored during compilation. 
+expressions are ignored during compilation.
 
-The ``==|`` and ``|`` notations are defined in ``stainless.equations``. They
+The ``==:|`` and ``|:`` notations are defined in ``stainless.equations``. They
 enable to prove that two expressions are equal by detailing the sequence of
 intermediary steps, while providing evidence for each step (or ``trivial`` if
 not evidence is required).
 
 ``MinimumToken`` is not so useful as is, since there is no way to create tokens.
 As an exercise, the reader may try to add a function for minting tokens, and
-prove that this function maintains ``contractInvariant``. Additionally, we can
+prove that this function maintains the invariant. Additionally, we can
 add a custom constructor to this contract by adding a function called
 ``constructor`` which will be translated to a constructor in Solidity during
 compilation.
@@ -156,46 +158,60 @@ Ethereum Virtual Machine bytecode.
         balanceOf[from] = balanceOf[from] - amount;
     }
 
-All ghost expressions have been eliminated, and only the dynamic requires 
+All ghost expressions have been eliminated, and only the dynamic requires
 (``dynRequire``) and the code that updates the balances remain.
 
 
-Features
---------
+Features and Usage
+------------------
+
+
+Constructor
+^^^^^^^^^^^
+
+The constructor is specified by defining a function in your contract named
+``constructor``.
+
+
+Invariants
+^^^^^^^^^^
+
+You can specify invariants on your contracts by declaring a function called
+``invariant`` that returns a ``Boolean``. Stainless will then attempt to prove
+that all functions marked by `@solidityPublic` in your contract respect the
+invariant, in the sense that if they are executed in a state where the invariant
+holds, they produce a state where the invariant still holds.
+
+When doing any external call, Stainless will check that the invariant at that
+place holds, in order to make sure that any reentrancy from the called contract
+happens in a state where the invariant holds. For verification purposes,
+Stainless will then assume that the state after the external call is completely
+arbitrary, except for the fact that it respects the invariant. See the files
+`ValidReentrancy <https://github.com/epfl-lara/smart/frontends/benchmarks/smartcontracts/valid/ValidReentrancy.scala>`_ and
+`Reentrancy <https://github.com/epfl-lara/smart/frontends/benchmarks/smartcontracts/failVerification/Reentrancy.scala>`_ for examples that respectively valid and invalid (vulnerable
+to reentrancy attacks).
 
 
 Ghost code
 ^^^^^^^^^^
 
-Ghost code which is annotated with the ``@ghost`` annotation is ignored when
-compiling the smart contracts to Solidity.
+Ghost code which is annotated with the ``@ghost`` annotation or enclosed in
+``ghost { }`` (from ``stainless.lang.ghost``) is ignored when compiling the
+smart contracts to Solidity.
+
 
 Static and Dynamic Checks
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Importing ``stainless.lang.StaticChecks._`` provides the keywords ``assert`` and
 ``require`` which trigger the creation of verification conditions. These
-expressions are ghost will not be compiled to Solidity, which allows you to 
+expressions are ghost will not be compiled to Solidity, which allows you to
 save on gas cost once your contracts are deployed.
 
 On the other hand, importing ``stainless.smartcontracts._`` gives you the
 keywords ``dynAssert`` and ``dynRequire`` which do not trigger the creation of
 verification conditions, and which *do* get compiled to Solidity (respectively
 to ``assert`` and ``require``) to get runtime checks.
-
-**Remark: Beware if you use require on external functions, as these will not
-appear in the compiled Solidity code. If you want both static verification
-conditions (from internal calls) and dynamic checks at runtime, you can use both
-require and dynRequire as follows.**
-
-
-.. code-block:: scala
-
-  def f() = {
-    require(condition)
-    dynRequire(condition)
-    // rest of the code
-  }
 
 
 Strict Arithmetic
@@ -205,7 +221,7 @@ The ``--strict-arithmetic`` mode makes Stainless add verification conditions
 (VCs) that check that arithmetic operations do not overflow. For instance, when
 the mode is active, writing ``a + b`` if ``a`` and ``b`` are ``uint256̀`` will
 create a VC stating that ``a + b`` must be greater or equal to ``a``, and
-Stainless will report whether this VC is valid or not (or unknown). 
+Stainless will report whether this VC is valid or not (or unknown).
 
 
 Development
@@ -216,13 +232,9 @@ development and you should expect many (possibly backward-incompatible) changes
 as we implement new features. Here is a list of things that we are working on,
 or plan to work on in the near future:
 
-* Conversion from Address to Contract.
 * Translation from case classes to struct.
-* Inheritance between contracts (case classes will be replaced by traits).
-* Fallback functions.
 * More uintX types (only uint8 and uint256 are supported for the moment).
-* @internal and @external annotations for functions, to denote functions that 
-  can only be accessed from the inside or outside, respectively.
+* @internal and @external annotations for functions.
 * For loops (at the moment, while loops or recursive functions can be used instead).
 * Direct compilation to EVM bytecode and other backends.
 
@@ -233,9 +245,9 @@ issue in the `smart repository <https://github.com/epfl-lara/smart>`_.
 Known Issues
 ------------
 
-* Your code must contain a case class that extends the `Contract` class (from stainless.smartcontracts), otherwise you will get an exception during verification.
-* For readability, the compiler to Solidity currently prints the names of the variables as they appear in your Stainless source code. As such, you should avoid using two variables with the same name in the same scope.
-* Some checks for ghost code who were giving false positives are currently disabled.
+* For readability, the compiler to Solidity currently prints the names of the
+  variables as they appear in your Stainless source code. As such, you should avoid using two variables with the same name in the same scope.
+
 
 Reporting Issues
 ----------------
