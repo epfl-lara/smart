@@ -23,7 +23,7 @@ class SmartContractVerificationSuite extends SmartContractSuite {
   for (file <- invalidFiles) {
     test(s"stainless $file") {
       val report = runMainWithArgs(defaultArgs :+ file)
-      assert(report.get.stats.invalid > 0)
+      assert(report.get.stats.invalid + report.get.stats.unknown > 0)
     }
   }
 }
