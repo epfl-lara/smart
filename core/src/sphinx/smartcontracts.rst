@@ -214,7 +214,7 @@ Invariants
 
 You can specify invariants on your contracts by declaring a function called
 ``invariant`` that returns a ``Boolean``. Stainless will then attempt to prove
-that all functions marked by `@solidityPublic` in your contract respect the
+that all functions marked by ``@solidityPublic`` in your contract respect the
 invariant, in the sense that if they are executed in a state where the invariant
 holds, they produce a state where the invariant still holds.
 
