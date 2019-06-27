@@ -13,6 +13,7 @@ trait B extends Contract {
     x = _x
   }
 
+  @ghost
   final def invariant() = {
     x >= 0
   }
