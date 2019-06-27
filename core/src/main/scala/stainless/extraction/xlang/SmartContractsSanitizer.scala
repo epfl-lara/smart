@@ -56,6 +56,14 @@ trait SmartContractsSanitizer {
       }
     }
 
+    // Constructors cannot have preconditions
+    for (fd <- allFunctions if fd.isContractConstructor) {
+      exprOps.preconditionOf(fd.fullBody) match {
+        case None =>
+        case Some(x) => throw MalformedSmartContract(fd, "Smart contract constructors cannot have a precondition")
+      }
+    }
+
     // No inheritance
     for (cd <- contracts if !cd.children.isEmpty)
       throw MalformedSmartContract(cd, s"Inheritance of smart contracts is not supported (${cd.id.asString}).")
