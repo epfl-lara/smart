@@ -29,7 +29,7 @@ package object extraction {
     "PartialFunctions"          -> "Lift partial function preconditions",
     "EnvironmentBuilder"        -> "Give semantics to Msg.sender and smart contracts environment",
     "InvariantInjection"        -> "Inject and update the invariants of each contract",
-    "HavocInjection"            -> "Inject a havoc method in each Contract that can be used to reset variables to arbirary values",
+    "HavocInjection"            -> "Inject a havoc method in each Contract that resets variables to arbitrary values",
     "InnerClasses"              -> "Lift inner classes",
     "Laws"                      -> "Rewrite laws as abstract functions with contracts",
     "SuperCalls"                -> "Resolve super-function calls",

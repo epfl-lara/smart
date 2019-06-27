@@ -9,7 +9,6 @@ import scala.collection.mutable.{Map => MutableMap, Set => MutableSet}
 trait InvariantInjection extends oo.SimplePhase
   with oo.SimplyCachedClasses
   with SimplyCachedSorts
-  with SimplyCachedFunctions
   with oo.IdentityTypeDefs
   { self =>
   val s: trees.type
@@ -19,6 +18,17 @@ trait InvariantInjection extends oo.SimplePhase
   /* ====================================
    *       Context and caches setup
    * ==================================== */
+
+  override protected final val funCache = new ExtractionCache[s.FunDef, FunctionResult]((fd, context) => {
+    implicit val symbols = context.symbols
+    if (fd.isContractConstructor || fd.isHavoc || (fd.isConcreteContractMethod && fd.isSolidityPublic)) {
+      // The ValueKey is unique to this run, so caching is disabled in that case
+      val contract = symbols.classes(fd.findClass.get)
+      FunctionKey(fd) + ValueKey(context.invariants(contract.id).id)
+    } else {
+      FunctionKey(fd)
+    }
+  })
 
   override protected def getContext(symbols: s.Symbols) = new TransformerContext()(symbols)
   protected class TransformerContext(implicit val symbols: s.Symbols) extends oo.TreeTransformer {

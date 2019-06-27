@@ -9,7 +9,6 @@ import scala.collection.mutable.{Map => MutableMap, Set => MutableSet}
 trait HavocInjection extends oo.SimplePhase
   with oo.SimplyCachedClasses
   with SimplyCachedSorts
-  with SimplyCachedFunctions
   with oo.IdentityTypeDefs
   { self =>
   val s: trees.type
@@ -19,6 +18,17 @@ trait HavocInjection extends oo.SimplePhase
   /* ====================================
    *       Context and caches setup
    * ==================================== */
+
+  override protected final val funCache = new ExtractionCache[s.FunDef, FunctionResult]((fd, context) => {
+    implicit val symbols = context.symbols
+    if (fd.isConcreteContractMethod) {
+      // The ValueKey is unique to this run, so caching is disabled in that case
+      val contract = symbols.classes(fd.findClass.get)
+      FunctionKey(fd) + ValueKey(context.havocs(contract.id).id)
+    } else {
+      FunctionKey(fd)
+    }
+  })
 
   override protected def getContext(symbols: s.Symbols) = new TransformerContext()(symbols)
   protected class TransformerContext(implicit val symbols: s.Symbols) extends oo.TreeTransformer {
@@ -54,7 +64,7 @@ trait HavocInjection extends oo.SimplePhase
     }.toMap
 
     override def transform(fd: FunDef): FunDef = {
-      if (fd.isContractMethod) {
+      if (fd.isConcreteContractMethod) {
         val contract = symbols.classes(fd.findClass.get)
         val contractType = contract.typed.toType
 
@@ -63,7 +73,9 @@ trait HavocInjection extends oo.SimplePhase
         }.get
 
         val newBody = postMap {
-          case m@MethodInvocation(receiver, id, tps, args) if symbols.functions(id).isContractMethod && !receiver.isInstanceOf[This] =>
+          case m@MethodInvocation(receiver, id, tps, args)
+            if symbols.functions(id).isContractMethod && !receiver.isInstanceOf[This] =>
+
             val fd = symbols.functions(id)
             val refinedReturnType = postconditionOf(fd.fullBody) match {
               case Some(l@Lambda(Seq(vd), post)) =>
@@ -84,8 +96,6 @@ trait HavocInjection extends oo.SimplePhase
         super.transform(fd)
       }
     }
-
-    val newFds = havocs.values.toSeq
   }
 
   /* ====================================
@@ -93,7 +103,7 @@ trait HavocInjection extends oo.SimplePhase
    * ==================================== */
 
   override def extractSymbols(context: TransformerContext, symbols: Symbols): Symbols = {
-    super.extractSymbols(context, symbols).withFunctions(context.newFds.toSeq)
+    super.extractSymbols(context, symbols).withFunctions(context.havocs.values.toSeq)
   }
 }
 
