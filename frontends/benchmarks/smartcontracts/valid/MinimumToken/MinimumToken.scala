@@ -10,10 +10,7 @@ import stainless.lang.snapshot
 import stainless.lang.MutableMap
 import scala.language.postfixOps
 
-import scala.annotation.meta.field
-
 import MinimumTokenInvariant._
-import scala.collection.generic.MutableMapFactory
 
 trait MinimumToken extends Contract {
   val balanceOf: MutableMap[Address,Uint256]
@@ -81,12 +78,6 @@ trait MinimumToken extends Contract {
 
     // proof that the sum of balances stays equal to `total`
     ghost {
-      assert(distinctAddresses(participants))
-      assert(sumBalances(participants, b0) == total)
-      assert(b1 == b0.updated(from, b0(from) - amount))
-      assert(balanceOf == b1.updated(to, b1(to) + amount))
-      assert(participants.contains(from))
-      assert(participants.contains(to))
       transferProof(b0, b1, balanceOf, from, to, amount, participants, total)
     }
 

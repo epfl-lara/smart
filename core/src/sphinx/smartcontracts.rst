@@ -48,71 +48,111 @@ which implements a token with just a ``transferFrom`` function. From the
   $ cd frontends/benchmarks/smartcontracts/valid/MinimumToken
   $ stainless *.scala
 
-After 30 seconds or so, Stainless should report that all verification conditions
+.. code-block:: scala
+  import stainless.smartcontracts._
+  import stainless.annotation._
+  import stainless.equations._
+  import stainless.annotation._
+  import stainless.collection._
+  import stainless.lang.StaticChecks._
+  import stainless.lang.ghost
+  import stainless.lang.forall
+  import stainless.lang.snapshot
+  import stainless.lang.MutableMap
+  import scala.language.postfixOps
+
+  import MinimumTokenInvariant._
+
+  trait MinimumToken extends Contract {
+    val balanceOf: MutableMap[Address,Uint256]
+    var total: Uint256
+
+    @ghost
+    var participants: List[Address]
+
+    @ghost
+    final def constructor(): Unit = {
+      // These requires reflect the default values given by Solidity
+      ghost { dynRequire (
+        balanceOf == MutableMap.withDefaultValue[Address, Uint256](() => Uint256.ZERO) &&
+        total == Uint256.ZERO
+      ) }
+
+      ghost {
+        participants = List()
+      }
+
+      // These asserts are checked by Stainless but not compiled
+      assert(distinctAddresses(participants))
+      assert(sumBalances(participants, balanceOf) == Uint256.ZERO)
+      assert(total == Uint256.ZERO)
+      assert(sumBalances(participants, balanceOf) == total)
+      assert(forall((a: Address) => participants.contains(a) || balanceOf(a) == Uint256.ZERO))
+    }
+
+    @ghost
+    final def invariant(): Boolean = {
+      distinctAddresses(participants) &&
+      sumBalances(participants, balanceOf) == total &&
+      forall((a: Address) => nonZeroContained(participants, balanceOf, a))
+    }
+
+    @solidityPublic
+    final def transferFrom(from: Address, to: Address, amount: Uint256): Unit = {
+      // dynamic requirements for input validation at runtime
+      dynRequire(to != Address(0))
+      dynRequire(from != to)
+      dynRequire(amount <= balanceOf(from))
+
+      // these assertions guide Stainless to instantiate the quantifier from
+      // the invariant on addresses `from` and `to`
+      assert(nonZeroContained(participants, balanceOf, from))
+      assert(nonZeroContained(participants, balanceOf, to))
+
+      // ghost code to update the list of participants
+      ghost {
+        addParticipant(from)
+        addParticipant(to)
+      }
+
+      // balanceOf mapping before any update
+      @ghost val b0 = snapshot(balanceOf)
+
+      // code to remove balance from `from` address
+      balanceOf(from) = balanceOf(from) - amount
+
+      // balanceOf mapping before after the first update, before the second update
+      @ghost val b1 = snapshot(balanceOf)
+
+      // code to add balance to recipient `to`
+      balanceOf(to) = balanceOf(to) + amount
+
+      // proof that the sum of balances stays equal to `total`
+      ghost {
+        transferProof(b0, b1, balanceOf, from, to, amount, participants, total)
+      }
+    }
+
+    @ghost
+    final def addParticipant(p: Address) = {
+      if (!participants.contains(p))
+        participants = p :: participants
+    }
+  }
+
+After 20 seconds or so, Stainless should report that all verification conditions
 are valid. What do these correspond to? The file ``MinimumToken.scala`` defines
-a token with a ``transferFrom`` function.
+a token with a ``transferFrom`` function, and maintains an invariant that states
+that the sum of balances of participants is always equal to ``total``.
 
-.. code-block:: scala
+In addition, the invariant states that all addresses that appear in the (ghost)
+variable ``participants`` are distinct that all addresses with a non-zero
+balance appear in the list of participants.
 
-  def transferFrom(from: Address, to: Address, amount: Uint256): Unit = {
-    require(contractInvariant(this))
-
-    // input validation at runtime
-    dynRequire(to != Address(0))
-    dynRequire(from != to)
-    dynRequire(amount <= balanceOf(from))
-
-    // ghost code to update the list of participants
-    ghost {
-      addParticipant(from)
-      addParticipant(to)
-    }
-
-    // balanceOf mapping before any update
-    @ghost val b0 = Mapping.duplicate(balanceOf)
-
-    // code to remove balance from `from` address
-    balanceOf(from) = balanceOf(from) - amount
-
-    // balanceOf mapping before after the first update, before the second update
-    @ghost val b1 = Mapping.duplicate(balanceOf)
-
-    // code to add balance to recipient `to`
-    balanceOf(to) = balanceOf(to) + amount
-
-    // proof that the sum of balances stays equal to `total`
-    ghost {
-      transferProof(b0,b1,balanceOf,from,to,amount,participants,total)
-    }
-
-  } ensuring { _ =>
-    contractInvariant(this)
-  }
-
-Ignoring the body of the function for a while, the ``require`` and ``ensuring``
-annotations (pre and post-conditions) ask Stainless to show that, regardless
-with which arguments the ``transferFrom`` function is called, as long as the
-contract `invariant` holds before the function call, then it will still hold
-after the function call.
-
-The ``contractInvariant`` function is defined in the file
-``MinimumTokenInvariant.scala``.
-
-.. code-block:: scala
-
-  def contractInvariant(contract: MinimumToken): Boolean = {
-    distinctAddresses(contract.participants) &&
-    sumBalances(contract.participants, contract.balanceOf) == contract.total &&
-    forall((x: Address) =>
-      (contract.balanceOf(x) != Uint256.ZERO) ==>
-      contract.participants.contains(x)
-    )
-  }
-
-It states that all addresses that appear in the (ghost) variable participants
-are distinct, that the sum of all balances of participants equals to ``total``,
-and that all addresses with a non-zero balance appear in the list of
-participants.
+Thanks to the annotations, Stainless is able to show that, regardless with which
+arguments the ``transferFrom`` function is called and as long as the contract
+`invariant` holds before the function call, then it will still hold after the
+function call.
 
 Showing that this invariant holds after the updates that happens in the
 ``transferFrom`` function requires some work. Some lemmas that are used to
@@ -123,16 +163,12 @@ expressions are ignored during compilation.
 
 The ``==:|`` and ``|:`` notations are defined in ``stainless.equations``. They
 enable to prove that two expressions are equal by detailing the sequence of
-intermediary steps, while providing evidence for each step (or ``trivial`` if
-not evidence is required).
+intermediary steps, while providing evidence for each step (or ``trivial`` when
+no evidence is required).
 
 ``MinimumToken`` is not so useful as is, since there is no way to create tokens.
 As an exercise, the reader may try to add a function for minting tokens, and
-prove that this function maintains the invariant. Additionally, we can
-add a custom constructor to this contract by adding a function called
-``constructor`` which will be translated to a constructor in Solidity during
-compilation.
-
+prove that this function maintains the invariant.
 
 Compilation to Solidity
 -----------------------
