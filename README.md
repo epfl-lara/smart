@@ -1,7 +1,7 @@
-Stainless 0.1s [![Gitter chat](https://img.shields.io/gitter/room/gitterHQ/gitter.svg)](https://gitter.im/epfl-lara/smart)
+Stainless 0.2.2s [![Gitter chat](https://img.shields.io/gitter/room/gitterHQ/gitter.svg)](https://gitter.im/epfl-lara/smart)
 =============
 
-Stainless 0.1s is a fork of [Stainless](https://github.com/epfl-lara/stainless)
+Stainless 0.2.2s is a fork of [Stainless](https://github.com/epfl-lara/stainless)
 which showcases formal verification of smart contracts written in a subset of
 Scala, and the compiler of this subset to Solidity.
 
