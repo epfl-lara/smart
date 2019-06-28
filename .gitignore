@@ -72,15 +72,10 @@ out-classes
 /libz3java.dll
 /libz3java.lib
 
-# VSCode
+# metals and VSCode
 .vscode
-
-# Solidity files
-*.sol
-
-# Metal
 .metals
 .bloop
 
-# misc
-stainlessCmd
+# Solidity files
+*.sol
