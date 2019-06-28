@@ -223,9 +223,16 @@ place holds, in order to make sure that any reentrancy from the called contract
 happens in a state where the invariant holds. For verification purposes,
 Stainless will then assume that the state after the external call is completely
 arbitrary, except for the fact that it respects the invariant. See the files
-`ValidReentrancy <https://github.com/epfl-lara/smart/frontends/benchmarks/smartcontracts/valid/ValidReentrancy.scala>`_ and
-`Reentrancy <https://github.com/epfl-lara/smart/frontends/benchmarks/smartcontracts/failVerification/Reentrancy.scala>`_ for examples that respectively valid and invalid (vulnerable
-to reentrancy attacks).
+`ValidReentrancy
+<https://github.com/epfl-lara/smart/frontends/benchmarks/smartcontracts/valid/ValidReentrancy.scala>`_
+and `Reentrancy
+<https://github.com/epfl-lara/smart/frontends/benchmarks/smartcontracts/failVerification/Reentrancy.scala>`_
+for examples that respectively valid and invalid (vulnerable to reentrancy
+attacks). If you don't want these checks (for instance because you want to
+assume that the interface you're interacting with is non-malicious, you can wrap
+the external call with ``ignoreReentrancy``, as shown in the `LoanContract
+example
+<https://github.com/epfl-lara/smart/frontends/benchmarks/smartcontracts/valid/LoanContract/LoanContract.scala>`_.
 
 
 Ghost code
