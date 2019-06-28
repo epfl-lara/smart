@@ -63,6 +63,20 @@ trait HavocInjection extends oo.SimplePhase
       (contract.id, fd)
     }.toMap
 
+    val skips = contracts.map { contract =>
+      val paramType = TypeParameterDef.fresh("T")
+
+      val fd = new FunDef(
+        ast.SymbolIdentifier("skip"),
+        Seq(paramType),
+        Seq(),
+        paramType.tp,
+        NoTree(paramType.tp),
+        Seq(Synthetic, IsPure, Extern, Final, IsMethodOf(contract.id))
+      )
+      (contract.id, fd)
+    }.toMap
+
     override def transform(fd: FunDef): FunDef = {
       if (fd.isConcreteContractMethod) {
         val contract = symbols.classes(fd.findClass.get)
@@ -72,25 +86,55 @@ trait HavocInjection extends oo.SimplePhase
           case v@ValDef(_, tpe, _) if tpe == envType => v.toVariable
         }.get
 
-        val newBody = postMap {
-          case m@MethodInvocation(receiver, id, tps, args)
-            if symbols.functions(id).isContractMethod && !receiver.isInstanceOf[This] =>
+        object LocalTransformer extends SelfTreeTransformer {
+          override def transform(e: Expr) = e match {
+            case fi@FunctionInvocation(ignoreId, _,
+              Seq(m@MethodInvocation(receiver, id, tps, args)))
+              if
+                isIdentifier("stainless.smartcontracts.ignoreReentrancy", ignoreId) &&
+                symbols.functions(id).isContractMethod && !receiver.isInstanceOf[This] =>
 
-            val fd = symbols.functions(id)
-            val refinedReturnType = postconditionOf(fd.fullBody) match {
-              case Some(l@Lambda(Seq(vd), post)) =>
-                val Lambda(Seq(vd2), post2) = freshenLocals(l)
-                RefinementType(vd2, post2)
-              case None => fd.returnType
-            }
-            val thiss = This(contractType).setPos(m)
-            Some(MethodInvocation(thiss, havocs(contract.id).id, Seq(refinedReturnType), Seq(envVar.setPos(m))).setPos(m))
+              val calledFd = symbols.functions(id)
+              val refinedReturnType = postconditionOf(calledFd.fullBody) match {
+                case Some(l@Lambda(Seq(vd), post)) =>
+                  val Lambda(Seq(vd2), post2) = freshenLocals(l)
+                  RefinementType(vd2, post2)
+                case None => calledFd.returnType
+              }
+              val thiss = This(contractType).setPos(m)
 
-          case _ => None
-        }(fd.fullBody)
+              MethodInvocation(
+                thiss,
+                skips(contract.id).id,
+                Seq(refinedReturnType),
+                Seq()
+              ).setPos(m)
+
+            case m@MethodInvocation(receiver, id, tps, args)
+              if symbols.functions(id).isContractMethod && !receiver.isInstanceOf[This] =>
+
+              val calledFd = symbols.functions(id)
+              val refinedReturnType = postconditionOf(calledFd.fullBody) match {
+                case Some(l@Lambda(Seq(vd), post)) =>
+                  val Lambda(Seq(vd2), post2) = freshenLocals(l)
+                  RefinementType(vd2, post2)
+                case None => calledFd.returnType
+              }
+              val thiss = This(contractType).setPos(m)
+
+              MethodInvocation(
+                thiss,
+                havocs(contract.id).id,
+                Seq(refinedReturnType),
+                Seq(envVar.setPos(m))
+              ).setPos(m)
+
+            case _ => super.transform(e)
+          }
+        }
 
         super.transform(fd.copy(
-          fullBody = newBody
+          fullBody = LocalTransformer.transform(fd.fullBody)
         ).copiedFrom(fd))
       } else {
         super.transform(fd)
@@ -103,7 +147,9 @@ trait HavocInjection extends oo.SimplePhase
    * ==================================== */
 
   override def extractSymbols(context: TransformerContext, symbols: Symbols): Symbols = {
-    super.extractSymbols(context, symbols).withFunctions(context.havocs.values.toSeq)
+    super.extractSymbols(context, symbols).
+      withFunctions(context.havocs.values.toSeq).
+      withFunctions(context.skips.values.toSeq)
   }
 }
 

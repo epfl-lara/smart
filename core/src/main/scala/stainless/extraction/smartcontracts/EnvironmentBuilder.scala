@@ -38,7 +38,7 @@ trait EnvironmentBuilder extends oo.SimplePhase
     val balancesAccessor: ValDef = envCd.fields.find(vd => isIdentifier("stainless.smartcontracts.Environment.balances", vd.id)).get
     val envUpdateBalance: FunDef = envCd.methods.map(symbols.functions).find(fd => isIdentifier("stainless.smartcontracts.Environment.updateBalance", fd.id)).get
     val transferFd: FunDef = symbols.lookup[FunDef]("stainless.smartcontracts.PayableAddress.transfer")
-    val addrFd: FunDef = symbols.lookup[FunDef]("stainless.smartcontracts.Environment.addr")
+    val addrFd: FunDef = symbols.lookup[FunDef]("stainless.smartcontracts.ContractInterface.addr")
 
     val toPayableAddressFd: FunDef = symbols.lookup[FunDef]("stainless.smartcontracts.toPayableAddress")
 
@@ -148,7 +148,7 @@ trait EnvironmentBuilder extends oo.SimplePhase
           }.get
 
           val thisRef = This(cd.typed.toType)
-          val addr = FunctionInvocation(addrFd.id, Seq(), Seq()).setPos(mi)
+          val addr = MethodInvocation(thisRef, addrFd.id, Seq(), Seq()).setPos(mi)
           val newMsg = ClassConstructor(msgType, Seq(FunctionInvocation(toPayableAddressFd.id, Seq(), Seq(addr)), uzero))
 
           val newArgs = args ++ paramsMapper(newMsg, env, implicitParameters(symbols.functions(mi.id)))

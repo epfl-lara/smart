@@ -53,6 +53,10 @@ package object smartcontracts {
   @library @pure
   def pay[A](f: A, amount: Uint256): A = f
 
+  @library @pure
+  @keep("smart-contracts")
+  def ignoreReentrancy[A](f: A): A = f
+
   @library
   def length[T](l: List[T]): Uint256 = l match {
     case Nil() => Uint256.ZERO
@@ -82,9 +86,6 @@ package object smartcontracts {
 
   @keep("smart-contracts")
   object Environment {
-    @library @extern @pure
-    def addr(): Address = ???
-
     @library @extern @pure
     def balanceOf(addr: Address): Uint256 = ???
 
@@ -160,7 +161,10 @@ package object smartcontracts {
 
   @library @mutable
   @keep("smart-contracts")
-  trait ContractInterface
+  trait ContractInterface {
+    @library
+    val addr: Address
+  }
 
   @library @mutable
   @keep("smart-contracts")

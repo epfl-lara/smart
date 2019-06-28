@@ -12,6 +12,8 @@ trait SmartContractsSanitizer {
 
   /** Throw a [[MalformedSmartContract]] exception when detecting an illegal pattern. */
   def check(symbols: Symbols)(implicit ctx: inox.Context): Unit = {
+
+    // TODO: @solidityLocal functions must not make calls to other contracts
     // TODO: Contract invariants must not make calls to other contracts
     // TODO: Contract variables cannot be accessed outside of the contract
 

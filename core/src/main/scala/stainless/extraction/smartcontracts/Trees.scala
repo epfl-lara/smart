@@ -61,8 +61,14 @@ trait Trees extends innerclasses.Trees { self =>
     def isAbstractContractMethod(implicit symbols: self.Symbols): Boolean =
       isContractMethod && fd.isInAbstractContract
 
-    def isSolidityPublic(implicit symbols: self.Symbols): Boolean = fd.flags.contains(Annotation("solidityPublic", Seq.empty))
-    def isSolidityPrivate(implicit symbols: self.Symbols): Boolean = fd.flags.contains(Annotation("solidityPrivate", Seq.empty))
+    def isSolidityLocal(implicit symbols: self.Symbols): Boolean =
+      fd.flags.contains(Annotation("solidityLocal", Seq.empty))
+
+    def isSolidityPublic(implicit symbols: self.Symbols): Boolean =
+      fd.flags.contains(Annotation("solidityPublic", Seq.empty))
+
+    def isSolidityPrivate(implicit symbols: self.Symbols): Boolean =
+      fd.flags.contains(Annotation("solidityPrivate", Seq.empty))
   }
 
   implicit class SmartContractsClassDefWrapper(cd: ClassDef) {

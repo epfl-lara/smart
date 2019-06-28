@@ -46,8 +46,14 @@ class partialEval extends Annotation
 @ignore
 class solidityPayable extends Annotation
 
+/** Annotation for smart contracts verification. Annotated a call to a contract
+  * with `@ignoreReentrancy` to ask Stainless to ignore potential reentrancy
+  * issues on that particular call. */
+@ignore
+class ignoreReentrancy extends Annotation
+
 /** Annotation for the compiler to Solidity, translated to "pure" in Solidity.
-  * A function with the solidityPure annotation should not read or write from 
+  * A function with the solidityPure annotation should not read or write from
   * the smart contract state. This is not checked by Stainless.  */
 @ignore
 class solidityPure extends Annotation

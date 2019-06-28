@@ -128,9 +128,13 @@ trait SolidityOutput {
   }
 
   def transformExpr(expr: Expr): SolidityExpr = expr match {
-    // Transform call to Environment.addr to `address(this)`
-    case FunctionInvocation(id, Seq(), Seq()) if isIdentifier("stainless.smartcontracts.Environment.addr", id) =>
-      SAddress(SVariable("this"))
+    // Transform calls to ContractInterface.addr to `address()`
+    case MethodInvocation(receiver, id, Seq(), Seq()) if isIdentifier("stainless.smartcontracts.ContractInterface.addr", id) =>
+      SAddress(transformExpr(receiver))
+
+    // Ignore calls to `ignoreReentrancy
+    case fi@FunctionInvocation(id, _, Seq(e)) if isIdentifier("stainless.smartcontracts.ignoreReentrancy",id) =>
+      transformExpr(e)
 
     // Transform calls `toPayableAddress(a)` to casts using `address(uint160(a))`
     case FunctionInvocation(id, Seq(), Seq(a)) if isIdentifier("stainless.smartcontracts.toPayableAddress", id) =>
