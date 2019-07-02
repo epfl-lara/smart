@@ -22,9 +22,12 @@ trait TypeCheckerSuite extends ComponentTestSuite {
   override def filter(ctx: inox.Context, name: String): FilterStatus = name match {
     // FIXME: fails in the tests but succeeds on command-line
     case "typechecker/valid/SuperCall5" => Ignore
+    case "typechecker/valid/MoreExtendedEuclidGCD" => Ignore
+
     // FIXME: Indexed recursive types are only supported by the Dotty frontend
     // We could move the type-checker suite to the Dotty tests
     case "typechecker/valid/Streams" => Ignore
+
     case _ => super.filter(ctx, name)
   }
 
@@ -39,12 +42,13 @@ trait TypeCheckerSuite extends ComponentTestSuite {
 }
 
 class SMTZ3TypeCheckerSuite extends TypeCheckerSuite {
-  override val cacheAllowed = false
+  override val cacheAllowed = true
 
   override def configurations = super.configurations.map {
     seq => Seq(
       inox.optSelectedSolvers(Set("smt-z3")),
-      inox.solvers.optCheckModels(true)
+      inox.solvers.optCheckModels(true),
+      verification.optVCCache(true),
     ) ++ seq
   }
 
@@ -53,25 +57,14 @@ class SMTZ3TypeCheckerSuite extends TypeCheckerSuite {
   }
 }
 
-class SMTZ3TypeCheckerCacheSuite extends TypeCheckerSuite {
+class SMTCVC4TypeCheckerSuite extends TypeCheckerSuite {
   override val cacheAllowed = true
 
   override def configurations = super.configurations.map {
     seq => Seq(
-      inox.optSelectedSolvers(Set("smt-z3")),
-      inox.solvers.optCheckModels(true),
-      verification.optVCCache(true)
-    ) ++ seq
-  }
-}
-
-class SMTCVC4TypeCheckerSuite extends TypeCheckerSuite {
-  override val cacheAllowed = false
-
-  override def configurations = super.configurations.map {
-    seq => Seq(
       inox.optSelectedSolvers(Set("smt-cvc4")),
-      inox.solvers.optCheckModels(true)
+      inox.solvers.optCheckModels(true),
+      verification.optVCCache(true),
     ) ++ seq
   }
 

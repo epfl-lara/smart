@@ -47,6 +47,12 @@ lazy val stainlessBuildInfoKeys = Seq[BuildInfoKey](
   sbtVersion,
 )
 
+lazy val noPublishSettings: Seq[Setting[_]] = Seq(
+  publish         := {},
+  publishM2       := {},
+  skip in publish := true,
+)
+
 lazy val baseSettings: Seq[Setting[_]] = Seq(
   organization := "ch.epfl.lara",
   licenses := Seq("Apache-2.0" -> url("https://www.apache.org/licenses/LICENSE-2.0.html"))
@@ -218,7 +224,9 @@ lazy val `stainless-library` = (project in file("frontends") / "library")
 lazy val `stainless-scalac` = (project in file("frontends") / "scalac")
   .enablePlugins(JavaAppPackaging)
   .enablePlugins(BuildInfoPlugin)
-  .settings(commonSettings, commonFrontendSettings, scriptSettings, assemblySettings)
+  .settings(commonSettings, commonFrontendSettings)
+  .settings(scriptSettings, assemblySettings)
+  .settings(noPublishSettings)
   .settings(
     name := "stainless-scalac",
     frontendClass := "scalac.ScalaCompiler",
@@ -230,8 +238,6 @@ lazy val `stainless-scalac` = (project in file("frontends") / "scalac")
       // Don't include scalaz3 dependency because it is OS dependent
       cp filter {_.data.getName.startsWith("scalaz3")}
     },
-    publish := (()),
-    skip in publish := true // following https://github.com/sbt/sbt-assembly#q-despite-the-concerned-friends-i-still-want-publish-fat-jars-what-advice-do-you-have
   )
   .dependsOn(`stainless-core`)
   //.dependsOn(inox % "test->test;it->test,it")
@@ -286,7 +292,7 @@ lazy val `sbt-stainless` = (project in file("sbt-plugin"))
     scriptedBufferLog := false,
     scriptedDependencies := {
       publishLocal.value
-      (update in `stainless-library`).value
+      (update       in `stainless-library`).value
       (publishLocal in `stainless-library`).value
       (publishLocal in `stainless-scalac-plugin`).value
     }
@@ -294,11 +300,9 @@ lazy val `sbt-stainless` = (project in file("sbt-plugin"))
 
 lazy val root = (project in file("."))
   .disablePlugins(AssemblyPlugin)
-  .settings(artifactSettings)
+  .settings(artifactSettings, noPublishSettings)
   .settings(
     sourcesInBase in Compile := false,
-    publishArtifact := false, // Don't publish root project
-    publish := (()),
   )
   .dependsOn(`stainless-scalac`, `stainless-library`, `sbt-stainless`)
   .aggregate(`stainless-core`, `stainless-library`, `stainless-scalac`, `sbt-stainless`, `stainless-scalac-plugin`)

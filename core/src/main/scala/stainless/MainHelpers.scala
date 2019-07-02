@@ -45,6 +45,7 @@ trait MainHelpers extends inox.MainHelpers { self =>
     optJson -> Description(General, "Output verification and termination reports to a JSON file"),
     optWatch -> Description(General, "Re-run stainless upon file changes"),
     optCompact -> Description(General, "Print only invalid elements of summaries"),
+    optNoColors -> Description(General, "Disable colored output"),
     frontend.optPersistentCache -> Description(General, "Enable caching of program extraction & analysis"),
     solidity.optSolidityOutput -> Description(Solidity, "From Stainless to Solidity"),
     solidity.optOverwriteSol -> Description(Solidity, "Overwrite existing Solidity files when compiling"),
@@ -109,7 +110,12 @@ trait MainHelpers extends inox.MainHelpers { self =>
   }
 
   def getConfigContext(implicit initReporter: inox.Reporter): inox.Context = {
-    super.processOptions(Seq.empty, getConfigOptions)
+    val ctx = super.processOptions(Seq.empty, getConfigOptions)
+
+    if (ctx.options.findOptionOrDefault(optNoColors)) {
+      val reporter = new stainless.PlainTextReporter(ctx.reporter.debugSections)
+      Context.withReporter(reporter)(ctx)
+    } else ctx
   }
 
   override
@@ -124,7 +130,12 @@ trait MainHelpers extends inox.MainHelpers { self =>
       .values
       .toSeq
 
-    super.processOptions(files, options)
+    val ctx = super.processOptions(files, options)
+
+    if (ctx.options.findOptionOrDefault(optNoColors)) {
+      val reporter = new stainless.PlainTextReporter(ctx.reporter.debugSections)
+      Context.withReporter(reporter)(ctx)
+    } else ctx
   }
 
   def main(args: Array[String]): Unit = try {
