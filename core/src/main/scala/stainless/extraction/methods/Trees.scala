@@ -78,10 +78,10 @@ trait Trees extends throwing.Trees { self =>
             acd.methods.filter(id => getFunction(id).isAbstract).map(_.symbol)
         }
 
-        // if (remainingAbstract.nonEmpty) {
-        //   throw NotWellFormedException(cd,
-        //     Some("Abstract methods " + remainingAbstract.map(_.name).mkString(", ") + " were not overriden"))
-        // }
+        if (remainingAbstract.nonEmpty) {
+          throw NotWellFormedException(cd,
+            Some("abstract methods " + remainingAbstract.map(_.name).mkString(", ") + " were not overriden"))
+        }
       }
 
       // Check that method overrides are well-typed
@@ -169,8 +169,12 @@ trait Trees extends throwing.Trees { self =>
     def getClassId: Option[Identifier] =
       fd.flags collectFirst { case IsMethodOf(id) => id }
 
+    def getClassDef(implicit s: Symbols): Option[ClassDef] =
+      getClassId flatMap s.lookupClass
+
     def isAccessor: Boolean =
       fd.flags exists { case IsAccessor(_) => true case _ => false }
+
     def isField: Boolean =
       fd.flags exists { case IsField(_) => true case _ => false }
 
@@ -196,7 +200,13 @@ trait Trees extends throwing.Trees { self =>
 
     def isFinal: Boolean = fd.flags contains Final
     def isPrivate: Boolean = fd.flags contains Private
-    def isAbstract: Boolean = fd.flags contains IsAbstract
+
+    def isAbstract(implicit s: Symbols): Boolean = {
+      (fd.flags contains IsAbstract) ||
+      (!isExtern && fd.getClassDef.forall(_.isAbstract) && !hasBody)
+    }
+
+    def hasBody: Boolean = exprOps.withoutSpecs(fd.fullBody).isDefined
 
     def isInvariant: Boolean = fd.flags contains IsInvariant
     def isExtern: Boolean = fd.flags contains Extern
