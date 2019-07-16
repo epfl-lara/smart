@@ -153,6 +153,8 @@ package object smartcontracts {
     override final def equals(other: Any) = payableAddressToAddress(this).equals(other)
   }
 
+  @library
+  @keep("smart-contracts")
   implicit def payableAddressToAddress(a: PayableAddress): Address = Address(a.id)
 
   @library
