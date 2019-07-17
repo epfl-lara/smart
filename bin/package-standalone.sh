@@ -52,6 +52,21 @@ TMP_DIR=$(mktemp -d 2>/dev/null || mktemp -d -t "stainless-package-standalone")
 
 STAINLESS_JAR_BASENAME=$(basename "$STAINLESS_JAR_PATH")
 
+function check_tools {
+  for tool in \
+    wget \
+    unzip \
+    zip \
+    ; do
+    if ! which ${tool} > /dev/null; then
+      echo "Missing required utility \"${tool}\"; please install it" >> $LOG
+      fail
+    fi
+  done
+
+  okay
+}
+
 function fetch_z3 {
   local PLAT="$1"
   local NAME="$2"
@@ -83,7 +98,16 @@ function generate_launcher {
 
 BASE_DIR="\$( cd "\$( dirname "\${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
 Z3_DIR="\$BASE_DIR/z3"
-JARS="\$BASE_DIR/lib/$STAINLESS_JAR_BASENAME:\$BASE_DIR/lib/$SCALAZ3_JAR_BASENAME"
+STAINLESS_JAR="\$BASE_DIR/lib/$STAINLESS_JAR_BASENAME"
+SCALAZ3_JAR="\$BASE_DIR/lib/$SCALAZ3_JAR_BASENAME"
+JARS="\$STAINLESS_JAR:\$SCALAZ3_JAR"
+
+for JAR in \$STAINLESS_JAR \$SCALAZ3_JAR; do
+  if ! [[ -r \$JAR ]]; then
+    echo "Read access for the jar file \$JAR is required."
+    exit 1
+  fi
+done
 
 exec env PATH="\$Z3_DIR:\$PATH" java -cp \$JARS \$JAVA_OPTS stainless.Main "\$@"
 END
@@ -125,6 +149,9 @@ function package {
 # -----
 
 echo -e "Starting packaging version $STAINLESS_VERSION on $(date).\n-----\n" | tee -a $LOG
+
+info "${BLD}[] Checking required tools..."
+check_tools
 
 info "${BLD}[] Assembling fat jar..."
 if [ -f "$STAINLESS_JAR_PATH" ]; then
