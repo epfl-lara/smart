@@ -3,7 +3,8 @@
 package stainless
 package frontend
 
-import extraction.xlang.{trees => xt, TreeSanitizer, SmartContractsSanitizer}
+import stainless.extraction.xlang.{trees => xt, TreeSanitizer, SmartContractsSanitizer}
+import stainless.utils.LibraryFilter
 
 import scala.util.{Try, Success, Failure}
 import scala.concurrent.Await
@@ -52,14 +53,16 @@ class BatchedCallBack(components: Seq[Component])(implicit val context: inox.Con
       .withFunctions(currentFunctions)
       .withTypeDefs(currentTypeDefs)
 
+    val initialSymbols = LibraryFilter.removeLibraryFlag(allSymbols)
+
     def notUserFlag(f: xt.Flag) = f.name == "library" || f == xt.Synthetic
 
     val userIds =
-      currentClasses.filterNot(cd => cd.flags.exists(notUserFlag)).map(_.id) ++
-      currentFunctions.filterNot(fd => fd.flags.exists(notUserFlag)).map(_.id) ++
-      currentTypeDefs.filterNot(td => td.flags.exists(notUserFlag)).map(_.id)
+      initialSymbols.classes.values.filterNot(cd => cd.flags.exists(notUserFlag)).map(_.id) ++
+      initialSymbols.functions.values.filterNot(fd => fd.flags.exists(notUserFlag)).map(_.id) ++
+      initialSymbols.typeDefs.values.filterNot(td => td.flags.exists(notUserFlag)).map(_.id)
 
-    val userDependencies = userIds.flatMap(id => allSymbols.dependencies(id)) ++ userIds
+    val userDependencies = (userIds.flatMap(initialSymbols.dependencies) ++ userIds).toSeq
 
     val smartcontracts = context.options.findOptionOrDefault(optSmartContracts)
     val smartcontractsGroup = if (smartcontracts) Some("smart-contracts") else None
@@ -68,27 +71,25 @@ class BatchedCallBack(components: Seq[Component])(implicit val context: inox.Con
     def hasKeepFlag(flags: Seq[xt.Flag]) =
       keepGroups.exists(g => flags.contains(xt.Annotation("keep", Seq(xt.StringLiteral(g)))))
 
+    def keepDefinition(defn: xt.Definition): Boolean =
+      hasKeepFlag(defn.flags) || userDependencies.contains(defn.id)
+
     val preSymbols =
-      xt.NoSymbols.withClasses(currentClasses.filter(cd => hasKeepFlag(cd.flags) || userDependencies.contains(cd.id)))
-                  .withFunctions(currentFunctions.filter(fd => hasKeepFlag(fd.flags) || userDependencies.contains(fd.id)))
-                  .withTypeDefs(currentTypeDefs.filter(td => hasKeepFlag(td.flags) || userDependencies.contains(td.id)))
+      xt.NoSymbols.withClasses(initialSymbols.classes.values.filter(keepDefinition).toSeq)
+                  .withFunctions(initialSymbols.functions.values.filter(keepDefinition).toSeq)
+                  .withTypeDefs(initialSymbols.typeDefs.values.filter(keepDefinition).toSeq)
 
     val symbols = Recovery.recover(preSymbols)
 
-    try {
-      symbols.ensureWellFormed
-      TreeSanitizer(xt).check(symbols)
-      if (smartcontracts)
-        SmartContractsSanitizer(xt).check(symbols)
-    } catch {
-      case e: extraction.MalformedStainlessCode =>
-        reportError(e.tree.getPos, e.getMessage, symbols)
-      case e: extraction.MalformedSmartContract =>
-        reportError(e.tree.getPos, e.getMessage, symbols)
+    val errors = TreeSanitizer(xt).check(symbols)
+    if (!errors.isEmpty) {
+      reportErrorFooter(symbols)
     }
 
     try {
       symbols.ensureWellFormed
+      if (smartcontracts)
+        SmartContractsSanitizer(xt).check(symbols)
     } catch {
       case e: symbols.TypeErrorException =>
         reportError(e.pos, e.getMessage, symbols)
@@ -125,6 +126,10 @@ class BatchedCallBack(components: Seq[Component])(implicit val context: inox.Con
 
   private def reportError(pos: inox.utils.Position, msg: String, syms: xt.Symbols): Unit = {
     reporter.error(pos, msg)
+    reportErrorFooter(syms)
+  }
+
+  private def reportErrorFooter(syms: xt.Symbols): Unit = {
     reporter.error(s"The extracted program is not well formed.")
     reporter.error(s"Symbols are:")
     reporter.error(s"functions -> [${syms.functions.keySet.toSeq.sorted mkString ", "}]")

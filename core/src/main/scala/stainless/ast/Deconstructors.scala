@@ -148,6 +148,13 @@ trait TreeDeconstructor extends inox.ast.TreeDeconstructor {
         t.MatchExpr(newScrut, crecons(ids, vs, nes, tps))
       })
 
+    case s.Passes(in, out, cases) =>
+      val (cids, cvs, ces, ctps, crecons) = deconstructCases(cases)
+      (cids, cvs, Seq(in, out) ++ ces, ctps, Seq(), (ids, vs, es, tps, _) => {
+        val newIn +: newOut +: nes = es
+        t.Passes(newIn, newOut, crecons(ids, vs, nes, tps))
+      })
+
     case s.FiniteArray(elems, base) =>
       (Seq(), Seq(), elems, Seq(base), Seq(), (_, _, es, tps, _) => t.FiniteArray(es, tps.head))
 
@@ -194,6 +201,7 @@ trait TreeDeconstructor extends inox.ast.TreeDeconstructor {
     case s.Private => (Seq(), Seq(), Seq(), (_, _, _) => t.Private)
     case s.Final => (Seq(), Seq(), Seq(), (_, _, _) => t.Final)
     case s.Unchecked => (Seq(), Seq(), Seq(), (_, _, _) => t.Unchecked)
+    case s.Library => (Seq(), Seq(), Seq(), (_, _, _) => t.Library)
     case s.Synthetic => (Seq(), Seq(), Seq(), (_, _, _) => t.Synthetic)
     case s.Derived(id) => (Seq(id), Seq(), Seq(), (ids, _, _) => t.Derived(ids.head))
     case s.IsField(isLazy) => (Seq(), Seq(), Seq(), (_, _, _) => t.IsField(isLazy))

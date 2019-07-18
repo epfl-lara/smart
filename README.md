@@ -1,5 +1,5 @@
-Stainless 0.3.2s [![Build Status](http://laraquad4.epfl.ch:9000/epfl-lara/smart/status/master)](http://laraquad4.epfl.ch:9000/epfl-lara/smart) [![Gitter chat](https://img.shields.io/gitter/room/gitterHQ/gitter.svg)](https://gitter.im/epfl-lara/smart)
-=============
+=======
+# Stainless for Smart Contracts [![Release][release-img]][latest-release] [![Build Status][larabot-img]][larabot-ref] [![Gitter chat][gitter-img]][gitter-ref] [![Apache 2.0 License][license-img]][license-ref]
 
 Stainless 0.3.2s is a fork of [Stainless](https://github.com/epfl-lara/stainless)
 which showcases formal verification of smart contracts written in a subset of
@@ -149,3 +149,13 @@ SUCH DAMAGES.
 
 
 See also the [license](LICENSE).
+
+[latest-release]: https://github.com/epfl-lara/smart/releases/latest
+[license-img]: https://img.shields.io/badge/license-Apache_2.0-blue.svg?color=134EA2
+[license-ref]: http://laraquad4.epfl.ch:9000/epfl-lara/smart
+[gitter-img]: https://img.shields.io/gitter/room/gitterHQ/gitter.svg?color=ed1965
+[gitter-ref]: https://gitter.im/epfl-lara/smart
+[larabot-img]: http://laraquad4.epfl.ch:9000/epfl-lara/smart/status/master
+[larabot-ref]: https://travis-ci.org/amnh/PCGhive/master.zip
+[release-img]: https://img.shields.io/github/release-pre/epfl-lara/stainless.svg
+[tag-date-img]: https://img.shields.io/github/release-date-pre/epfl-lara/stainless.svg?style=popout

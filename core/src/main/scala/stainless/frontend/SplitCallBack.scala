@@ -3,6 +3,8 @@
 package stainless
 package frontend
 
+import stainless.utils.LibraryFilter
+
 import scala.language.existentials
 
 import extraction.xlang.{ TreeSanitizer, trees => xt }
@@ -60,6 +62,8 @@ class SplitCallBack(components: Seq[Component])(override implicit val context: i
   final override def failed(): Unit = ()
 
   final override def endExtractions(): Unit = {
+    symbols = LibraryFilter.removeLibraryFlag(symbols)
+
     processSymbols(symbols)
 
     if (report != null) report = report.filter(recentIdentifiers.toSet)
@@ -153,11 +157,9 @@ class SplitCallBack(components: Seq[Component])(override implicit val context: i
   }
 
   private def processFunctionSymbols(id: Identifier, syms: xt.Symbols): Unit = {
-    try {
-      TreeSanitizer(xt).check(syms)
-    } catch {
-      case e: extraction.MalformedStainlessCode =>
-        reportError(e.tree.getPos, e.getMessage, syms)
+    val errors = TreeSanitizer(xt).check(symbols)
+    if (!errors.isEmpty) {
+      reportErrorFooter(symbols)
     }
 
     try {
@@ -211,6 +213,10 @@ class SplitCallBack(components: Seq[Component])(override implicit val context: i
 
   private def reportError(pos: inox.utils.Position, msg: String, syms: xt.Symbols): Unit = {
     reporter.error(pos, msg)
+    reportErrorFooter(syms)
+  }
+
+  private def reportErrorFooter(syms: xt.Symbols): Unit = {
     reporter.error(s"The extracted sub-program is not well formed.")
     reporter.error(s"Symbols are:")
     reporter.error(s"functions -> [${syms.functions.keySet.toSeq.sorted mkString ", "}]")

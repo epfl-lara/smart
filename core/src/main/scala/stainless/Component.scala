@@ -97,28 +97,7 @@ trait ComponentRun { self =>
   def apply(ids: Seq[Identifier], symbols: xt.Symbols, filterSymbols: Boolean = false): Future[Analysis] = try {
     val exSymbols = extract(symbols)
 
-    def isDerivedFrom(ids: Set[Identifier])(fd: trees.FunDef): Boolean =
-      fd.flags.exists { case trees.Derived(id) => ids(id) case _ => false }
-
-    def mustCheck(fd: trees.FunDef): Boolean =
-      fd.flags.exists { case trees.ForceVC => true case _ => false }
-
-    val toCheck = inox.utils.fixpoint { (ids: Set[Identifier]) =>
-      ids ++ exSymbols.functions.values.toSeq
-        .filter(fd => isDerivedFrom(ids)(fd) || mustCheck(fd))
-        .filter(extractionFilter.shouldBeChecked)
-        .map(_.id)
-    } (ids.flatMap(id => exSymbols.lookupFunction(id).toSeq).filter(extractionFilter.shouldBeChecked).map(_.id).toSet)
-
-    val toProcess = toCheck.toSeq.sortBy(exSymbols.getFunction(_).getPos)
-
-    for (id <- toProcess) {
-      val fd = exSymbols.getFunction(id)
-      if (fd.flags exists (_.name == "library")) {
-        val fullName = fd.id.fullName
-        reporter.warning(s"Component [${component.name}]: Forcing processing of $fullName which was assumed verified")
-      }
-    }
+    val toProcess = extractionFilter.filter(ids, exSymbols, component)
 
     if (filterSymbols)
       execute(toProcess, filter(toProcess, exSymbols))

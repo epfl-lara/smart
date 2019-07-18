@@ -18,7 +18,7 @@ trait InoxEncoder extends ProgramEncoder {
   import context._
 
   private[this] def keepFlag(flag: Flag): Boolean = flag match {
-    case Unchecked | Synthetic | PartialEval | Extern | Opaque | Private | Final | Law | Ghost | ForceVC | Erasable => false
+    case Unchecked | Library | Synthetic | PartialEval | Extern | Opaque | Private | Final | Law | Ghost | Erasable | ForceVC => false
     case Derived(_) | IsField(_) | IsUnapply(_, _) | IndexedAt(_) => false
     case _ => true
   }
@@ -73,6 +73,9 @@ trait InoxEncoder extends ProgramEncoder {
     override def transform(e: s.Expr): t.Expr = e match {
       case m: s.MatchExpr =>
         transform(matchToIfThenElse(m))
+
+      case p: s.Passes =>
+        transform(matchToIfThenElse(p.asConstraint))
 
       case s.NoTree(tpe) =>
         t.Choose(
