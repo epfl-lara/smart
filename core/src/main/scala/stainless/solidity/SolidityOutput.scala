@@ -516,18 +516,6 @@ trait SolidityOutput {
     fds.filter(_.isSolidityLibrary)
   }
 
-  def hasSmartContractCode(filename: String): Boolean = {
-
-    val classes = getClassesIn(filename)
-    val functions = getFunctionsIn(filename)
-
-    val interfaces = collectInterfaces(classes)
-    val contracts = collectContracts(classes)
-    val libraries = collectLibraries(functions)
-
-    !interfaces.isEmpty || !contracts.isEmpty || !libraries.isEmpty
-  }
-
   def isSmartContractLibrary(f: File): Boolean = {
     f.getName == "package.scala" &&
     f.getParentFile.getName == "smartcontracts" &&
@@ -561,6 +549,20 @@ trait SolidityOutput {
 
   val allDefs = interfaces ++ contracts ++ libraries
 
+  def hasSmartContractCode(s: String): Boolean = {
+
+    val classes = getClassesIn(s)
+    val functions = getFunctionsIn(s)
+
+    val interfaces = collectInterfaces(classes)
+    val contracts = collectContracts(classes)
+    val libraries = collectLibraries(functions)
+
+    !interfaces.isEmpty || !contracts.isEmpty || !libraries.isEmpty
+  }
+
+  def hasSmartContractCode(): Boolean = !allDefs.isEmpty
+
   def writeFile() = {
     ctx.reporter.info("Compiling file: " + filename)
 
@@ -581,6 +583,8 @@ object SolidityOutput {
       override val symbols = syms
       override val ctx = context
     } with SolidityOutput
-    output.writeFile()
+
+    if (output.hasSmartContractCode())
+      output.writeFile()
   }
 }
