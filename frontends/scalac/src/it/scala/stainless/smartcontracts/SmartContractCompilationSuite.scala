@@ -5,13 +5,19 @@ package smartcontracts
 
 import org.scalatest._
 
+import java.nio.file.{Paths, Files}
+
 import utils._
 
 class SmartContractSolidityOutputSuite extends SmartContractSuite {
   for (args <- validArgs if !args.isEmpty) {
-    val solcCompile = s"solc ${args.mkString(" ")}".replaceAll("\\.scala", ".sol")
-    test(s"stainless --solidity --overwrite-sol ${args.mkString(" ")}; $solcCompile") {
+    val solFiles = args.map(_.replace(".scala", ".sol"))
+    test(s"stainless --solidity --overwrite-sol ${args.mkString(" ")}") {
       runMainWithArgs(args :+ "--solidity" :+ "--overwrite-sol")
+      val presentSolFiles = solFiles.filter((s: String) => Files.exists(Paths.get(s)))
+      assert(!presentSolFiles.isEmpty)
+      val solcCompile = s"solc ${presentSolFiles.mkString(" ")}"
+      println(s"Running: $solcCompile")
       val (std, exitCode) = runCommand(solcCompile)
       if (exitCode == 0 && std.mkString != "Compiler run successful, no output requested.")
         println("solc output:\n" + std.mkString("\n"))
