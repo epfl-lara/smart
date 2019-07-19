@@ -531,13 +531,15 @@ trait SolidityOutput {
       case (id, file) if file.getCanonicalPath == filename => id
     }
 
-    val idDependencies = idsInFile.flatMap(symbols.dependencies)
+    val idDependencies = idsInFile.flatMap(symbols.dependencies).filterNot { id =>
+      symbols.lookupFunction(id).exists(_.isLibrary) ||
+      symbols.lookupClass(id).exists(_.isLibrary)
+    }
     val allFileDependencies = idDependencies.toSet.map(idToFile)
 
     allFileDependencies
       .filterNot(isSmartContractLibrary)
       .map(_.getCanonicalPath)
-      .filterNot(_.startsWith(System.getProperty("java.io.tmpdir")))
       .filterNot(_ == filename)
       .filter(hasSmartContractCode)
       .map(scalaToSolName)
