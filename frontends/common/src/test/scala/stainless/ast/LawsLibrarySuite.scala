@@ -53,8 +53,10 @@ class LawsLibrarySuite extends FunSuite with InputUtils {
     .get
 
   def pipeline = {
-    extraction.xlang.extractor        andThen
-    extraction.innerclasses.extractor andThen
+    extraction.xlang.extractor          andThen
+    // smartcontracts will do nothing since `frontend.optSmartContracts` is set to false in TestContext.apply()
+    extraction.smartcontracts.extractor andThen
+    extraction.innerclasses.extractor   andThen
     extraction.methods.Laws(extraction.methods.trees)
   }
 
