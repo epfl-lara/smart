@@ -157,6 +157,6 @@ See also the [license](LICENSE).
 [gitter-img]: https://img.shields.io/gitter/room/gitterHQ/gitter.svg?color=ed1965
 [gitter-ref]: https://gitter.im/epfl-lara/smart
 [larabot-img]: http://laraquad4.epfl.ch:9000/epfl-lara/smart/status/master
-[larabot-ref]: https://travis-ci.org/amnh/PCGhive/master.zip
+[larabot-ref]: http://laraquad4.epfl.ch:9000/epfl-lara/smart/builds
 [release-img]: https://img.shields.io/github/release-pre/epfl-lara/stainless.svg
 [tag-date-img]: https://img.shields.io/github/release-date-pre/epfl-lara/stainless.svg?style=popout
