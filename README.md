@@ -1,5 +1,6 @@
-=======
-# Stainless for Smart Contracts [![Release][release-img]][latest-release] [![Build Status][larabot-img]][larabot-ref] [![Gitter chat][gitter-img]][gitter-ref] [![Apache 2.0 License][license-img]][license-ref]
+# Stainless for Smart Contracts
+
+# [![Release][release-img]][latest-release] [![Build Status][larabot-img]][larabot-ref] [![Gitter chat][gitter-img]][gitter-ref] [![Apache 2.0 License][license-img]][license-ref]
 
 Stainless 0.3.2s is a fork of [Stainless](https://github.com/epfl-lara/stainless)
 which showcases formal verification of smart contracts written in a subset of
@@ -152,7 +153,7 @@ See also the [license](LICENSE).
 
 [latest-release]: https://github.com/epfl-lara/smart/releases/latest
 [license-img]: https://img.shields.io/badge/license-Apache_2.0-blue.svg?color=134EA2
-[license-ref]: http://laraquad4.epfl.ch:9000/epfl-lara/smart
+[license-ref]: https://github.com/epfl-lara/smart/blob/master/LICENSE
 [gitter-img]: https://img.shields.io/gitter/room/gitterHQ/gitter.svg?color=ed1965
 [gitter-ref]: https://gitter.im/epfl-lara/smart
 [larabot-img]: http://laraquad4.epfl.ch:9000/epfl-lara/smart/status/master
