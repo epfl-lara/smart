@@ -120,7 +120,7 @@ trait LoanContract extends Contract {
   final def payback(): Unit = {
     dynRequire(addr.balance >= Msg.value)
     dynRequire(Msg.value >= premiumAmount + wantedAmount)
-    dynRequire(Msg.sender == lender)
+    dynRequire(Msg.sender == borrower)
 
     if (currentState == WaitingForPayback) {
       assert(stateInvariant(currentState, visitedStates))
