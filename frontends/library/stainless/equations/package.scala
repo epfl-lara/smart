@@ -1,9 +1,10 @@
-/* Copyright 2009-2018 EPFL, Lausanne */
+/* Copyright 2009-2019 EPFL, Lausanne */
 
 package stainless
 
 import stainless.lang._
 import stainless.annotation._
+import stainless.lang.StaticChecks._
 
 import scala.language.implicitConversions
 
@@ -74,7 +75,10 @@ package object equations {
       require (keepEvidence(prev.evidence()) ==> (prev.y() == x()))
       RAEqEvidence(prev.x, y, prev.evidence)
     }
+
     @inline
-    def qed: Boolean = (x() == y()).holds
+    def qed: Unit = {
+      ()
+    } ensuring(_ => x() == y())
   }
 }

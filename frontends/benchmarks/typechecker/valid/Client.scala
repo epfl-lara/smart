@@ -1,4 +1,4 @@
-/* Copyright 2009-2018 EPFL, Lausanne */
+/* Copyright 2009-2019 EPFL, Lausanne */
 
 import stainless.collection._
 import stainless.lang._
@@ -14,7 +14,7 @@ object Minimal {
 
   def theorem() = {
     client.f(0).size != BigInt(0)
-  } holds
+  }.holds
 
 }
 

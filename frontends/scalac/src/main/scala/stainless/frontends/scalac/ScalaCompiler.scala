@@ -1,4 +1,4 @@
-/* Copyright 2009-2018 EPFL, Lausanne */
+/* Copyright 2009-2019 EPFL, Lausanne */
 
 package stainless
 package frontends.scalac
@@ -17,20 +17,13 @@ object SymbolMapping {
 
   def empty = new SymbolMapping()
 
-  /**
-   * To avoid suffering too much from changes in symbols' id, we generate a
-   * more stable kind to disambiguate symbols. This allows --watch to not be
-   * fooled by the insertion/deletion of symbols (e.g. new top level classes)
-   * but unfortunately not methods because overloading/generics makes things
-   * ambiguous and hard to unify.
-   */
   private def kind(sym: Global#Symbol): String = {
     if (sym.isPackageClass) "0"
     else if (sym.isModule) "1"
     else if (sym.isModuleClass) "2"
-    else if (sym.isClass) "3"
+    else if (sym.isClass) "c" + sym.id
     else if (sym.isMethod) "m" + sym.id
-    else if (sym.isType) "5"
+    else if (sym.isType) "tp" + sym.id
     else if (sym.isTerm) "t" + sym.id // Many things are terms... Fallback to its id
     else ???
   }
@@ -39,21 +32,42 @@ object SymbolMapping {
 class SymbolMapping {
   import SymbolMapping.getPath
 
+  private[this] val ignoredClasses = Set(
+    "scala.Any",
+    "scala.AnyRef",
+    "scala.Product",
+    "scala.Serializable",
+    "java.lang.Object",
+    "java.lang.Serializable",
+  )
+
+  // Note: We can't compare with the global symbols here because
+  // the symbol mapping class is re-used across compiler runs
+  // and thus across `Global` instances, so we have to check
+  // against the full symbol name instead. - @romac
+  def isIgnored(sym: Global#Symbol): Boolean = {
+    val name = sym.fullNameAsName('.').decode.trim
+    ignoredClasses contains name
+  }
+
+  def topmostAncestor(sym: Global#Symbol): Global#Symbol = {
+    sym.overrideChain
+      .filterNot(s => isIgnored(s.owner))
+      .lastOption
+      .getOrElse(sym)
+  }
+
   /** Get the identifier associated with the given [[sym]], creating a new one if needed. */
   def fetch(sym: Global#Symbol): SymbolIdentifier = {
     val path = getPath(sym)
-    s2i.getOrElse(path, {
-      val top = if (sym.overrideChain.nonEmpty) sym.overrideChain.last else sym
-      val symbol = s2s.getOrElse(top, {
+    s2i.getOrElseUpdate(path, {
+      val top = topmostAncestor(sym)
+      val symbol = s2s.getOrElseUpdate(top, {
         val name = sym.fullNameAsName('.').decode.trim
-        val res = ast.Symbol(if (name endsWith "$") name.init else name)
-        s2s(top) = res
-        res
+        ast.Symbol(if (name endsWith "$") name.init else name)
       })
 
-      val res = SymbolIdentifier(symbol)
-      s2i(path) = res
-      res
+      SymbolIdentifier(symbol)
     })
   }
 
@@ -176,6 +190,8 @@ object ScalaCompiler {
 
     settings.classpath.value = scalaLib
     settings.usejavacp.value = BuildInfo.useJavaClassPath
+    settings.feature.value = true
+    settings.unchecked.value = true
     settings.deprecation.value = true
     settings.Yrangepos.value = true
 

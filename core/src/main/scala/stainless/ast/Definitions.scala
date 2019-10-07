@@ -1,4 +1,4 @@
-/* Copyright 2009-2018 EPFL, Lausanne */
+/* Copyright 2009-2019 EPFL, Lausanne */
 
 package stainless
 package ast
@@ -23,6 +23,7 @@ trait Definitions extends inox.ast.Definitions { self: Trees =>
   case object PartialEval extends Flag("partialEval", Seq())
   case object ForceVC extends Flag("forceVC", Seq.empty)
 
+  case object Wrapping extends Flag("wrapping", Seq.empty)
   case class Derived(id: Identifier) extends Flag("derived", Seq(id))
   case class IsField(isLazy: Boolean) extends Flag("field", Seq.empty)
   case class IsUnapply(isEmpty: Identifier, get: Identifier) extends Flag("unapply", Seq(isEmpty, get))
@@ -38,6 +39,7 @@ trait Definitions extends inox.ast.Definitions { self: Trees =>
     case ("library", Seq()) => Library
     case ("partialEval", Seq()) => PartialEval
     case ("forceVC", Seq()) => ForceVC
+    case ("wrapping", Seq()) => Wrapping
     case _ => Annotation(name, args)
   }
 

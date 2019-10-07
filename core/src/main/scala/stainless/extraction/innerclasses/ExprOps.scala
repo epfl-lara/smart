@@ -1,4 +1,4 @@
-/* Copyright 2009-2018 EPFL, Lausanne */
+/* Copyright 2009-2019 EPFL, Lausanne */
 
 package stainless
 package extraction
@@ -35,6 +35,7 @@ trait ExprOps extends methods.ExprOps {
     lcd.methods.flatMap { fd =>
       exprOps.collect[This] {
         case t @ This(tp) if tp.id != lcd.id => Set(t)
+        case t @ LocalThis(tp) if tp.id != lcd.id => Set(This(tp.toClassType))
         case _ => Set.empty
       } (fd.fullBody)
     }.toSet

@@ -1,10 +1,11 @@
-/* Copyright 2009-2018 EPFL, Lausanne */
+/* Copyright 2009-2019 EPFL, Lausanne */
 
 package stainless.util
 
 import scala.language.implicitConversions
 
 import stainless.annotation._
+import stainless.lang.StaticChecks._
 
 object Random {
 

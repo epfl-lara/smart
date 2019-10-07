@@ -1,4 +1,4 @@
-/* Copyright 2009-2018 EPFL, Lausanne */
+/* Copyright 2009-2019 EPFL, Lausanne */
 
 package stainless
 package extraction
@@ -42,12 +42,6 @@ trait EffectsChecker { self: EffectsAnalyzer =>
       checkPurity(fd)
 
       exprOps.withoutSpecs(fd.fullBody).foreach { bd =>
-
-        // check return value
-        if (!isAccessor(fd) && isMutableType(bd.getType) && !isExpressionFresh(bd)) {
-          throw ImperativeEliminationException(bd,
-            "Cannot return a shared reference to a mutable object: " + bd.asString)
-        }
 
         object traverser extends SelfTreeTraverser {
           override def traverse(e: Expr): Unit = e match {

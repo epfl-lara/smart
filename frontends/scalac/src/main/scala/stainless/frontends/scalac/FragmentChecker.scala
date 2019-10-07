@@ -44,7 +44,7 @@ trait FragmentChecker extends SubComponent { _: StainlessExtraction =>
 
   class GhostAnnotationChecker extends Traverser {
     val ghostAnnotation = rootMirror.getRequiredClass("stainless.annotation.ghost")
-    val ghostMethod = rootMirror.getPackage(TermName("stainless.lang")).info.member(TermName("ghost"))
+    val ghostMethod = rootMirror.getPackage("stainless.lang").info.member(TermName("ghost"))
 
     private var ghostContext: Boolean = false
 
@@ -66,6 +66,11 @@ trait FragmentChecker extends SubComponent { _: StainlessExtraction =>
       res
     }
 
+    private def isGhostDefaultGetter(m: Tree): Boolean = m match {
+      case DefDef(mods, name, tparams, vparamss, tpt, field @ Select(This(_), f)) =>
+        field.symbol.hasAnnotation(ghostAnnotation)
+      case _ => false
+    }
 
     /**
      * Synthetics introduced by typer for case classes won't propagate the @ghost annotation
@@ -75,21 +80,26 @@ trait FragmentChecker extends SubComponent { _: StainlessExtraction =>
     private def propagateGhostAnnotation(m: MemberDef): Unit = {
       val sym = m.symbol
 
-      if (sym.isCaseCopy) {
+      if (sym.isArtifact) m match {
+        case vd @ ValDef(mods, _, _, ExCall(_, c, _, _)) if isDefaultGetter(c) && c.hasAnnotation(ghostAnnotation) =>
+          sym.addAnnotation(ghostAnnotation)
+        case _ => ()
+      }
+      else if (sym.isCaseCopy) {
         val caseClassParams = sym.owner.primaryConstructor.info.params
-        for ((copyParam, caseParam) <-sym.info.params.zip(caseClassParams) if caseParam.hasAnnotation(ghostAnnotation))
+        for ((copyParam, caseParam) <- sym.info.params.zip(caseClassParams) if caseParam.hasAnnotation(ghostAnnotation))
           copyParam.addAnnotation(ghostAnnotation)
-      } else if (sym.isDefaultGetter) m match {
-        case DefDef(mods, name, tparams, vparamss, tpt, field @ Select(This(_), f)) =>
-          if (field.symbol.hasAnnotation(ghostAnnotation))
-            sym.addAnnotation(ghostAnnotation)
-        case _ =>
-      } else if (sym.isSetter && sym.hasAnnotation(ghostAnnotation)) {
+      }
+      else if (sym.isDefaultGetter && isGhostDefaultGetter(m)) {
+        sym.addAnnotation(ghostAnnotation)
+      }
+      else if (sym.isSetter && sym.hasAnnotation(ghostAnnotation)) {
         // make the setter parameter ghost but the setter itself stays non-ghost. this allows it
         // to be called from non-ghost code and at the same time allows assigning ghost state via the ghost argument
         sym.removeAnnotation(ghostAnnotation)
         sym.info.params.head.addAnnotation(ghostAnnotation)
-      } else if (sym.isModuleOrModuleClass && sym.companionClass.hasAnnotation(ghostAnnotation)) {
+      }
+      else if (sym.isModuleOrModuleClass && sym.companionClass.hasAnnotation(ghostAnnotation)) {
         sym.addAnnotation(ghostAnnotation)
         sym.moduleClass.addAnnotation(ghostAnnotation)
       }
@@ -129,12 +139,12 @@ trait FragmentChecker extends SubComponent { _: StainlessExtraction =>
           super.traverse(tree)
 
         case m: MemberDef  =>
-          if (m.symbol.isSynthetic || m.symbol.isAccessor)
+          if (m.symbol.isSynthetic || m.symbol.isAccessor || m.symbol.isArtifact)
             propagateGhostAnnotation(m)
 
-          // we consider some synthetic methods as being inside ghost but don't auto-annotate as such because we
-          // don't want all code to be removed. They are synthetic case class methods that are harmless if they
-          // see some ghost nulls
+          // We consider some synthetic methods values as being inside ghost
+          // but don't auto-annotate as such because we don't want all code to be removed.
+          // They are synthetic case class methods that are harmless if they see some ghost nulls
           if (m.symbol.hasAnnotation(ghostAnnotation) || effectivelyGhost(sym))
             withinGhostContext(super.traverse(m))
           else
@@ -185,7 +195,7 @@ trait FragmentChecker extends SubComponent { _: StainlessExtraction =>
   }
 
   class Checker extends Traverser {
-    val StainlessLangPackage = rootMirror.getPackage(newTermName("stainless.lang"))
+    val StainlessLangPackage = rootMirror.getPackage("stainless.lang")
     val ExternAnnotation = rootMirror.getRequiredClass("stainless.annotation.extern")
     val IgnoreAnnotation = rootMirror.getRequiredClass("stainless.annotation.ignore")
     val StainlessOld = StainlessLangPackage.info.decl(newTermName("old"))
@@ -210,7 +220,7 @@ trait FragmentChecker extends SubComponent { _: StainlessExtraction =>
     )
 
     // method println is overloaded, so we need to add all overloads to our map
-    addOverloadsToMap(definitions.PredefModule.info.decl(newTermName("println")), "stainless.StdOut.println")
+    addOverloadsToMap(definitions.PredefModule.info.decl(newTermName("println")), "stainless.io.StdOut.println")
 
     private def addOverloadsToMap(sym: Symbol, replacement: String): Unit = {
       sym.alternatives.foreach(a => stainlessReplacement += a -> replacement)
@@ -268,12 +278,21 @@ trait FragmentChecker extends SubComponent { _: StainlessExtraction =>
             sym.isNonBottomSubClass(definitions.AnnotationClass)
           }
 
-          if (!isSupported)
+          if (!isSupported) {
             reportError(tree.pos, "Only abstract classes, case classes, anonymous classes, and objects are allowed in Stainless.")
+          }
 
           val parents = impl.parents.map(_.tpe).filterNot(ignoredClasses)
-          if (parents.length > 1)
+          if (parents.length > 1) {
             reportError(tree.pos, s"Stainless supports only simple type hierarchies: Classes can only inherit from a single class/trait")
+          }
+
+          impl foreach {
+            case cd: ClassDef if !cd.symbol.owner.isMethod =>
+              reportError(cd.pos, "Classes can only be defined at the top-level, within objects, or within methods")
+
+            case _ => ()
+          }
 
           atOwner(sym)(traverse(impl))
 

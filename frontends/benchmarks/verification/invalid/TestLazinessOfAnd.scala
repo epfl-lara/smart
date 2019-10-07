@@ -1,4 +1,4 @@
-/* Copyright 2009-2018 EPFL, Lausanne */
+/* Copyright 2009-2019 EPFL, Lausanne */
 
 import stainless.lang._
 
@@ -16,5 +16,5 @@ object AndTest {
    def foo(y: BigInt) : Boolean = {
      require(precond(y))
      y >= 0 && (nonterm(0) == 0)
-   } holds
+   }.holds
 }

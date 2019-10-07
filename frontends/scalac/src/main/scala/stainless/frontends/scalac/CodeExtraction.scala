@@ -1,4 +1,4 @@
-/* Copyright 2009-2018 EPFL, Lausanne */
+/* Copyright 2009-2019 EPFL, Lausanne */
 
 package stainless
 package frontends.scalac
@@ -36,7 +36,8 @@ trait CodeExtraction extends ASTExtractors {
     SerializableClass.tpe,
     JavaSerializableClass.tpe,
     ProductRootClass.tpe,
-    AnyRefClass.tpe
+    AnyRefClass.tpe,
+    AnyValClass.tpe,
   )
 
   /** Extract the classes and functions from the given compilation unit. */
@@ -107,9 +108,11 @@ trait CodeExtraction extends ASTExtractors {
   private def getIdentifier(sym: Symbol): SymbolIdentifier = cache fetch sym
 
   private def annotationsOf(sym: Symbol, ignoreOwner: Boolean = false): Seq[xt.Flag] = {
-    getAnnotations(sym, ignoreOwner).map { case (name, args) =>
-      xt.extractFlag(name, args.map(extractTree(_)(DefContext())))
-    }
+    getAnnotations(sym, ignoreOwner)
+      .filter { case (name, _) => !name.startsWith("isabelle") }
+      .map { case (name, args) =>
+        xt.extractFlag(name, args.map(extractTree(_)(DefContext())))
+      }
   }
 
   private case class DefContext(
@@ -120,6 +123,7 @@ trait CodeExtraction extends ASTExtractors {
     localClasses: Map[Identifier, xt.LocalClassDef] = Map(),
     isExtern: Boolean = false,
     resolveTypes: Boolean = false,
+    wrappingArithmetic: Boolean = false,
   ){
     def union(that: DefContext) = {
       copy(this.tparams ++ that.tparams,
@@ -128,7 +132,8 @@ trait CodeExtraction extends ASTExtractors {
            this.localFuns ++ that.localFuns,
            this.localClasses ++ that.localClasses,
            this.isExtern || that.isExtern,
-           this.resolveTypes || that.resolveTypes)
+           this.resolveTypes || that.resolveTypes,
+           this.wrappingArithmetic || that.wrappingArithmetic)
     }
 
     def isVariable(s: Symbol) = (vars contains s) || (mutableVars contains s)
@@ -163,6 +168,10 @@ trait CodeExtraction extends ASTExtractors {
 
     def setResolveTypes(resolveTypes: Boolean) = {
       copy(resolveTypes = resolveTypes)
+    }
+
+    def setWrappingArithmetic(wrappingArithmetic: Boolean) = {
+      copy(wrappingArithmetic = wrappingArithmetic)
     }
   }
 
@@ -342,8 +351,11 @@ trait CodeExtraction extends ASTExtractors {
     val sym = cd.symbol
     val id = getIdentifier(sym.moduleClass.orElse(sym))
 
+    val isValueClass = cd.impl.parents.map(_.tpe).exists(_ == AnyValClass.tpe)
+
     val annots = annotationsOf(sym)
     val flags = annots ++
+      (if (isValueClass) Some(xt.ValueClass) else None) ++
       (if (sym.isAbstractClass) Some(xt.IsAbstract) else None) ++
       (if (sym.isSealed) Some(xt.IsSealed) else None) ++
       (if (sym.tpe.typeSymbol.isModuleClass && sym.isCase) Some(xt.IsCaseObject) else None)
@@ -400,6 +412,9 @@ trait CodeExtraction extends ASTExtractors {
 
     for (d <- cd.impl.body) d match {
       case EmptyTree =>
+        // ignore
+
+      case i: Import =>
         // ignore
 
       case t if annotationsOf(t.symbol).contains(xt.Ignore) && !t.symbol.isCaseAccessor =>
@@ -613,8 +628,6 @@ trait CodeExtraction extends ASTExtractors {
             reporter.warning(e.getPos, s"This require is ignored for verification because it is not at the top-level of this @extern function.")
           case _: xt.Ensuring =>
             reporter.warning(e.getPos, s"This ensuring is ignored for verification because it is not at the top-level of this @extern function.")
-          case _: xt.Assert =>
-            reporter.warning(e.getPos, s"This assert is ignored for verification because it is not at the top-level of this @extern function.")
           case _ =>
             ()
         }
@@ -812,8 +825,8 @@ trait CodeExtraction extends ASTExtractors {
     val (lcds, cctx) = es.collect {
       case cd: ClassDef => cd
     }.foldLeft((Map.empty[Symbol, xt.LocalClassDef], vctx)) { case ((lcds, dctx), cd) =>
-      val (xcd, methods, typeDefs) = extractClass(cd)(dctx) // TODO: Handle typedefs
-      val lcd = xt.LocalClassDef(xcd, methods).setPos(xcd)
+      val (xcd, methods, typeDefs) = extractClass(cd)(dctx)
+      val lcd = xt.LocalClassDef(xcd, methods, typeDefs).setPos(xcd)
       (lcds + (cd.symbol -> lcd), dctx.withLocalClass(lcd))
     }
 
@@ -1059,6 +1072,10 @@ trait CodeExtraction extends ASTExtractors {
         case _ => outOfSubsetError(tr, "Conversion from Int to BigInt")
       }
 
+    case ExWrapping(tree) =>
+      val body = extractTree(tree)(dctx.setWrappingArithmetic(true))
+      xt.Annotated(body, Seq(xt.Wrapping))
+
     case ExRealLiteral(n, d) =>
       (extractTree(n), extractTree(d)) match {
         case (xt.IntegerLiteral(n), xt.IntegerLiteral(d)) => xt.FractionLiteral(n, d)
@@ -1231,7 +1248,7 @@ trait CodeExtraction extends ASTExtractors {
     case t: This =>
       extractType(t) match {
         case ct: xt.ClassType => xt.This(ct)
-        case lct: xt.LocalClassType => xt.This(lct.toClassType)
+        case lct: xt.LocalClassType => xt.LocalThis(lct)
         case _ => outOfSubsetError(t, "Invalid usage of `this`")
       }
 
@@ -1271,18 +1288,15 @@ trait CodeExtraction extends ASTExtractors {
     case ExImplies(lhs, rhs) =>
       xt.Implies(extractTree(lhs), extractTree(rhs))
 
-    case c @ ExCall(rec, sym, tps, args) => 
-      rec match {
-      // Case object fields and methods are treated differently by scalac for some reason
-      // so we need a special extractor here.
+    case c @ ExCall(rec, sym, tps, args) => rec match {
       case None if sym.owner.isModuleClass && sym.owner.isCase =>
         val ct = extractType(sym.owner.tpe)(dctx, c.pos).asInstanceOf[xt.ClassType]
         xt.MethodInvocation(
-          xt.ClassConstructor(ct, Seq.empty).setPos(c.pos),
+          xt.This(ct).setPos(tr.pos),
           getIdentifier(sym),
           tps map extractType,
           args map extractTree
-        ).setPos(c.pos)
+        ).setPos(tr.pos)
 
       case None =>
         dctx.localFuns.get(sym) match {
@@ -1388,7 +1402,7 @@ trait CodeExtraction extends ASTExtractors {
               xt.MapApply(extractTree(lhs), extractTree(rhs)).setPos(tr.pos),
               xt.ClassConstructor(
                 xt.ClassType(getIdentifier(noneSymbol), Seq(to)).setPos(tr.pos),
-                Seq()
+                Seq.empty
               ).setPos(tr.pos)
             ).setPos(tr.pos))
 
@@ -1411,6 +1425,15 @@ trait CodeExtraction extends ASTExtractors {
               ).setPos(tr.pos)
             )
 
+          case (xt.MapType(_, xt.ClassType(_, Seq(to))), "removed" | "-", Seq(key)) =>
+            xt.MapUpdated(
+              extractTree(lhs), extractTree(key),
+              xt.ClassConstructor(
+                xt.ClassType(getIdentifier(noneSymbol), Seq(to)).setPos(tr.pos),
+                Seq.empty
+              ).setPos(tr.pos)
+            )
+
           case (xt.MapType(_, xt.ClassType(_, Seq(to))), "++", Seq(rhs)) =>
             extractTree(rhs) match {
               case xt.FiniteMap(pairs,  default, keyType, valueType) =>
@@ -1419,6 +1442,21 @@ trait CodeExtraction extends ASTExtractors {
                 }
 
               case _ => outOfSubsetError(tr, "Can't extract map union with non-finite map")
+            }
+
+          case (xt.MapType(_, xt.ClassType(_, Seq(to))), "--", Seq(rhs)) =>
+            extractTree(rhs) match {
+              case xt.FiniteSet(els, _) =>
+                val none = xt.ClassConstructor(
+                  xt.ClassType(getIdentifier(noneSymbol), Seq(to)).setPos(tr.pos),
+                  Seq.empty
+                ).setPos(tr.pos)
+
+                els.foldLeft(extractTree(lhs)) { case (map, k) =>
+                  xt.MapUpdated(map, k, none).setPos(tr.pos)
+                }
+
+              case _ => outOfSubsetError(tr, "Can't extract map diff with non-finite map")
             }
 
           case (xt.MapType(_, xt.ClassType(_, Seq(to))), "getOrElse", Seq(key, orElse)) =>
@@ -1658,7 +1696,11 @@ trait CodeExtraction extends ASTExtractors {
         case _ if prefix.typeSymbol.isModuleClass =>
           None
         case thiss: ThisType =>
-          Some(xt.This(extractType(thiss).asInstanceOf[xt.ClassType]))
+          val id = getIdentifier(thiss.sym)
+          dctx.localClasses.get(id) match {
+            case Some(lcd) => Some(xt.LocalThis(extractType(thiss).asInstanceOf[xt.LocalClassType]))
+            case None => Some(xt.This(extractType(thiss).asInstanceOf[xt.ClassType]))
+          }
         case SingleType(_, sym) if dctx.vars contains sym =>
           Some(dctx.vars(sym)())
         case SingleType(_, sym) =>

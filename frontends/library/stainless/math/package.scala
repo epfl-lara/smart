@@ -1,14 +1,20 @@
-/* Copyright 2009-2018 EPFL, Lausanne */
+/* Copyright 2009-2019 EPFL, Lausanne */
 
 package stainless
 
-import scala.language.implicitConversions
-
 import stainless.annotation._
+import stainless.lang.StaticChecks._
 
 import scala.language.implicitConversions
 
 package object math {
+
+  /** Disable overflow checks within `body`.
+    *
+    * This is equivalent to setting `--strict-arithmetic=false` for `body` only.
+    */
+  @ignore
+  def wrapping[A](body: A): A = body
 
   @library
   def min(i1: Int, i2: Int) = if (i1 <= i2) i1 else i2

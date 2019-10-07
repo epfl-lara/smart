@@ -1,4 +1,4 @@
-/* Copyright 2009-2018 EPFL, Lausanne */
+/* Copyright 2009-2019 EPFL, Lausanne */
 
 package stainless
 
@@ -35,6 +35,7 @@ package object extraction {
     "SuperCalls"                -> "Resolve super-function calls",
     "Sealing"                   -> "Seal every class and add mutable flags",
     "MethodLifting"             -> "Lift methods into dispatching functions",
+    "ValueClasses"              -> "Erase value classes",
     "FieldAccessors"            -> "Inline field accessors of concrete classes",
     "AntiAliasing"              -> "Rewrite field and array mutations",
     "ImperativeCodeElimination" -> "Eliminate while loops and assignments",
@@ -48,6 +49,8 @@ package object extraction {
     "InductElimination"         -> "Replace @induct annotation by explicit recursion",
     "SizeInjection"             -> "Injects a size function for each ADT",
     "PartialEvaluation"         -> "Partially evaluate marked function calls",
+    "AssertionInjector"         -> "Insert assertions which verify array accesses, casts, division by zero, etc.",
+    "ChooseInjector"            -> "Insert chooses where necessary",
   )
 
   val phaseNames: Set[String] = phases.map(_._1).toSet

@@ -1,4 +1,4 @@
-/* Copyright 2009-2018 EPFL, Lausanne */
+/* Copyright 2009-2019 EPFL, Lausanne */
 
 package stainless
 package extraction
@@ -205,10 +205,14 @@ trait Trees extends throwing.Trees { self =>
   case class IsAccessor(id: Option[Identifier]) extends Flag("accessor", id.toSeq)
   case class IsMethodOf(id: Identifier) extends Flag("method", Seq(id))
 
+  case object ValueClass extends Flag("valueClass", Seq.empty)
+
   implicit class ClassDefWrapper(cd: ClassDef) {
     def isSealed: Boolean = cd.flags contains IsSealed
     def isAbstract: Boolean = cd.flags contains IsAbstract
     def isLibrary: Boolean = cd.flags contains Library
+    def isGhost: Boolean = cd.flags contains Ghost
+    def isValueClass: Boolean = cd.flags contains ValueClass
 
     def methods(implicit s: Symbols): Seq[SymbolIdentifier] = {
       s.functions.values
@@ -233,6 +237,10 @@ trait Trees extends throwing.Trees { self =>
   implicit class FunDefWrapper(fd: FunDef) {
     def isMethod: Boolean =
       fd.flags exists { case IsMethodOf(_) => true case _ => false }
+
+    def isGhost: Boolean = fd.flags contains Ghost
+
+    def isSynthetic: Boolean = fd.flags contains Synthetic
 
     def getClassId: Option[Identifier] =
       fd.flags collectFirst { case IsMethodOf(id) => id }
@@ -353,6 +361,7 @@ trait TreeDeconstructor extends throwing.TreeDeconstructor {
   override def deconstruct(f: s.Flag): DeconstructedFlag = f match {
     case s.IsMethodOf(id) => (Seq(id), Seq(), Seq(), (ids, _, _) => t.IsMethodOf(ids.head))
     case s.IsAccessor(id) => (id.toSeq, Seq(), Seq(), (ids, _, _) => t.IsAccessor(ids.headOption))
+    case s.ValueClass => (Seq(), Seq(), Seq(), (_, _, _) => t.ValueClass)
     case _ => super.deconstruct(f)
   }
 }

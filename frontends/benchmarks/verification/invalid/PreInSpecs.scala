@@ -1,4 +1,4 @@
-/* Copyright 2009-2018 EPFL, Lausanne */
+/* Copyright 2009-2019 EPFL, Lausanne */
 
 import stainless.lang._
 
@@ -12,7 +12,7 @@ object PreInSpecs {
   def g(i : BigInt): Boolean =  {
     require(i >= 0)
     i >= -1
-  } holds
+  }.holds
 
   def invoke(i : BigInt): BigInt =  {
     require(i == 0 || i > 0 && f(i - 1))

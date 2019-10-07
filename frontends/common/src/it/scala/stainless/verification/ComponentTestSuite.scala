@@ -1,4 +1,4 @@
-/* Copyright 2009-2018 EPFL, Lausanne */
+/* Copyright 2009-2019 EPFL, Lausanne */
 
 package stainless
 
@@ -10,7 +10,11 @@ trait ComponentTestSuite extends inox.TestSuite with inox.ResourceUtils with Inp
   val component: Component
 
   override def configurations: Seq[Seq[inox.OptionValue[_]]] = Seq(
-    Seq(inox.optSelectedSolvers(Set("smt-z3")), inox.optTimeout(300.seconds))
+    Seq(
+      inox.optSelectedSolvers(Set("smt-z3")),
+      inox.optTimeout(300.seconds),
+      verification.optStrictArithmetic(false),
+    )
   )
 
   final override def createContext(options: inox.Options) = stainless.TestContext(options)
@@ -21,9 +25,56 @@ trait ComponentTestSuite extends inox.TestSuite with inox.ResourceUtils with Inp
     "check=" + options.findOptionOrDefault(inox.solvers.optCheckModels)
   }
 
-  protected def filter(ctx: inox.Context, name: String): FilterStatus = Test
+  protected val runSlowTests: Boolean = {
+    sys.env
+      .get("RUN_SLOW_TESTS")
+      .map {
+        case "true" => true
+        case _      => false
+      }
+      .getOrElse(false)
+  }
+
+  protected val slowBenchmarks = Set(
+    "imperative/valid/NestedFunParamsMutation2",
+
+    "termination/valid/ConstantPropagation",
+    "termination/valid/NNFSimple",
+
+    "typechecker/invalid/BadConcRope",
+    "typechecker/invalid/Nested15",
+    "typechecker/invalid/PartialSplit",
+    "typechecker/valid/GodelNumbering",
+    "typechecker/valid/AmortizedQueue",
+    "typechecker/valid/BigIntRing",
+    "typechecker/valid/ConcRope",
+    "typechecker/valid/ConcTree",
+    "typechecker/valid/CovariantList",
+    "typechecker/valid/InnerClasses4",
+    "typechecker/valid/SuperCall4",
+    "typechecker/valid/TransitiveQuantification",
+
+    "verification/invalid/BadConcRope",
+    "verification/invalid/Nested15",
+    "verification/invalid/PartialSplit",
+    "verification/valid/AmortizedQueue",
+    "verification/valid/BigIntRing",
+    "verification/valid/BitsTricksSlow",
+    "verification/valid/ConcRope",
+    "verification/valid/ConcTree",
+    "verification/valid/CovariantList",
+    "verification/valid/InnerClasses4",
+    "verification/valid/SuperCall4",
+    "verification/valid/TransitiveQuantification",
+  )
+
+  protected def filter(ctx: inox.Context, name: String): FilterStatus = name match {
+    case name if !runSlowTests && slowBenchmarks.contains(name) => Skip
+    case name => Test
+  }
 
   def testAll(dir: String, recursive: Boolean = false)(block: (component.Analysis, inox.Reporter) => Unit): Unit = {
+    require(dir != null, "Function testAll must be called with a non-null directory string")
     val fs = resourceFiles(dir, _.endsWith(".scala"), recursive).toList
 
     // Toggle this variable if you need to debug one specific test.
@@ -44,7 +95,7 @@ trait ComponentTestSuite extends inox.TestSuite with inox.ResourceUtils with Inp
 
         val exProgram = inox.Program(run.trees)(run extract program.symbols)
         exProgram.symbols.ensureWellFormed
-        assert(ctx.reporter.errorCount == 0)
+        assert(ctx.reporter.errorCount == 0, "There were errors during extraction")
 
         val unit = structure.find { _.isMain }.get
         assert(unit.id.name == name, "Expecting compilation unit to have same name as source file")
@@ -70,7 +121,6 @@ trait ComponentTestSuite extends inox.TestSuite with inox.ResourceUtils with Inp
 
       // We use a shared run during extraction to ensure caching of
       // extraction results is enabled.
-      val extractor = component.run(extraction.pipeline)
 
       for {
         unit <- structure
@@ -85,8 +135,10 @@ trait ComponentTestSuite extends inox.TestSuite with inox.ResourceUtils with Inp
           .withFunctions(program.symbols.functions.values.filter(fd => deps(fd.id)).toSeq)
           .withTypeDefs(program.symbols.typeDefs.values.filter(td => deps(td.id)).toSeq)
 
+        val extractor = component.run(extraction.pipeline)
         val exSymbols = extractor extract symbols
         exSymbols.ensureWellFormed
+        assert(ctx.reporter.errorCount == 0, "There were errors during pipeline extraction")
 
         val run = component.run(extraction.pipeline)
 

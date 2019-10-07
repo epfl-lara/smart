@@ -1,4 +1,4 @@
-/* Copyright 2009-2018 EPFL, Lausanne */
+/* Copyright 2009-2019 EPFL, Lausanne */
 
 package stainless
 package extraction
@@ -255,6 +255,8 @@ trait Printer extends innerfuns.Printer {
             |"""
       }
 
+      if (cd.isSealed) p"sealed "
+      if (cd.isAbstract) p"abstract " else p"case "
       p"class ${cd.id}"
       p"${nary(cd.tparams, ", ", "[", "]")}"
       if (cd.fields.nonEmpty) p"(${cd.fields})"
@@ -269,6 +271,7 @@ trait Printer extends innerfuns.Printer {
             |"""
       }
 
+      if (td.isAbstract) p"abstract "
       p"type ${td.id}${nary(td.tparams, ", ", "[", "]")}"
 
       if (td.isAbstract) {
@@ -376,8 +379,8 @@ trait ExprOps extends innerfuns.ExprOps {
     tps.map(tpMap)
   }
 
-  /** Freshen the type parameters, fields and methods of the given [[ClassDef]]. */
-  def freshenClass(cd: ClassDef, methods: Seq[FunDef]): (ClassDef, Seq[FunDef]) = {
+  /** Freshen the type parameters, fields, methods and type members of the given [[ClassDef]]. */
+  def freshenClass(cd: ClassDef, methods: Seq[FunDef], typeMembers: Seq[TypeDef]): (ClassDef, Seq[FunDef], Seq[TypeDef]) = {
     val typeArgs = freshenTypeParams(cd.typeArgs)
     val tpSubst = (cd.typeArgs zip typeArgs).toMap
 
@@ -409,7 +412,9 @@ trait ExprOps extends innerfuns.ExprOps {
       freshenSignature(freshener.transform(fd))
     }
 
-    (freshCd, freshMethods)
+    val freshTypeMembers = typeMembers map (freshener.transform(_))
+
+    (freshCd, freshMethods, freshTypeMembers)
   }
 }
 

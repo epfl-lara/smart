@@ -1,4 +1,4 @@
-/* Copyright 2009-2018 EPFL, Lausanne */
+/* Copyright 2009-2019 EPFL, Lausanne */
 
 package stainless
 package frontend
@@ -81,7 +81,7 @@ class BatchedCallBack(components: Seq[Component])(implicit val context: inox.Con
 
     val symbols = Recovery.recover(preSymbols)
 
-    val errors = TreeSanitizer(xt).check(symbols)
+    val errors = TreeSanitizer(xt).enforce(symbols)
     if (!errors.isEmpty) {
       reportErrorFooter(symbols)
     }

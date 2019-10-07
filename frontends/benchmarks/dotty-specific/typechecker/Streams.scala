@@ -50,40 +50,4 @@ object Stream {
       indexedAt(n, Stream(h1, (() => compress(n - 1, s.tail()))))
     }
   }
-
-  // FIXME: need pi-types and refinement types
-  // def compressOnes(
-  //   n: BigInt,
-  //   s: Stream[BigInt],
-  //   p: (i: { i: BigInt => i > BigInt(0) }) => { u: Unit => take(i, s) == BigInt(1) }
-  // ): Unit = {
-  //   require(s.head >= 1 && s.head <= 9 && n >= 0)
-  //   decreases((n, max(9 - s.head, 0)))
-  //   val h1: BigInt = s.head
-  //   val h2: BigInt = s.tail().head
-  //   if (h1 >= 1 && h1 < 9 && h2 == 1) {
-  //     compressOnes(n, Stream[BigInt](h1 + 1, () => s.tail().tail()), (i: { i: BigInt => (i > BigInt(0)) }) => {
-  //       val p1: { u: Unit => (take[BigInt](i + BigInt(1), s) == 1) } = p((i + BigInt(1)))
-  //       // val u: { u: Unit => (take[BigInt](i + BigInt(1), s) == 1) } = 
-  //       check(take[BigInt](i + BigInt(1), s) == 1)
-  //       // val u: { u: Unit => (take[BigInt](i, s.tail()) == 1) } = 
-  //       check(take[BigInt](i, s.tail()) == 1)
-  //       ()
-  //     })
-  //   } else {
-  //     val p1: { u: Unit => (take[BigInt](BigInt(1), s) == 1) } = p(1)
-  //     if (n == 0) {
-  //       ()
-  //     } else {
-  //       compressOnes(n - 1, s.tail(), (i: { i: BigInt => (i > BigInt(0)) }) => {
-  //         val p1: { u: Unit => (take[BigInt](i + BigInt(1), s) == 1) } = p((i + BigInt(1)))
-  //         // val u: { u: Unit => (take[BigInt](i + BigInt(1), s) == 1) } =
-  //         check(take[BigInt](i + BigInt(1), s) == 1)
-  //         // val u: { u: Unit => (take[BigInt](i, s.tail()) == 1) } =
-  //         check(take[BigInt](i, s.tail()) == 1)
-  //         ()
-  //       })
-  //     }
-  //   }
-  // }
 }

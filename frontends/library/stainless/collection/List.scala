@@ -1,4 +1,4 @@
-/* Copyright 2009-2018 EPFL, Lausanne */
+/* Copyright 2009-2019 EPFL, Lausanne */
 
 package stainless.collection
 
@@ -9,6 +9,7 @@ import stainless.lang._
 import stainless.annotation._
 import stainless.math._
 import stainless.proof._
+import stainless.lang.StaticChecks._
 
 @library
 @isabelle.typ(name = "List.list")
@@ -75,7 +76,7 @@ sealed abstract class List[T] {
       case Nil() => Cons(t, this)
       case Cons(x, xs) => Cons(x, xs :+ (t))
     }
-  } ensuring(res => (res.size == size + 1) && (res.content == content ++ Set(t)))
+  } ensuring(res => (res.size == size + 1) && (res.content == content ++ Set(t)) && res == this ++ Cons(t, Nil[T]()))
 
   @isabelle.function(term = "List.rev")
   def reverse: List[T] = {
@@ -569,6 +570,9 @@ object List {
     }
     l.reverse
   }
+
+  @library
+  def empty[T]: List[T] = Nil[T]()
 
   @library
   def fill[T](n: BigInt)(x: T) : List[T] = {

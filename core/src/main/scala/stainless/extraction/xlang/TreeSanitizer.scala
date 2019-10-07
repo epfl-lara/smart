@@ -1,4 +1,4 @@
-/* Copyright 2009-2018 EPFL, Lausanne */
+/* Copyright 2009-2019 EPFL, Lausanne */
 
 package stainless
 package extraction
@@ -7,10 +7,24 @@ package xlang
 import scala.collection.mutable.ListBuffer
 
 /** Inspect trees, detecting illegal structures. */
-trait TreeSanitizer {
+trait TreeSanitizer { self =>
 
   val trees: xlang.Trees
   import trees._
+
+  object TypeOperator extends {
+    protected val s: self.trees.type = self.trees
+    protected val t: self.trees.type = self.trees
+  } with inox.ast.TreeExtractor {
+    type Source = Type
+    type Target = Type
+
+    def unapply(t: Type): Option[(Seq[Type], Seq[Type] => Type)] = {
+      val (ids, vs, es, tps, flags, builder) = deconstructor.deconstruct(t)
+      Some((tps, tpss => builder(ids, vs, es, tpss, flags)))
+    }
+  }
+
 
   /** Throw a [[MalformedStainlessCode]] exception when detecting an illegal pattern. */
   def check(symbols: Symbols)(implicit ctx: inox.Context): Seq[MalformedStainlessCode] = {
@@ -18,14 +32,15 @@ trait TreeSanitizer {
       new Preconditions(symbols, ctx),
       new IgnoredFields(symbols, ctx),
       new SettersOverrides(symbols, ctx),
+      new GhostOverrides(symbols, ctx),
       new SealedClassesChildren(symbols, ctx),
       new SoundEquality(symbols, ctx),
     )
 
-    checks.flatMap(_.sanitize)
+    checks.flatMap(_.sanitize.distinct).sortBy(_.tree.getPos)
   }
 
-  def enforce(symbols: Symbols)(implicit ctx: inox.Context): Unit = {
+  def enforce(symbols: Symbols)(implicit ctx: inox.Context): Seq[MalformedStainlessCode] = {
     import ctx.reporter
 
     val errors = check(symbols)
@@ -34,6 +49,7 @@ trait TreeSanitizer {
         reporter.error(error.tree.getPos, error.getMessage)
       }
     }
+    errors
   }
 
   private[this] abstract class Sanitizer(syms: Symbols, ctx: inox.Context) {
@@ -44,7 +60,7 @@ trait TreeSanitizer {
     def sanitize(): Seq[MalformedStainlessCode]
   }
 
-  /** check that setters are only overriden by other setters */
+  /** Check that setters are only overriden by other setters */
   private[this] class SettersOverrides(syms: Symbols, ctx: inox.Context) extends Sanitizer(syms, ctx) {
     override def sanitize(): Seq[MalformedStainlessCode] = {
       for {
@@ -58,6 +74,23 @@ trait TreeSanitizer {
     }
   }
 
+  /** Check that methods are only overriden by methods with the same ghostiness */
+  private[this] class GhostOverrides(syms: Symbols, ctx: inox.Context) extends Sanitizer(syms, ctx) {
+    override def sanitize(): Seq[MalformedStainlessCode] = {
+      for {
+        cd  <- symbols.classes.values.toSeq
+        id  <- cd.methods(symbols)
+        sid <- symbols.firstSuperMethod(id)
+        isGhostOverride = symbols.getFunction(id).isGhost
+        isGhostSuper = symbols.getFunction(sid).isGhost
+        if isGhostOverride != isGhostSuper
+      } yield MalformedStainlessCode(
+        symbols.getFunction(id),
+        if (isGhostSuper) s"Cannot override ghost method ${sid.asString} with non-ghost method"
+        else s"Cannot override non-ghost method ${sid.asString} with ghost method"
+      )
+    }
+  }
 
   /** Check that sealed traits have children */
   private[this] class SealedClassesChildren(syms: Symbols, ctx: inox.Context) extends Sanitizer(syms, ctx) {
@@ -198,129 +231,65 @@ trait TreeSanitizer {
     }
   }
 
-  /** Disallow equality between lambdas and non-sealed abstract classes in non-ghost code */
-  private[this] class SoundEquality(syms: Symbols, ctx: inox.Context)
-    extends Sanitizer(syms, ctx) with SelfTreeTraverser {
+  /** Disallow equality tests between lambdas and non-sealed abstract classes in non-ghost code */
+  private[this] class SoundEquality(syms: Symbols, ctx: inox.Context) extends Sanitizer(syms, ctx) { sanitizer =>
 
-    final val PEDANTIC = true
+    val PEDANTIC = false
 
-    private[this] var errors: ListBuffer[MalformedStainlessCode] = ListBuffer.empty
-
-    private[this] var ghostContext: Boolean = false
-
-    private[this] def withinGhostContext[A](body: => A): A = {
-      val old = ghostContext
-      ghostContext = true
-      val res = body
-      ghostContext = old
-      res
-    }
-
+    var errors: ListBuffer[MalformedStainlessCode] = ListBuffer.empty
 
     override def sanitize(): Seq[MalformedStainlessCode] = {
       errors = ListBuffer.empty
-      ghostContext = false
-      symbols.functions.values.toSeq.foreach(traverse)
+      symbols.functions.values.toSeq.foreach(ghostTraverser.traverse)
       errors.toSeq
     }
 
-    override def traverse(fd: FunDef): Unit = {
-      if (fd.flags contains Ghost)
-        withinGhostContext(super.traverse(fd))
-      else
-        super.traverse(fd)
-    }
-
-    private[this] val hasLocalSubClasses: Identifier => Boolean =
+    val hasLocalSubClasses: Identifier => Boolean =
       symbols.localClasses.flatMap(_.globalAncestors.map(_.id)).toSet
 
-    private[this] def isOrHasNonSealedAncestors(ct: ClassType): Boolean = {
+   def isOrHasNonSealedAncestors(ct: ClassType): Boolean = {
       val ancestors = (ct.tcd +: ct.tcd.ancestors)
       ancestors.exists(tcd => tcd.cd.isAbstract && !tcd.cd.isSealed)
     }
 
-    override def traverse(e: Expr): Unit = e match {
-      case Annotated(body, flags) if flags contains Ghost =>
-        withinGhostContext(traverse(body))
+    object ghostTraverser extends xlang.GhostTraverser {
+      override val trees: self.trees.type = self.trees
+      import trees._
 
-      case Decreases(_, body) =>
-        withinGhostContext(traverse(body))
+      override implicit val symbols = sanitizer.symbols
 
-      case Snapshot(body) =>
-        withinGhostContext(traverse(body))
+      override def traverse(e: Expr, ctx: GhostContext): Unit = e match {
+        case Equals(lhs, rhs) if !ctx.isGhost =>
+          def rec(tp: Type): Unit = tp match {
+            case tp if PEDANTIC && typeOps.isParametricType(tp) =>
+              errors += MalformedStainlessCode(e,
+                s"Testing parametric types for equality, use the === method of the Eq typeclass instead")
 
-      case FunctionInvocation(id, _, args) if symbols.getFunction(id).flags contains Ghost =>
-        withinGhostContext {
-          args foreach traverse
-        }
+            case ct: ClassType if hasLocalSubClasses(ct.id) =>
+              errors += MalformedStainlessCode(e,
+                "Testing classes with local subclasses for equality in non-ghost code is unsound")
 
-      case FunctionInvocation(id, _, args) =>
-        val fd = symbols.getFunction(id)
-        (fd.params zip args) foreach {
-          case (vd, arg) if vd.flags contains Ghost =>
-            withinGhostContext(traverse(arg))
-          case (_, arg) =>
-            traverse(arg)
-        }
+            case ct: ClassType if isOrHasNonSealedAncestors(ct) =>
+              errors += MalformedStainlessCode(e,
+                "Testing classes with non sealed ancestors for equality in non-ghost code is unsound")
 
-      case MethodInvocation(rec, id, _, args) if symbols.getFunction(id).flags contains Ghost =>
-        traverse(rec)
-        withinGhostContext {
-          args foreach traverse
-        }
+            case lct: LocalClassType =>
+              errors += MalformedStainlessCode(e,
+                "Testing local classes for equality in non-ghost code is unsound")
 
-      case MethodInvocation(rec, id, _, args) =>
-        traverse(rec)
-        val fd = symbols.getFunction(id)
-        (fd.params zip args) foreach {
-          case (vd, arg) if vd.flags contains Ghost =>
-            withinGhostContext(traverse(arg))
-          case (_, arg) =>
-            traverse(arg)
-        }
+            case ft: FunctionType =>
+              errors += MalformedStainlessCode(e, "Testing lambdas for equality in non-ghost code is unsound")
 
-      case ADT(id, _, args) =>
-        (symbols.getConstructor(id).fields zip args) foreach {
-          case (vd, arg) if vd.flags contains Ghost =>
-            withinGhostContext(traverse(arg))
-          case (_, arg) =>
-            traverse(arg)
-        }
+            case tp =>
+              val TypeOperator(es, _) = tp
+              es.foreach(rec)
+          }
 
-      case ClassConstructor(ct, args) =>
-        (ct.tcd.fields zip args).foreach {
-          case (vd, arg) if vd.flags contains Ghost =>
-            withinGhostContext(traverse(arg))
-          case (_, arg) =>
-            traverse(arg)
-        }
+          rec(lhs.getType)
+          rec(rhs.getType)
 
-      case Equals(lhs, rhs) if !ghostContext =>
-        (lhs.getType, rhs.getType) match {
-          case (ct1: ClassType, ct2) if hasLocalSubClasses(ct1.id) =>
-            errors += MalformedStainlessCode(e, "Cannot compare classes with local subclasses for equality")
-          case (ct1, ct2: ClassType) if hasLocalSubClasses(ct2.id) =>
-            errors += MalformedStainlessCode(e, "Cannot compare classes with local subclasses for equality")
-
-          case (ct1: ClassType, ct2) if PEDANTIC && isOrHasNonSealedAncestors(ct1) =>
-            errors += MalformedStainlessCode(e, "Cannot compare classes with non sealed ancestors for equality in non-ghost code")
-          case (ct1, ct2: ClassType) if PEDANTIC && isOrHasNonSealedAncestors(ct2) =>
-            errors += MalformedStainlessCode(e, "Cannot compare classes with non sealed ancestors for equality in non-ghost code")
-
-          case (lct1: LocalClassType, lct2) =>
-            errors += MalformedStainlessCode(e, "Cannot compare local classes for equality in non-ghost code")
-          case (lct1, lct2: LocalClassType) =>
-            errors += MalformedStainlessCode(e, "Cannot compare local classes for equality in non-ghost code")
-
-          case (ft1: FunctionType, ft2) =>
-            errors += MalformedStainlessCode(e, "Cannot compare lambdas for equality in non-ghost code")
-          case (ft1, ft2: FunctionType) =>
-            errors += MalformedStainlessCode(e, "Cannot compare lambdas for equality in non-ghost code")
-
-          case _ => ()
-        }
-
-      case _ => super.traverse(e)
+        case _ => super.traverse(e, ctx)
+      }
     }
   }
 }

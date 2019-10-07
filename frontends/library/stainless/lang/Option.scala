@@ -1,10 +1,11 @@
-/* Copyright 2009-2018 EPFL, Lausanne */
+/* Copyright 2009-2019 EPFL, Lausanne */
 
 package stainless.lang
 
 import scala.language.implicitConversions
 
 import stainless.annotation._
+import stainless.lang.StaticChecks._
 
 @library
 @isabelle.typ(name = "Option.option")
@@ -85,8 +86,9 @@ case class Some[T](v: T) extends Option[T]
 @isabelle.constructor(name = "Option.option.None")
 case class None[T]() extends Option[T]
 
+@library
 object Option {
-  @extern @pure
+  @library @extern @pure
   def apply[A](x: A): Option[A] = {
     if (x == null) None[A]() else Some[A](x)
   } ensuring { res =>

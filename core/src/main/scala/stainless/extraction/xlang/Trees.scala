@@ -1,4 +1,4 @@
-/* Copyright 2009-2018 EPFL, Lausanne */
+/* Copyright 2009-2019 EPFL, Lausanne */
 
 package stainless
 package extraction
@@ -118,6 +118,9 @@ trait Printer extends innerclasses.Printer {
   }
 }
 
+trait GhostTraverser extends innerclasses.GhostTraverser {
+  val trees: Trees
+}
 
 trait TreeDeconstructor extends smartcontracts.TreeDeconstructor {
 

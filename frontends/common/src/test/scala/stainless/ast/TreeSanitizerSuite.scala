@@ -2,105 +2,78 @@
 package stainless
 package ast
 
+import scala.language.experimental.macros
 import org.scalatest._
 
+import stainless.macros.FileProvider
 import stainless.extraction.xlang.{trees => xt, TreeSanitizer}
 
-class TreeSanitizerSuite extends FunSuite with InputUtils {
+class TreeSanitizerSuite extends FunSpec with InputUtils {
 
-  val sources1 = List(
-    """|
-       |import stainless.lang._
-       |import stainless.annotation._
-       |
-       |object test {
-       |
-       |  abstract class NonSealed {
-       |    def bar: BigInt
-       |  }
-       |
-       |  def foo(outer: BigInt): NonSealed = {
-       |    case class Foo(y: BigInt) extends NonSealed {
-       |      def bar = outer
-       |    }
-       |    Foo(12)
-       |  }
-       |
-       |  def oops = {
-       |    assert(foo(1) != foo(2))
-       |  }
-       |
-       |  @ghost
-       |  def ok = {
-       |    assert(foo(1) != foo(2))
-       |  }
-       |
-       |  sealed abstract class Sealed {
-       |    def bar: BigInt
-       |  }
-       |
-       |  def foo2(outer: BigInt): Sealed = {
-       |    case class Foo2(y: BigInt) extends Sealed {
-       |      def bar = outer
-       |    }
-       |    Foo2(12)
-       |  }
-       |
-       |  def oops2 = {
-       |    assert(foo2(1) != foo2(2))
-       |  }
-       |
-       |  def oops3 = {
-       |    val a = (x: BigInt) => x
-       |    val b = (x: BigInt) => x
-       |    assert(a == b)
-       |  }
-       |
-       |  @ghost
-       |  def ok3 = {
-       |    val a = (x: BigInt) => x
-       |    val b = (x: BigInt) => x
-       |    assert(a == b)
-       |  }
-       |
-       |  def ok3bis = {
-       |    val a = (x: BigInt) => x
-       |    val b = (x: BigInt) => x
-       |    stainless.lang.StaticChecks.assert(a == b)
-       |  }
-       |
-       |  def compare(prop: Boolean): Unit = ()
-       |  def compareGhost(@ghost prop: Boolean): Unit = ()
-       |
-       |  def oops4 = {
-       |    val a = (x: BigInt) => x
-       |    val b = (x: BigInt) => x
-       |    compare(a == b)
-       |  }
-       |
-       |  def ok4 = {
-       |    val a = (x: BigInt) => x
-       |    val b = (x: BigInt) => x
-       |    compareGhost(a == b)
-       |  }
-       |}
-       |""".stripMargin)
+  // Change this to trigger re-compilation
+  val ID = 3
 
-  test("SoundEquality check yields the right errors") {
+  val sources = Map(
+    "SoundEquality" -> FileProvider.getFileContents(
+      "frontends/common/src/test/resources/SoundEquality.scala"
+    ),
+    "GhostOverrides" -> FileProvider.getFileContents(
+      "frontends/common/src/test/resources/GhostOverrides.scala"
+    )
+  )
+
+  makeTest("SoundEquality", Vector(
+    20,
+    40,
+    46,
+    68,
+    80,
+    89,
+    98,
+  ))
+
+  makeTest("GhostOverrides", Vector(19))
+
+  def makeTest(name: String, expected: Seq[Int]): Unit = {
     implicit val ctx = stainless.TestContext.empty
-    val (_, program) = load(sources1, sanitize = false)
+    val (_, program) = load(Seq(sources(name)), sanitize = false)
 
     val errors = TreeSanitizer(xt).check(program.symbols)
-    assert(errors.length == 4)
 
-    errors
-      .sortBy(_.tree.getPos)
-      .zipWithIndex foreach {
-        case (err, 0) => assert(err.tree.getPos.line == 19)
-        case (err, 1) => assert(err.tree.getPos.line == 39)
-        case (err, 2) => assert(err.tree.getPos.line == 45)
-        case (err, 3) => assert(err.tree.getPos.line == 67)
-        case (err, _) => assert(false, s"Unexpected error yielded at ${err.tree.getPos}: ${err.getMessage}")
+    // errors.sortBy(_.tree.getPos).foreach { err =>
+    //   println(s"${err.tree.getPos.fullString}")
+    //   println(s"${err.getMessage}")
+    //   println(s"${err.tree}")
+    //   println()
+    // }
+
+    describe(s"$name check") {
+      it(s"compiles successfully") {
+        assert(!program.symbols.functions.isEmpty)
       }
+
+      it(s"yields exactly ${expected.length} errors") {
+        assert(errors.length == expected.size)
+      }
+
+      errors
+        .zipWithIndex
+        .filter { case (err, i) => i < expected.length }
+        .foreach { case (err, i) =>
+          val line = expected(i)
+          it(s"yields an error at line $line") {
+            assert(err.tree.getPos.line == line)
+          }
+        }
+
+      it(s"does not yield any other errors") {
+        errors
+          .zipWithIndex
+          .filter { case (err, i) => i >= expected.length }
+          .foreach { case (err, _) =>
+              assert(false, s"Unexpected error yielded at ${err.tree.getPos}: ${err.getMessage}")
+          }
+      }
+    }
   }
 }

@@ -1,9 +1,10 @@
-/* Copyright 2009-2018 EPFL, Lausanne */
+/* Copyright 2009-2019 EPFL, Lausanne */
 
 package stainless
 package math
 
 import stainless.annotation._
+import stainless.lang.StaticChecks._
 
 @library
 final case class Nat(toBigInt: BigInt) { n =>
@@ -55,4 +56,3 @@ object Nat {
   val `9` : Nat = Nat(9)
   val `10`: Nat = Nat(10)
 }
-

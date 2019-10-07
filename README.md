@@ -2,7 +2,7 @@
 
 # [![Release][release-img]][latest-release] [![Build Status][larabot-img]][larabot-ref] [![Gitter chat][gitter-img]][gitter-ref] [![Apache 2.0 License][license-img]][license-ref]
 
-Stainless 0.3.2s is a fork of [Stainless](https://github.com/epfl-lara/stainless)
+Stainless 0.5.1s is a fork of [Stainless](https://github.com/epfl-lara/stainless)
 which showcases formal verification of smart contracts written in a subset of
 Scala, and the compiler of this subset to Solidity.
 

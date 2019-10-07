@@ -1,4 +1,4 @@
-/* Copyright 2009-2018 EPFL, Lausanne */
+/* Copyright 2009-2019 EPFL, Lausanne */
 
 package stainless
 package frontends.scalac
@@ -14,11 +14,11 @@ trait ASTExtractors {
   import global.definitions._
 
   def classFromName(str: String) = {
-    rootMirror.getClassByName(newTypeName(str))
+    rootMirror.getClassByName(str)
   }
 
   def objectFromName(str: String) = {
-    rootMirror.getClassByName(newTermName(str))
+    rootMirror.getClassByName(str)
   }
 
   /**
@@ -462,6 +462,16 @@ trait ASTExtractors {
       def unapply(tree: Tree): Option[Tree] = tree  match {
         case Apply(ExSelected("math", "BigInt", "int2bigInt"), tree :: Nil) => Some(tree)
         case _ => None
+      }
+    }
+
+    /** Matches the construct stainless.math.wrapping[A](a) and returns a */
+    object ExWrapping {
+      def unapply(tree: Tree): Option[Tree] = tree  match {
+        case Apply(TypeApply(ExSelected("stainless", "math", "package", "wrapping"), Seq(_)), tree :: Nil) =>
+          Some(tree)
+        case _ =>
+          None
       }
     }
 
@@ -1173,7 +1183,12 @@ trait ASTExtractors {
         }
 
         res.map { case (rec, sym, tps, args) =>
-          val newRec = rec.filter(r => r.symbol == null || !(r.symbol.isModule && !r.symbol.isCase || r.symbol.isModuleClass))
+          val newRec = rec.filter {
+            case r if r.symbol == null => true
+            case r if (r.symbol.isModule || r.symbol.isModuleClass) && !r.symbol.isCase => false
+            case r => true
+          }
+
           (newRec, sym, tps, args)
         }
       }
@@ -1210,7 +1225,7 @@ trait ASTExtractors {
     }
 
     object ExUint8Literal {
-      def unapply(tree: Apply): Option[BigInt] = { 
+      def unapply(tree: Apply): Option[BigInt] = {
         if (tree.toString.contains("Uint8") || tree.toString.contains("UInt8"))
           println(tree);
         tree

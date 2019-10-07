@@ -93,24 +93,11 @@ function fetch_z3 {
 function generate_launcher {
   local TARGET="$1"
   local SCALAZ3_JAR_BASENAME="$2"
-  cat << END > "$TARGET"
-#!/usr/bin/env bash
 
-BASE_DIR="\$( cd "\$( dirname "\${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
-Z3_DIR="\$BASE_DIR/z3"
-STAINLESS_JAR="\$BASE_DIR/lib/$STAINLESS_JAR_BASENAME"
-SCALAZ3_JAR="\$BASE_DIR/lib/$SCALAZ3_JAR_BASENAME"
-JARS="\$STAINLESS_JAR:\$SCALAZ3_JAR"
-
-for JAR in \$STAINLESS_JAR \$SCALAZ3_JAR; do
-  if ! [[ -r \$JAR ]]; then
-    echo "Read access for the jar file \$JAR is required."
-    exit 1
-  fi
-done
-
-exec env PATH="\$Z3_DIR:\$PATH" java -cp \$JARS \$JAVA_OPTS stainless.Main "\$@"
-END
+  cat "bin/launcher.tmpl.sh" | \
+    sed "s#{STAINLESS_JAR_BASENAME}#$STAINLESS_JAR_BASENAME#g" | \
+    sed "s#{SCALAZ3_JAR_BASENAME}#$SCALAZ3_JAR_BASENAME#g" \
+    > "$TARGET"
   chmod +x "$TARGET"
 }
 
@@ -137,9 +124,10 @@ function package {
   mkdir "$TGTLIBD" >> $LOG || fail
   cp "$STAINLESS_JAR_PATH" "$TGTLIBD/$STAINLESS_JAR_BASENAME" >> $LOG || fail
   cp "$SCALAZ3_JAR_PATH" "$TGTLIBD/$SCALAZ3_JAR_BASENAME" >> $LOG || fail
+  cp "stainless.conf.default" "$TMPD/stainless.conf" >> $LOG || fail
 
   cd "$TMPD" && \
-    zip "$ZIPF" lib/** z3/** stainless >> $LOG && \
+    zip "$ZIPF" lib/** z3/** stainless stainless.conf >> $LOG && \
     cd - >/dev/null || fail
   info "    Created archive $ZIPF"
 

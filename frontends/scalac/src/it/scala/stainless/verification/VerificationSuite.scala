@@ -1,4 +1,4 @@
-/* Copyright 2009-2018 EPFL, Lausanne */
+/* Copyright 2009-2019 EPFL, Lausanne */
 
 package stainless
 package verification
@@ -25,9 +25,6 @@ trait VerificationSuite extends ComponentTestSuite {
     case "verification/invalid/SpecWithExtern" => Ignore
     case "verification/invalid/BinarySearchTreeQuant" => Ignore
     case "verification/invalid/ForallAssoc" => Ignore
-
-    // Too slow
-    case "verification/invalid/PartialSplit" => Skip
 
     case _ => super.filter(ctx, name)
   }
@@ -59,14 +56,17 @@ class SMTZ3VerificationSuite extends VerificationSuite {
     // Flaky on smt-z3 for some reason
     case "verification/valid/MergeSort2" => Ignore
     case "verification/valid/IntSetInv" => Ignore
+
+    // Too slow on smt-z3, even for nightly build
+    case "verification/valid/BitsTricksSlow" => Skip
+
     case _ => super.filter(ctx, name)
   }
 }
 
-class CodeGenVerificationSuite extends VerificationSuite {
+class CodeGenVerificationSuite extends SMTZ3VerificationSuite {
   override def configurations = super.configurations.map {
     seq => Seq(
-      inox.optSelectedSolvers(Set("smt-z3")),
       inox.solvers.unrolling.optFeelingLucky(true),
       inox.solvers.optCheckModels(true),
       evaluators.optCodeGen(true)
@@ -74,10 +74,6 @@ class CodeGenVerificationSuite extends VerificationSuite {
   }
 
   override def filter(ctx: inox.Context, name: String): FilterStatus = name match {
-    // Flaky on smt-z3 for some reason
-    case "verification/valid/MergeSort2" => Ignore
-    case "verification/valid/IntSetInv" => Ignore
-
     // Does not work with --feeling-lucky. See #490
     case "verification/valid/MsgQueue" => Skip
 
@@ -102,6 +98,9 @@ class SMTCVC4VerificationSuite extends VerificationSuite {
     case "verification/valid/BigIntRing" => Ignore
     case "verification/valid/InnerClasses4" => Ignore
 
+    // This test is flaky on CVC4
+    case "verification/valid/CovariantList" => Ignore
+
     // Requires map with non-default values, unsupported by CVC4
     case "verification/valid/ArraySlice" => Ignore
 
@@ -109,12 +108,13 @@ class SMTCVC4VerificationSuite extends VerificationSuite {
     case "verification/valid/ConcRope" => Ignore
     case "verification/invalid/BadConcRope" => Ignore
 
-    // This test is flaky on CVC4
-    case "verification/valid/CovariantList" => Ignore
-
     // These tests make CVC4 crash
     case "verification/valid/PartialCompiler" => Ignore
     case "verification/valid/PartialKVTrace" => Ignore
+
+    // Codegen assertion error, unsupported by CVC4
+    // => Ignored until #681 fixed
+    case "verification/invalid/BodyEnsuring" => Ignore
 
     case _ => super.filter(ctx, name)
   }

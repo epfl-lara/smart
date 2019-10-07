@@ -1,4 +1,4 @@
-/* Copyright 2009-2018 EPFL, Lausanne */
+/* Copyright 2009-2019 EPFL, Lausanne */
 
 package stainless
 package frontend
@@ -157,7 +157,7 @@ class SplitCallBack(components: Seq[Component])(override implicit val context: i
   }
 
   private def processFunctionSymbols(id: Identifier, syms: xt.Symbols): Unit = {
-    val errors = TreeSanitizer(xt).check(symbols)
+    val errors = TreeSanitizer(xt).enforce(symbols)
     if (!errors.isEmpty) {
       reportErrorFooter(symbols)
     }

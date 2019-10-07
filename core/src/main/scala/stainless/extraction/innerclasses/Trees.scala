@@ -1,4 +1,4 @@
-/* Copyright 2009-2018 EPFL, Lausanne */
+/* Copyright 2009-2019 EPFL, Lausanne */
 
 package stainless
 package extraction
@@ -28,6 +28,10 @@ trait Trees extends methods.Trees with Definitions with Types { self =>
     protected def computeType(implicit s: Symbols): Type = body.getType
   }
 
+  case class LocalThis(lct: LocalClassType) extends Expr with CachingTyped {
+    protected def computeType(implicit s: Symbols): LocalClassType = lct
+  }
+
   case class LocalClassConstructor(lct: LocalClassType, args: Seq[Expr]) extends Expr with CachingTyped {
     protected def computeType(implicit s: Symbols): LocalClassType = lct
   }
@@ -46,13 +50,19 @@ trait Trees extends methods.Trees with Definitions with Types { self =>
     tps: Seq[Type],
     args: Seq[Expr]
   ) extends Expr with CachingTyped {
-    protected def computeType(implicit s: Symbols): Type = method.tpe match {
-      case FunctionType(from, to) =>
-        val tpMap = (tparams zip tps).toMap
-        val realFrom = from.map(typeOps.instantiateType(_, tpMap))
-        val realTo = typeOps.instantiateType(to, tpMap)
-        checkParamTypes(args.map(_.getType), realFrom, realTo)
-      case _ => Untyped
+    protected def computeType(implicit s: Symbols): Type = {
+      receiver.getType match {
+        case lct: LocalClassType =>
+          method.tpe match {
+            case FunctionType(from, to) =>
+              val tpMap = (tparams zip tps).toMap
+              val realFrom = from.map(typeOps.instantiateType(_, tpMap))
+              val realTo = typeOps.instantiateType(to, tpMap)
+              checkParamTypes(args.map(_.getType), realFrom, realTo)
+            case _ => Untyped
+          }
+        case _ => Untyped
+      }
     }
   }
 
@@ -79,29 +89,33 @@ trait Printer extends methods.Printer {
     implicit pctx: PrinterContext => withSymbols(methods.map(fd => Left(fd)), "def")
   }
 
+  protected def localTypeDefs(typeDefs: Seq[LocalTypeDef]): PrintWrapper = {
+    implicit pctx: PrinterContext => withSymbols(typeDefs.map(td => Left(td)), "type")
+  }
+
   override def ppBody(tree: Tree)(implicit ctx: PrinterContext): Unit = tree match {
     case cd: LocalClassDef =>
+      if (cd.flags contains IsSealed) p"sealed "
+      if (cd.flags contains IsAbstract) p"abstract " else p"case "
+      for (an <- cd.flags) {
+        p"""|@${an.asString(ctx.opts)}
+            |"""
+      }
       p"class ${cd.id}"
       p"${nary(cd.tparams, ", ", "[", "]")}"
       if (cd.fields.nonEmpty) p"(${cd.fields})"
       if (cd.parents.nonEmpty) p" extends ${nary(cd.parents, " with ")}"
       p"""| {
+          |  ${localTypeDefs(cd.typeMembers)}
+          |
           |  ${localMethods(cd.methods)}
           |}"""
 
     case fd: LocalMethodDef =>
-      for (an <- fd.flags) {
-        p"""|@${an.asString(ctx.opts)}
-            |"""
-      }
+      p"${fd.toFunDef}"
 
-      p"def ${fd.id}${nary(fd.tparams, ", ", "[", "]")}"
-      if (fd.params.nonEmpty) {
-        p"(${fd.params})"
-      }
-
-      p": ${fd.returnType} = "
-      p"${fd.fullBody}"
+    case td: LocalTypeDef =>
+      p"${td.toTypeDef}"
 
     case LetClass(lcds, body) =>
       lcds foreach { lcd =>
@@ -109,6 +123,9 @@ trait Printer extends methods.Printer {
             |"""
       }
       p"$body"
+
+    case LocalThis(_) =>
+      p"this"
 
     case LocalClassConstructor(ct, args) =>
       p"$ct(${nary(args, ", ")})"
@@ -160,6 +177,7 @@ trait DefinitionTransformer extends oo.DefinitionTransformer {
       lcd.parents.map(transform(_, env)),
       lcd.fields.map(transform(_, env)),
       lcd.methods.map(transform(_, env)),
+      lcd.typeMembers.map(transform(_, env)),
       lcd.flags.map(transform(_, env))
     ).copiedFrom(lcd)
   }
@@ -178,6 +196,19 @@ trait DefinitionTransformer extends oo.DefinitionTransformer {
       lmd.flags.map(transform(_, env))
     ).copiedFrom(lmd)
   }
+
+  def transform(ltd: s.LocalTypeDef): t.LocalTypeDef = {
+    transform(ltd, initEnv)
+  }
+
+  def transform(ltd: s.LocalTypeDef, env: Env): t.LocalTypeDef = {
+    t.LocalTypeDef(
+      transform(ltd.id, env),
+      ltd.tparams.map(transform(_, env)),
+      transform(ltd.rhs, env),
+      ltd.flags.map(transform(_, env))
+    ).copiedFrom(ltd)
+  }
 }
 
 trait TreeTransformer extends transformers.TreeTransformer with DefinitionTransformer
@@ -188,7 +219,10 @@ trait DefinitionTraverser extends oo.DefinitionTraverser {
 
   def traverse(lcd: LocalClassDef): Unit = {
     val env = initEnv
+    traverse(lcd, initEnv)
+  }
 
+  def traverse(lcd: LocalClassDef, env: Env): Unit = {
     traverse(lcd.id, env)
     lcd.tparams.foreach(traverse(_, env))
     lcd.parents.foreach(traverse(_, env))
@@ -247,7 +281,7 @@ trait TreeDeconstructor extends methods.TreeDeconstructor { self =>
           var rflags = flags
 
           val newClasses = for {
-            (lcd @ s.LocalClassDef(_, tparams, parents, fields, _, flags), id) <- classes zip ids
+            (lcd @ s.LocalClassDef(_, tparams, parents, fields, _, _, flags), id) <- classes zip ids
           } yield {
             val (currVs, nextVs) = rvs.splitAt(fields.size)
             rvs = nextVs
@@ -265,7 +299,8 @@ trait TreeDeconstructor extends methods.TreeDeconstructor { self =>
               currTparams map (tp => t.TypeParameterDef(tp.asInstanceOf[t.TypeParameter]).copiedFrom(tp)),
               currParents,
               currVs.map(_.toVal),
-              lcd.methods.map(fd => transformer.transform(fd)), // FIXME
+              lcd.methods.map(fd => transformer.transform(fd)),     // FIXME
+              lcd.typeMembers.map(td => transformer.transform(td)), // FIXME
               currFlags
             ).copiedFrom(lcd)
           }
@@ -273,6 +308,10 @@ trait TreeDeconstructor extends methods.TreeDeconstructor { self =>
           t.LetClass(newClasses, es.head)
         }
       )
+
+    case s.LocalThis(lct) =>
+      (Seq(), Seq(), Seq(), Seq(lct), Seq(), (_, _, _, tps, _) =>
+        t.LocalThis(tps(0).asInstanceOf[t.LocalClassType]))
 
     case s.LocalClassConstructor(lct, args) =>
       (Seq(), Seq(), args, Seq(lct), Seq(), (_, _, es, tps, _) =>
