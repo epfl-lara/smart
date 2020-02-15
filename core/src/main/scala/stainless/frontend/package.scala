@@ -39,14 +39,9 @@ package object frontend {
     factory(ctx, compilerArgs, getCallBack(ctx))
   }
 
-  /**
-   * All components handled by the frontend.
-   *
-   * NOTE [[database]] and [[components]] need to be kept in sync.
-   */
+  /** All components handled by the frontend.  */
   val allComponents: Seq[Component] = Seq(
     verification.VerificationComponent,
-    termination.TerminationComponent,
     evaluators.EvaluatorComponent
   )
 
@@ -89,8 +84,6 @@ package object frontend {
   private def batchSymbols(activeComponents: Seq[Component])(implicit ctx: inox.Context): Boolean = {
     ctx.options.findOptionOrDefault(optBatchedProgram) ||
     ctx.options.findOptionOrDefault(optSmartContracts) ||
-    !ctx.options.findOptionOrDefault(optKeep).isEmpty ||
-    activeComponents.contains(termination.TerminationComponent)
+    !ctx.options.findOptionOrDefault(optKeep).isEmpty
   }
 }
-

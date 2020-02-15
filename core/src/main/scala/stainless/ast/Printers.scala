@@ -157,6 +157,9 @@ trait Printer extends inox.ast.Printer {
 
     case bv@BVLiteral(_, _, _) => p"${bv.toBigInt}"
 
+    case Max(es) =>
+      p"""max($es)"""
+
     case _ => super.ppBody(tree)
   }
 

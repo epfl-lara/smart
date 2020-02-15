@@ -79,6 +79,7 @@ out-classes
 .vscode
 .metals
 .bloop
+project/metals.sbt
 
 # Solidity files
 *.sol

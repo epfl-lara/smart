@@ -10,6 +10,8 @@ import java.io.OutputStream
 import scala.reflect._
 import scala.reflect.runtime.universe._
 
+import stainless.termination.{TerminationReport => TR}
+
 class StainlessSerializer(override val trees: ast.Trees, serializeProducts: Boolean = false)
   extends InoxSerializer(trees, serializeProducts) {
   import trees._
@@ -17,9 +19,9 @@ class StainlessSerializer(override val trees: ast.Trees, serializeProducts: Bool
   /** An extension to the set of registered classes in the `InoxSerializer`.
     * occur within Stainless programs.
     *
-    * The new identifiers in the mapping range from 120 to 160.
+    * The new identifiers in the mapping range from 120 to 165.
     *
-    * NEXT ID: 161
+    * NEXT ID: 166
     */
   override protected def classSerializers: Map[Class[_], Serializer[_]] =
     super.classSerializers ++ Map(
@@ -45,6 +47,8 @@ class StainlessSerializer(override val trees: ast.Trees, serializeProducts: Bool
       classSerializer[SizedADT]         (154),
       classSerializer[Passes]           (158),
 
+      classSerializer[Max]              (160),
+
       // Stainless ast Types
       classSerializer[ArrayType]       (138),
       classSerializer[RecursiveType]   (152),
@@ -60,6 +64,11 @@ class StainlessSerializer(override val trees: ast.Trees, serializeProducts: Bool
       classSerializer[IsField]         (143),
       classSerializer[IsUnapply]       (144),
 
+      classSerializer[TerminationStatus]      (161),
+      classSerializer[TR.Unknown.type]        (162),
+      classSerializer[TR.Terminating.type]    (163),
+      classSerializer[TR.NonTerminating.type] (164),
+
       mappingSerializer[SymbolIdentifier](145)
         (id => (id.globalId, id.id, id.symbol.path, id.symbol.id))
         (p => new SymbolIdentifier(new Identifier(p._3.last, p._1, p._2), new Symbol(p._3, p._4))),
@@ -73,7 +82,7 @@ class StainlessSerializer(override val trees: ast.Trees, serializeProducts: Bool
       classSerializer[Erasable.type]   (155),
       classSerializer[IndexedAt]       (156),
       classSerializer[Wrapping.type]   (159),
-      classSerializer[ForceVC.type]    (160),
+      classSerializer[ForceVC.type]    (165),
       classSerializer[Synthetic.type]  (182),
     )
 }

@@ -217,7 +217,8 @@ trait ASTExtractors {
           unapplySeq(from).map(prefix => prefix :+ name.toString)
 
         case Select(from: Ident, name) =>
-          Some(Seq(from.toString, name.toString))
+          val full = name.toString :: from.symbol.ownerChain.init.map(_.name.toString)
+          Some(full.reverse)
 
         case _ =>
           None
@@ -237,7 +238,7 @@ trait ASTExtractors {
           => Some((body, contract, false))
 
         case Apply(Select(Apply(TypeApply(
-              ExSelected("stainless", "lang", "StaticChecks", "any2Ensuring"),
+              ExSelected("stainless", "lang", "StaticChecks", "Ensuring"),
               _ :: Nil), body :: Nil), ExNamed("ensuring")), contract :: Nil)
           => Some((body, contract, true))
 
