@@ -59,7 +59,7 @@ package object xlang {
   }
 
   def fullExtractor(implicit ctx: inox.Context) = extractor andThen nextExtractor
-  def nextExtractor(implicit ctx: inox.Context) = innerclasses.fullExtractor
+  def nextExtractor(implicit ctx: inox.Context) = smartcontracts.fullExtractor
 
   def phaseSemantics(implicit ctx: inox.Context): inox.SemanticsProvider { val trees: xlang.trees.type } = {
     extraction.phaseSemantics(xlang.trees)(fullExtractor)
