@@ -12,7 +12,7 @@ package object imperative {
       functions: Map[Identifier, FunDef],
       sorts: Map[Identifier, ADTSort],
       classes: Map[Identifier, ClassDef],
-      typeDefs: Map[Identifier, TypeDef]
+      typeDefs: Map[Identifier, TypeDef],
     ) extends ClassSymbols with AbstractSymbols
 
     object printer extends Printer { val trees: imperative.trees.type = imperative.trees }
