@@ -260,11 +260,12 @@ to ``assert`` and ``require``) to get runtime checks.
 Strict Arithmetic
 ^^^^^^^^^^^^^^^^^
 
-The ``--strict-arithmetic`` mode makes Stainless add verification conditions
-(VCs) that check that arithmetic operations do not overflow. For instance, when
-the mode is active, writing ``a + b`` if ``a`` and ``b`` are ``uint256̀`` will
-create a VC stating that ``a + b`` must be greater or equal to ``a``, and
-Stainless will report whether this VC is valid or not (or unknown).
+The ``--strict-arithmetic`` mode (which is enabled by default) makes Stainless
+add verification conditions (VCs) that check that arithmetic operations do not
+overflow. For instance, when the mode is active, writing ``a + b`` if ``a`` and
+``b`` are ``uint256̀`` will create a VC stating that ``a + b`` must be greater
+or equal to ``a``, and Stainless will report whether this VC is valid or not (or
+unknown).
 
 
 Development
