@@ -8,7 +8,7 @@ import stainless.verification.{VerificationComponent, VerificationAnalysis, optF
 
 import scala.concurrent.duration._
 
-class TerminationSuite extends ComponentTestSuite {
+trait TerminationSuite extends ComponentTestSuite {
 
   val component = VerificationComponent
 

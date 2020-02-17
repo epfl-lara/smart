@@ -5,7 +5,7 @@ package verification
 
 import org.scalatest._
 
-class ImperativeSuite extends ComponentTestSuite {
+trait ImperativeSuite extends ComponentTestSuite {
 
   override def configurations = super.configurations.map {
     seq => optFailEarly(true) +: seq

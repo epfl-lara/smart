@@ -5,7 +5,7 @@ package verification
 
 import stainless.utils.YesNoOnly
 
-class TerminationVerificationSuite extends ComponentTestSuite {
+trait TerminationVerificationSuite extends ComponentTestSuite {
 
   val component = VerificationComponent
 

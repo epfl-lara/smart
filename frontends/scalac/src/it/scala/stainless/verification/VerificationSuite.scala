@@ -67,7 +67,7 @@ class SMTZ3VerificationSuite extends VerificationSuite {
   }
 }
 
-class CodeGenVerificationSuite extends SMTZ3VerificationSuite {
+trait CodeGenVerificationSuite extends SMTZ3VerificationSuite {
   override def configurations = super.configurations.map {
     seq => Seq(
       inox.solvers.unrolling.optFeelingLucky(true),
@@ -84,7 +84,7 @@ class CodeGenVerificationSuite extends SMTZ3VerificationSuite {
   }
 }
 
-class SMTCVC4VerificationSuite extends VerificationSuite {
+trait SMTCVC4VerificationSuite extends VerificationSuite {
   override def configurations = super.configurations.map {
     seq => Seq(
       inox.optSelectedSolvers(Set("smt-cvc4")),
