@@ -1,12 +1,8 @@
-<<<<<<< HEAD
 # Stainless for Smart Contracts
-=======
-# Stainless [![Release][release-img]][latest-release] [![Nightly Build Status][nightly-larabot-img]][nightly-larabot-ref] [![Build Status][larabot-img]][larabot-ref] [![Gitter chat][gitter-img]][gitter-ref] [![Apache 2.0 License][license-img]][license-ref]
->>>>>>> stainless/master
 
 # [![Release][release-img]][latest-release] [![Build Status][larabot-img]][larabot-ref] [![Gitter chat][gitter-img]][gitter-ref] [![Apache 2.0 License][license-img]][license-ref]
 
-Stainless 0.5.1s is a fork of [Stainless](https://github.com/epfl-lara/stainless)
+Stainless 0.7.0s is a fork of [Stainless](https://github.com/epfl-lara/stainless)
 which showcases formal verification of smart contracts written in a subset of
 Scala, and the compiler of this subset to Solidity.
 
@@ -106,7 +102,7 @@ compiles the `dynRequire` (dynamic require) commands to `require` in Solidity.
 The compiler also drops the function `invariant` which is marked with `@ghost`.
 
 ```solidity
-pragma solidity ^0.5.10;
+pragma solidity ^0.6.2;
 
 contract Candy {
     // Fields
