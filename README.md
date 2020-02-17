@@ -95,10 +95,6 @@ solver (which needs to be downloaded separately and added to your path):
 [  Info  ] ╚═══════════════════════════════════════════════╝
 ```
 
-You can also ensure that the arithmetic performed does not include overflows:
-
-> ./stainless frontends/benchmarks/smartcontracts/valid/Candy.scala --solvers=smt-cvc4 --strict-arithmetic
-
 # Compilation to Solidity
 
 The contract can be compiled to Solidity using
