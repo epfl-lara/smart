@@ -11,20 +11,20 @@ package object smartcontracts {
   @library @inline
   def unsafeIgnoreCode[T](code: T) = code
 
-  @library @inline
-  def unsafe_+(x: Uint256, y: Uint256) = {
+  @library @extern
+  def unsafe_+(x: Uint256, y: Uint256): Uint256 = {
     x + y
-  }
+  }.ensuring(_ == x + y)
 
-  @library @inline
-  def unsafe_-(x: Uint256, y: Uint256) = {
+  @library @extern
+  def unsafe_-(x: Uint256, y: Uint256): Uint256 = {
     x - y
-  }
+  }.ensuring(_ == x - y)
 
-  @library @inline
-  def unsafe_*(x: Uint256, y: Uint256) = {
+  @library @extern
+  def unsafe_*(x: Uint256, y: Uint256): Uint256 = {
     x * y
-  }
+  }.ensuring(_ == x * y)
 
   @library
   @extern
@@ -60,7 +60,7 @@ package object smartcontracts {
   @library
   def length[T](l: List[T]): Uint256 = l match {
     case Nil() => Uint256.ZERO
-    case Cons(x,xs) => length(xs) + Uint256.ONE
+    case Cons(x,xs) => unsafe_+(length(xs), Uint256.ONE)
   }
 
   @library
@@ -80,10 +80,6 @@ package object smartcontracts {
     else Cons(x, updated(xs, i - Uint256.ONE, t))
   }
 
-  //abstract class Event
-  //@extern
-  //def emit(e: Event): Unit = ???
-
   @keep("smart-contracts")
   object Environment {
     @library @extern @pure
@@ -102,7 +98,7 @@ package object smartcontracts {
     @library
     final def updateBalance(from: Address, to: Address, amnt: Uint256): Unit = {
       dynRequire(balances(from) >= amnt)
-      dynRequire(balances(to) + amnt >= balances(to))
+      dynRequire(unsafe_+(balances(to), amnt) >= balances(to))
 
       balances(from) = balances(from) - amnt
       balances(to) = balances(to) + amnt
