@@ -73,7 +73,7 @@ package object frontend {
   /** Get one callback for all active components. */
   def getCallBack(implicit ctx: inox.Context): CallBack = {
     val activeComponents = getActiveComponents(ctx)
-    if(hasOptSolidityOutput)
+    if (hasOptSolidityOutput)
       new SolidityCallBack
     else if (batchSymbols(activeComponents))
       new BatchedCallBack(activeComponents)
