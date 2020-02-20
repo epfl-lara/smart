@@ -12,6 +12,7 @@ import scala.language.postfixOps
 
 import MinimumTokenInvariant._
 
+@wrapping // disable --strict-arithmetic checks inside the trait
 trait MinimumToken extends Contract {
   val balanceOf: MutableMap[Address,Uint256]
   var total: Uint256
@@ -75,6 +76,13 @@ trait MinimumToken extends Contract {
 
     // code to add balance to recipient `to`
     balanceOf(to) = balanceOf(to) + amount
+
+    assert(distinctAddresses(participants))
+    assert(sumBalances(participants, b0) == total)
+    assert(b1 == b0.updated(from, b0(from) - amount))
+    assert(balanceOf == b1.updated(to, b1(to) + amount))
+    assert(participants.contains(from))
+    assert(participants.contains(to))
 
     // proof that the sum of balances stays equal to `total`
     ghost {

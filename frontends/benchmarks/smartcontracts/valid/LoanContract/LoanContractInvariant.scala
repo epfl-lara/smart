@@ -3,6 +3,7 @@ import stainless.lang._
 import stainless.collection._
 import stainless.annotation._
 
+@wrapping // disable --strict-arithmetic checks inside the trait
 object LoanContractInvariant {
 
   // TODO: Non-local invariant
@@ -24,7 +25,7 @@ object LoanContractInvariant {
   }
 
 
-  def visitedStatesPrefixLemma(currentState: State, visitedStates: List[State]) = {
+  def visitedStatesPrefixLemma(currentState: State, visitedStates: List[State]): Unit = {
     require {
       val expected1: List[State] = List(WaitingForData, WaitingForLender, WaitingForPayback, Finished)
       val expected2: List[State] = List(WaitingForData, WaitingForLender, WaitingForPayback, Default)
@@ -33,8 +34,9 @@ object LoanContractInvariant {
       (isPrefix(visitedStates.reverse, expected1) || isPrefix(visitedStates.reverse, expected2))
     }
 
+  }.ensuring( _ =>
     visitedStates == List(WaitingForPayback, WaitingForLender, WaitingForData)
-  } holds
+  )
 
   @ghost
   def stateInvariant(

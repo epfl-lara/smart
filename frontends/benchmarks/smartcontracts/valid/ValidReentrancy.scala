@@ -9,6 +9,7 @@ trait VRB extends ContractInterface {
   def doSomething(): Unit
 }
 
+@wrapping // disable --strict-arithmetic checks inside the trait
 trait VRA extends Contract {
   var userBalance: Uint256
   var contractBalance: Uint256

@@ -2,6 +2,7 @@ import stainless.smartcontracts._
 import stainless.lang._
 import stainless.annotation._
 
+@wrapping // disable --strict-arithmetic checks inside the trait
 trait CC extends Contract {
   var a: Uint256
   var b: Uint256

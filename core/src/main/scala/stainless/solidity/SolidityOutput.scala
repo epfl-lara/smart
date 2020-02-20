@@ -128,6 +128,10 @@ trait SolidityOutput {
   }
 
   def transformExpr(expr: Expr): SolidityExpr = expr match {
+    // Ignore flags
+    case Annotated(e, flags) =>
+      transformExpr(e)
+
     // Transform calls to ContractInterface.addr to `address()`
     case MethodInvocation(receiver, id, Seq(), Seq()) if isIdentifier("stainless.smartcontracts.ContractInterface.addr", id) =>
       SAddress(transformExpr(receiver))

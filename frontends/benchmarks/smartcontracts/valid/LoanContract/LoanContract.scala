@@ -18,6 +18,7 @@ case object WaitingForPayback extends State
 case object Finished extends State
 case object Default extends State
 
+@wrapping // disable --strict-arithmetic checks inside the trait
 trait LoanContract extends Contract {
   var borrower: PayableAddress
   var wantedAmount: Uint256   // Amount of ether to borrow
@@ -124,7 +125,7 @@ trait LoanContract extends Contract {
 
     if (currentState == WaitingForPayback) {
       assert(stateInvariant(currentState, visitedStates))
-      assert(visitedStatesPrefixLemma(currentState, visitedStates))
+      visitedStatesPrefixLemma(currentState, visitedStates)
       assert(visitedStates == List(WaitingForPayback, WaitingForLender, WaitingForData))
 
       lender.transfer(Msg.value)
@@ -155,7 +156,7 @@ trait LoanContract extends Contract {
       dynRequire(now() > start + daysToLend)
       dynRequire(Msg.sender == lender)
 
-      assert(visitedStatesPrefixLemma(currentState, visitedStates))
+      visitedStatesPrefixLemma(currentState, visitedStates)
       assert(visitedStates == List(WaitingForPayback, WaitingForLender, WaitingForData))
 
       // Transfer all the guarantee to the lender
