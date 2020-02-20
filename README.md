@@ -102,7 +102,7 @@ compiles the `dynRequire` (dynamic require) commands to `require` in Solidity.
 The compiler also drops the function `invariant` which is marked with `@ghost`.
 
 ```solidity
-pragma solidity ^0.6.2;
+pragma solidity ^0.6.3;
 
 contract Candy {
     // Fields

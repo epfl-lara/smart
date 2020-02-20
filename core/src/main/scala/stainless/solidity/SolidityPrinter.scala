@@ -6,7 +6,7 @@ import java.io._
 object SolidityPrinter {
   def writeFile(ctx: inox.Context, filename: String, imports: Set[SolidityImport], defs: Seq[SolidityDef]) = {
     def ppHeader()(implicit out: Writer) = {
-      out.write("pragma solidity ^0.6.2;\n\n")
+      out.write("pragma solidity ^0.6.3;\n\n")
     }
 
     def ppImports()(implicit out: Writer) = {
