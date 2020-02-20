@@ -253,21 +253,6 @@ trait SolidityOutput {
     case FunctionInvocation(id, _, _) if isIdentifier("stainless.smartcontracts.Msg.value", id) =>
       SClassSelector(SVariable("msg"), "value")
 
-    case FunctionInvocation(id, _, Seq(lhs, rhs))
-      if isIdentifier("stainless.smartcontracts.wrapping_$plus", id) ||
-         isIdentifier("stainless.smartcontracts.wrapping_+", id) =>
-      SPlus(transformExpr(lhs), transformExpr(rhs))
-
-    case FunctionInvocation(id, _, Seq(lhs, rhs))
-      if isIdentifier("stainless.smartcontracts.wrapping_$minus", id) ||
-         isIdentifier("stainless.smartcontracts.wrapping_-", id) =>
-      SMinus(transformExpr(lhs), transformExpr(rhs))
-
-    case FunctionInvocation(id, _, Seq(lhs, rhs))
-      if isIdentifier("stainless.smartcontracts.wrapping_$times", id) ||
-         isIdentifier("stainless.smartcontracts.wrapping_*", id) =>
-      SMult(transformExpr(lhs), transformExpr(rhs))
-
     case FunctionInvocation(id, _, _) if isIdentifier("stainless.lang.ghost", id) =>
       STerminal()
 

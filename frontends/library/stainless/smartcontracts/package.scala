@@ -4,6 +4,7 @@ import stainless.collection._
 import stainless.proof._
 import stainless.lang._
 import stainless.annotation._
+import stainless.math.wrapping
 
 import scala.language.implicitConversions
 
@@ -12,26 +13,9 @@ package object smartcontracts {
   @keep("smart-contracts")
   def unsafeIgnoreCode[T](code: T) = code
 
-  @library @extern
-  @keep("smart-contracts")
-  def wrapping_+(x: Uint256, y: Uint256): Uint256 = {
-    x + y
-  }.ensuring(_ == x + y)
-
-  @library @extern
-  @keep("smart-contracts")
-  def wrapping_-(x: Uint256, y: Uint256): Uint256 = {
-    x - y
-  }.ensuring(_ == x - y)
-
-  @library @extern
-  @keep("smart-contracts")
-  def wrapping_*(x: Uint256, y: Uint256): Uint256 = {
-    x * y
-  }.ensuring(_ == x * y)
-
   @library
   @extern
+  @inlineOnce
   @keep("smart-contracts")
   def dynRequire(cond: Boolean): Unit = {
     (??? : Unit)
@@ -66,7 +50,7 @@ package object smartcontracts {
   @library
   def length[T](l: List[T]): Uint256 = l match {
     case Nil() => Uint256.ZERO
-    case Cons(x,xs) => wrapping_+(length(xs), Uint256.ONE)
+    case Cons(x,xs) => wrapping { length(xs) + Uint256.ONE }
   }
 
   @library
@@ -104,7 +88,7 @@ package object smartcontracts {
     @library
     final def updateBalance(from: Address, to: Address, amnt: Uint256): Unit = {
       dynRequire(balances(from) >= amnt)
-      dynRequire(wrapping_+(balances(to), amnt) >= balances(to))
+      dynRequire(wrapping { balances(to) + amnt } >= balances(to))
 
       balances(from) = balances(from) - amnt
       balances(to) = balances(to) + amnt
