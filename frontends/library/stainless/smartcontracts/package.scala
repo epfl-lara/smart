@@ -9,20 +9,24 @@ import scala.language.implicitConversions
 
 package object smartcontracts {
   @library @inline
+  @keep("smart-contracts")
   def unsafeIgnoreCode[T](code: T) = code
 
   @library @extern
-  def unsafe_+(x: Uint256, y: Uint256): Uint256 = {
+  @keep("smart-contracts")
+  def wrapping_+(x: Uint256, y: Uint256): Uint256 = {
     x + y
   }.ensuring(_ == x + y)
 
   @library @extern
-  def unsafe_-(x: Uint256, y: Uint256): Uint256 = {
+  @keep("smart-contracts")
+  def wrapping_-(x: Uint256, y: Uint256): Uint256 = {
     x - y
   }.ensuring(_ == x - y)
 
   @library @extern
-  def unsafe_*(x: Uint256, y: Uint256): Uint256 = {
+  @keep("smart-contracts")
+  def wrapping_*(x: Uint256, y: Uint256): Uint256 = {
     x * y
   }.ensuring(_ == x * y)
 
@@ -48,9 +52,11 @@ package object smartcontracts {
   } ensuring(cond)
 
   @library
+  @keep("smart-contracts")
   def now() = choose((b: Uint256) => b >= Uint256.ZERO)
 
   @library @pure
+  @keep("smart-contracts")
   def pay[A](f: A, amount: Uint256): A = f
 
   @library @pure
@@ -60,7 +66,7 @@ package object smartcontracts {
   @library
   def length[T](l: List[T]): Uint256 = l match {
     case Nil() => Uint256.ZERO
-    case Cons(x,xs) => unsafe_+(length(xs), Uint256.ONE)
+    case Cons(x,xs) => wrapping_+(length(xs), Uint256.ONE)
   }
 
   @library
@@ -98,7 +104,7 @@ package object smartcontracts {
     @library
     final def updateBalance(from: Address, to: Address, amnt: Uint256): Unit = {
       dynRequire(balances(from) >= amnt)
-      dynRequire(unsafe_+(balances(to), amnt) >= balances(to))
+      dynRequire(wrapping_+(balances(to), amnt) >= balances(to))
 
       balances(from) = balances(from) - amnt
       balances(to) = balances(to) + amnt
