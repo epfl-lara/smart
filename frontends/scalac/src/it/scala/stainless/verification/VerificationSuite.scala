@@ -47,7 +47,7 @@ trait VerificationSuite extends ComponentTestSuite {
   }
 }
 
-class SMTZ3VerificationSuite extends VerificationSuite {
+trait SMTZ3VerificationSuite extends VerificationSuite {
   override def configurations = super.configurations.map {
     seq => Seq(
       inox.optSelectedSolvers(Set("smt-z3")),

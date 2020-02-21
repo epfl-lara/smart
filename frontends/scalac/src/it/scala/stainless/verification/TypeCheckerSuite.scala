@@ -65,7 +65,7 @@ class SMTZ3TypeCheckerSuite extends TypeCheckerSuite {
   }
 }
 
-class SMTCVC4TypeCheckerSuite extends TypeCheckerSuite {
+trait SMTCVC4TypeCheckerSuite extends TypeCheckerSuite {
   override val cacheAllowed = true
 
   override def configurations = super.configurations.map {
