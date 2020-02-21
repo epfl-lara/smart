@@ -125,7 +125,9 @@ trait LoanContract extends Contract {
 
     if (currentState == WaitingForPayback) {
       assert(stateInvariant(currentState, visitedStates))
-      visitedStatesPrefixLemma(currentState, visitedStates)
+      ghost {
+        visitedStatesPrefixLemma(currentState, visitedStates)
+      }
       assert(visitedStates == List(WaitingForPayback, WaitingForLender, WaitingForData))
 
       lender.transfer(Msg.value)
@@ -156,7 +158,9 @@ trait LoanContract extends Contract {
       dynRequire(now() > start + daysToLend)
       dynRequire(Msg.sender == lender)
 
-      visitedStatesPrefixLemma(currentState, visitedStates)
+      ghost {
+        visitedStatesPrefixLemma(currentState, visitedStates)
+      }
       assert(visitedStates == List(WaitingForPayback, WaitingForLender, WaitingForData))
 
       // Transfer all the guarantee to the lender
