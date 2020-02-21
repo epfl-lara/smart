@@ -4,6 +4,7 @@ import stainless.lang._
 
 import Environment._
 
+@wrapping // disable --strict-arithmetic checks inside the trait
 trait SRDA extends Contract {
   var x: Uint256
   val other: SRDA
