@@ -26,6 +26,7 @@ Contents:
    neon
    limitations
    casestudies
+   coq
    smartcontracts
    faq
    references

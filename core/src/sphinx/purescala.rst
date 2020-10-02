@@ -1,4 +1,4 @@
-.. _purescala:
+  .. _purescala:
 
 Pure Scala
 ==========
@@ -219,6 +219,34 @@ It is also possible to call methods of a superclass with the ``super`` keyword.
     }
   }
 
+Abstract methods may have contracts in terms of pre- and postconditions. The
+syntax uses ``???`` and is as follows:
+
+.. code-block:: scala
+
+  abstract class Set[T] {
+    def contains[T](t: T): Boolean
+
+    def add[T](t: T): Set[T] = {
+      require(!this.contains(t))
+      (??? : Set[T])
+    }.ensuring(res => res.contains(t))
+  }
+
+You can then extend such abstract classes by concrete implementations, and
+Stainless will generate verification conditions to make sure that the
+implementation respects the specification.
+
+You can also add implementations and assume that they are correct with respect
+to the specification of the abstract class, without having Stainless check the
+specification (e.g. if you want to use existing Scala data-structures inside).
+In that case, mark the concrete class with ``@extern`` (see Section :doc:`wrap`
+for more info on ``@extern``) or place the concrete implementation in files
+which are not inspected by Stainless (see e.g.
+https://github.com/epfl-lara/stainless-project.g8 for an example of how to setup
+such a hybrid project).
+
+
 Copy Method
 ***********
 
@@ -242,6 +270,76 @@ to be satisfied as a precondition.
   as ``Foo`` require its field ``x`` to be positive.
 
 
+Initialization
+**************
+
+In Pure Scala, initialization of ``val``'s  may not have future or self-references:
+
+.. code-block:: scala
+
+  object Initialization {
+    case class C(x: BigInt) {
+      val y = x       // ok
+      val z = y + x   // ok
+      val a = b       // Error: "because field `a` can only refer to previous fields, not to `b`"
+      val b = z + y   // ok
+    }
+  }
+
+
+Overriding
+**********
+
+Stainless supports overriding methods with some constraints:
+* A ``val`` in an abstract class can only be overridden by a concrete class parameter.
+* Methods and ``lazy val``s in abstract classes can be overridden by concrete methods or
+``lazy val``'s (interchangably), or by a concrete class parameter, but not by
+a ``val``.
+
+Here are a few examples that are rejected by Stainless:
+
+.. code-block:: scala
+
+  object BadOverride1 {
+    sealed abstract class Abs {
+      require(x != 0)
+      val x: Int
+    }
+
+    // Error: "Abstract values `x` must be overridden with fields in concrete subclass"
+    case class AbsInvalid() extends Abs {
+      def x: Int = 1
+    }
+  }
+
+.. code-block:: scala
+
+  object BadOverride2 {
+    sealed abstract class Abs {
+      val y: Int
+    }
+
+    // Error: "Abstract values `y` must be overridden with fields in concrete subclass"
+    case class AbsInvalid() extends Abs {
+      val y: Int = 2
+    }
+  }
+
+.. code-block:: scala
+
+  object BadOverride3 {
+    sealed abstract class AAA {
+      def f: BigInt
+    }
+
+    // Error: "because abstract methods BadOverride3.AAA.f were not overridden by
+    //         a method, a lazy val, or a constructor parameter"
+    case class BBB() extends AAA {
+      val f: BigInt = 0
+    }
+  }
+
+
 Default Parameters
 ******************
 
@@ -252,6 +350,7 @@ Functions and methods can have default values for their parameters.
   def test(x: Int = 21): Int = x * 2
 
   assert(test() == 42) // valid
+
 
 
 Type Definitions
@@ -283,7 +382,7 @@ Type Members
 
 Much like classes can have field members and method members, they can also
 define type members. Much like other members, those can also be declared
-abstract within an abstract class and overriden in implementations:
+abstract within an abstract class and overridden in implementations:
 
 .. code-block:: scala
 

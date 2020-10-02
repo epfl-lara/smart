@@ -9,14 +9,19 @@ trait MeasureInference
   extends extraction.CachingPhase
     with extraction.SimplyCachedSorts
     with extraction.IdentitySorts
-    with extraction.SimpleFunctions
-    with extraction.SimplyCachedFunctions { self =>
+    with extraction.SimpleFunctions { self =>
 
   val s: Trees
   val t: Trees
   import s._
 
   import context.{options, timers, reporter}
+
+  // Measure inference depends on functions that are mutually recursive with `fd`,
+  // so we include all dependencies in the key calculation
+  override protected final val funCache = new ExtractionCache[s.FunDef, FunctionResult]((fd, context) =>
+    getDependencyKey(fd.id)(context.symbols)
+  )
 
   val sizes: SizeFunctions { val trees: s.type } = new {
     val trees: s.type = self.s
@@ -35,13 +40,13 @@ trait MeasureInference
 
       override def transform(e: s.Expr): t.Expr = e match {
         case Decreases(v: Variable, body) if v.getType(symbols).isInstanceOf[ADTType] =>
-          t.Decreases(transform(size(v)), transform(body))
+          t.Decreases(transform(size(v)), transform(body)).setPos(e)
 
         case Decreases(Tuple(ts), body) =>
           t.Decreases(t.Tuple(ts.map {
             case v: Variable if v.getType(symbols).isInstanceOf[ADTType] => transform(size(v))
             case e => transform(e)
-          }), transform(body))
+          }), transform(body)).setPos(e)
 
         case _ =>
           super.transform(e)
@@ -54,11 +59,12 @@ trait MeasureInference
       }
     }
 
-    def needsMeasure(fd: FunDef): Boolean = symbols.isRecursive(fd.id)
+    def needsMeasure(fd: FunDef): Boolean =
+      symbols.isRecursive(fd.id) && fd.measure(symbols).isEmpty
 
     def inferMeasure(original: FunDef): FunDef = measureCache.get(original) match {
       case Some(measure) =>
-        original.copy(fullBody = exprOps.withMeasure(original.fullBody, Some(measure)))
+        original.copy(fullBody = exprOps.withMeasure(original.fullBody, Some(measure.setPos(original))))
 
       case None => try {
         val guarantee = timers.evaluators.termination.inference.run {
@@ -70,7 +76,7 @@ trait MeasureInference
           case pipeline.Terminates(_, Some(measure)) =>
             reporter.info(s" => Found measure for ${original.id.asString}.")
             measureCache ++= pipeline.measureCache.get
-            original.copy(fullBody = exprOps.withMeasure(original.fullBody, Some(measure)))
+            original.copy(fullBody = exprOps.withMeasure(original.fullBody, Some(measure.setPos(original))))
 
           case pipeline.Terminates(_, None) =>
             reporter.info(s" => No measure needed for ${original.id.asString}.")

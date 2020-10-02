@@ -1,5 +1,58 @@
-
 # Release Notes
+
+## Version 0.7.3 (2020-09-08)
+
+### Improvements
+
+- Remove check that measure has good type at call site (this was making arguments of recursive functions being type-checked twice, and thus duplicating VCs)
+- Instead, add check that mutually recursive functions have the same measure type
+- `SplitCallBack` now processes mutually recursive functions together
+- Improve HTML output for type-checking derivation
+
+
+## Version 0.7.2 (29-08-2020)
+
+### Features
+
+- Add `ListMap` implementation (associative list) (#794)
+
+### Improvements
+
+- Remove type-checking tuple rule that was duplicating VCs (#792)
+- Improve documentation on check/assert (#815)
+- Add documentation for contracts on abstract functions (#825)
+
+### Bug fixes
+
+- Fix `@induct` transformation for bounded-size integers (#804)
+- Add checks to reject programs not supported by Stainless (#810, #814)
+- Fix type encoding translation error (#818)
+- Fix issues on `@inlineInvariant` feature (#820)
+- Fix bug where Stainless could make an infinite loop in `isMutableClassType` (#824)
+- Fix "missing field" error in watch mode (#829)
+- Fix bug in watch mode where errors from previous runs kept getting reported (#830)
+- Fix bug in watch mode that made the verification report incomplete (#831)
+
+
+## Version 0.7.1 (17-06-2020)
+
+### Features
+
+- Add `ListOps.noDuplicate`, and a contract for `Set#toList` (#746)
+- Check match exhaustiveness in type checker (#737)
+
+### Improvements
+
+- Rearrange debugging options (#781)
+- Change StdOut print functions to handle Any (#761)
+- Improve error reporting (#756)
+- Add `@inlineInvariant` flag to ADT invariant dispatch method (#744)
+- Use static checks for `SetOps` methods (#742)
+- Recommend using Z3 4.8.6 instead of 4.7.1 (#741)
+
+### Bug fixes
+
+- Fix `List#toScala` method (#778)
 
 ## Version 0.7.0 (07-02-2020)
 
@@ -128,7 +181,7 @@
 - Propagate @ghost annotation to variables introduced by calls to default copy getter (#643)
 - Do not lift refinement into pre-/post-conditions when `--type-checker` is enabled (#620)
 - Follow symbolic links when searching for base directory (#621)
-- Check that methods are only overriden by methods with the same ghostiness (#615)
+- Check that methods are only overridden by methods with the same ghostiness (#615)
 - Check that required tools are installed before packaging (#599)
 - Add readability check for jars in script (#600)
 

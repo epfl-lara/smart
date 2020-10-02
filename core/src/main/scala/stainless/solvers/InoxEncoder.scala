@@ -19,9 +19,10 @@ trait InoxEncoder extends ProgramEncoder {
 
   private[this] def keepFlag(flag: Flag): Boolean = flag match {
     case Unchecked | Library | Synthetic | PartialEval | Extern => false
-    case Opaque | Private | Final | Law | Ghost | Erasable | ForceVC | Wrapping => false
+    case Opaque | Private | Final | Law | Ghost | Erasable | Wrapping | Lazy | ForceVC | Wrapping => false
     case Derived(_) | IsField(_) | IsUnapply(_, _) | IndexedAt(_) => false
     case TerminationStatus(_) => false
+    case InlineInvariant => false
     case _ => true
   }
 

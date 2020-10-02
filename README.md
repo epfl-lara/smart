@@ -10,8 +10,6 @@ Scala, and the compiler of this subset to Solidity.
 
 ```bash
 $ git clone https://github.com/epfl-lara/smart.git
-Cloning into 'smart'...
-// ...
 $ cd smart
 $ sbt clean universal:stage
 ```

@@ -297,7 +297,7 @@ trait CodeExtraction extends ASTExtractors {
         outOfSubsetError(t, "Mutable fields in static containers such as objects are not supported")
 
       case other =>
-        reporter.warning(other.pos, "Could not extract tree in static container: " + other)
+        reporter.warning(other.pos, s"Stainless does not support the following tree in static containers:\n$other")
     }
 
     (imports, classes, functions, typeDefs, subs, allClasses, allFunctions, allTypeDefs)
@@ -410,7 +410,7 @@ trait CodeExtraction extends ASTExtractors {
     var methods: Seq[xt.FunDef]      = Seq.empty
     var typeMembers: Seq[xt.TypeDef] = Seq.empty
 
-    for (d <- cd.impl.body) d match {
+    for ((d, i) <- cd.impl.body.zipWithIndex) d match {
       case EmptyTree =>
         // ignore
 
@@ -440,7 +440,8 @@ trait CodeExtraction extends ASTExtractors {
         methods :+= extractFunction(fsym, tparams, vparams, rhs)(defCtx)
 
       case t @ ExFieldDef(fsym, _, rhs) =>
-        methods :+= extractFunction(fsym, Seq.empty, Seq.empty, rhs)(defCtx)
+        val fd = extractFunction(fsym, Seq.empty, Seq.empty, rhs)(defCtx)
+        methods :+= fd.copy(flags = fd.flags :+ xt.FieldDefPosition(i))
 
       case t @ ExLazyFieldDef(fsym, _, rhs) =>
         methods :+= extractFunction(fsym, Seq.empty, Seq.empty, rhs)(defCtx)
@@ -474,7 +475,7 @@ trait CodeExtraction extends ASTExtractors {
         // ignore
 
       case other =>
-        reporter.warning(other.pos, "Could not extract tree in class: " + other + " (" + other.getClass + ")")
+        reporter.warning(other.pos, s"In class $id, Stainless does not support:\n$other")
     }
 
     val optInv = if (invariants.isEmpty) None else Some({
@@ -565,7 +566,7 @@ trait CodeExtraction extends ASTExtractors {
     val id = getIdentifier(sym)
     val isAbstract = rhs == EmptyTree
 
-    var flags = annotationsOf(sym).filterNot(_ == xt.IsMutable) ++
+    var flags = annotationsOf(sym).filterNot(annot => annot == xt.IsMutable || annot.name == "inlineInvariant") ++
       (if (sym.isImplicit && sym.isSynthetic) Seq(xt.Inline, xt.Synthetic) else Seq()) ++
       (if (sym.isPrivate) Seq(xt.Private) else Seq()) ++
       (if (sym.isFinal) Seq(xt.Final) else Seq()) ++
@@ -814,7 +815,8 @@ trait CodeExtraction extends ASTExtractors {
       case v @ ValDef(_, name, tpt, _) => (v.symbol, name, tpt)
     }.foldLeft((Map.empty[Symbol, xt.ValDef], fctx)) { case ((vds, dctx), (sym, name, tpt)) =>
       if (!sym.isMutable) {
-        val vd = xt.ValDef(FreshIdentifier(name.toString), extractType(tpt)(dctx), annotationsOf(sym, ignoreOwner = true)).setPos(sym.pos)
+        val laziness = if (sym.isLazy) Some(xt.Lazy) else None
+        val vd = xt.ValDef(FreshIdentifier(name.toString), extractType(tpt)(dctx), annotationsOf(sym, ignoreOwner = true) ++ laziness).setPos(sym.pos)
         (vds + (sym -> vd), dctx.withNewVar(sym, () => vd.toVariable))
       } else {
         val vd = xt.VarDef(FreshIdentifier(name.toString), extractType(tpt)(dctx), annotationsOf(sym, ignoreOwner = true)).setPos(sym.pos)
@@ -1526,7 +1528,7 @@ trait CodeExtraction extends ASTExtractors {
     }
 
     // default behaviour is to complain :)
-    case _ => outOfSubsetError(tr, "Could not extract " + tr + " (Scala tree of type "+tr.getClass+")")
+    case _ => outOfSubsetError(tr, s"Stainless does not support expression: `$tr`")
   }).ensurePos(tr.pos)
 
   /** Inject implicit widening casts according to the Java semantics (5.6.2. Binary Numeric Promotion) */
@@ -1743,14 +1745,14 @@ trait CodeExtraction extends ASTExtractors {
           tpe
 
         case None =>
-          outOfSubsetError(tpt.typeSymbol.pos, "Could not extract refined type: "+tpt+" ("+tpt.getClass+")")
+          outOfSubsetError(tpt.typeSymbol.pos, s"Stainless does not support type $tpt")
       }
 
     case AnnotatedType(_, tpe) => extractType(tpe)
 
     case _ =>
       if (tpt ne null) {
-        outOfSubsetError(tpt.typeSymbol.pos, "Could not extract type: "+tpt+" ("+tpt.getClass+")")
+        outOfSubsetError(tpt.typeSymbol.pos, s"Stainless does not support type $tpt")
         throw new Exception()
       } else {
         outOfSubsetError(NoPosition, "Tree with null-pointer as type found")
