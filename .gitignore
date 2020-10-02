@@ -98,6 +98,7 @@ slc-lib/Makefile.conf
 .metals
 .bloop
 project/metals.sbt
+project/project
 
 # Solidity files
 *.sol
