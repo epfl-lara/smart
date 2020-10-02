@@ -6,7 +6,8 @@ import java.io._
 object SolidityPrinter {
   def writeFile(ctx: inox.Context, filename: String, imports: Set[SolidityImport], defs: Seq[SolidityDef]) = {
     def ppHeader()(implicit out: Writer) = {
-      out.write("pragma solidity ^0.6.3;\n\n")
+      out.write("// SPDX-License-Identifier: Apache-2.0\n")
+      out.write("pragma solidity ^0.7.2;\n\n")
     }
 
     def ppImports()(implicit out: Writer) = {
@@ -107,15 +108,15 @@ object SolidityPrinter {
 
     def ppCode(code: SolidityExpr)(implicit out: Writer, indentLvl: Int): Unit = code match {
       case SMethodInvocation(rcv, method, args, ether) =>
-        if(rcv != SThis()) {
+        if (rcv != SThis()) {
           ppCode(rcv)
           out.write("." + method)
         } else writeWithIndent(method)
 
-        if(ether.isDefined) {
-          out.write(".value(")
+        if (ether.isDefined) {
+          out.write("{ value: ")
           ppCode(ether.get)(out, 0)
-          out.write(")")
+          out.write(" }")
         }
 
         out.write("(")
@@ -187,7 +188,7 @@ object SolidityPrinter {
 
       case SEnumValue(id, value) => writeWithIndent(id + "." + value)
 
-      case SNow() => writeWithIndent("now")
+      case SNow() => writeWithIndent("block.timestamp")
 
       case SThis() => writeWithIndent("this")
 
@@ -328,7 +329,7 @@ object SolidityPrinter {
         val SConstructorDef(params, body) = cons
         writeWithIndent("constructor (")
         writeParamsWithComma(params)(out, 0)
-        out.write(") public {\n")
+        out.write(") {\n")
         ppCode(body)(out, indentLvl + 1)
         writeWithIndent("}\n\n")
       }
